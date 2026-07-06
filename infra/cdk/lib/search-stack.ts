@@ -9,6 +9,7 @@ export interface SearchStackProps extends StackProps {
 
 export class SearchStack extends Stack {
   readonly domainEndpoint: string;
+  readonly domainArn: string;
   readonly apiSearchSecurityGroup: SecurityGroup;
   readonly domainSecurityGroup: SecurityGroup;
   readonly vpc: Vpc;
@@ -42,5 +43,6 @@ export class SearchStack extends Stack {
       removalPolicy: props.stage === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY
     });
     this.domainEndpoint = `https://${domain.domainEndpoint}`;
+    this.domainArn = domain.domainArn;
   }
 }

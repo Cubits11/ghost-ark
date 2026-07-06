@@ -6,7 +6,20 @@ export interface AuthenticatedPrincipal {
   subject: string;
   tenantSlug: string;
   roles: string[];
-  source: "jwt" | "iam" | "developer-header";
+  source: "jwt" | "authorizer" | "developer-header";
+}
+
+type Claims = Record<string, unknown>;
+
+interface AuthorizerContext {
+  jwt?: { claims?: Claims };
+  claims?: Claims;
+  tenant_slug?: unknown;
+  tenantSlug?: unknown;
+  "custom:tenant_slug"?: unknown;
+  principalId?: unknown;
+  roles?: unknown;
+  [key: string]: unknown;
 }
 
 function header(event: APIGatewayProxyEventV2, name: string): string | undefined {
@@ -14,17 +27,40 @@ function header(event: APIGatewayProxyEventV2, name: string): string | undefined
   return Object.entries(event.headers ?? {}).find(([key]) => key.toLowerCase() === lower)?.[1];
 }
 
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function claim(claims: Claims | undefined, ...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = stringValue(claims?.[name]);
+    if (value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function parseRoles(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((role): role is string => typeof role === "string" && role.length > 0);
+  }
+  return typeof value === "string" ? value.split(/[\s,]+/u).filter(Boolean) : [];
+}
+
 export function authenticate(event: APIGatewayProxyEventV2): AuthenticatedPrincipal {
   const requestContext = event.requestContext as APIGatewayProxyEventV2["requestContext"] & {
-    authorizer?: { jwt?: { claims?: Record<string, unknown> } };
+    authorizer?: AuthorizerContext;
   };
-  const claims = requestContext.authorizer?.jwt?.claims;
-  const jwtTenant = typeof claims?.tenant_slug === "string" ? claims.tenant_slug : undefined;
-  const jwtSubject = typeof claims?.sub === "string" ? claims.sub : undefined;
-  const jwtRoles = typeof claims?.roles === "string" ? claims.roles.split(/\s+/u).filter(Boolean) : [];
+  const authorizer = requestContext.authorizer;
+  const claims = authorizer?.jwt?.claims ?? authorizer?.claims;
+  const jwtTenant = claim(claims, "tenant_slug", "custom:tenant_slug", "tenantSlug");
+  const authorizerTenant = stringValue(authorizer?.tenant_slug) ?? stringValue(authorizer?.["custom:tenant_slug"]) ?? stringValue(authorizer?.tenantSlug);
+  const jwtSubject = claim(claims, "sub", "username", "cognito:username") ?? stringValue(authorizer?.principalId);
+  const jwtRoles = parseRoles(claims?.roles ?? claims?.["cognito:groups"] ?? authorizer?.roles);
 
   const devTenant = process.env.ALLOW_DEVELOPER_HEADERS === "true" ? header(event, "x-tenant-slug") : undefined;
-  const tenantSlug = jwtTenant ?? devTenant;
+  const tenantSlug = jwtTenant ?? authorizerTenant ?? devTenant;
   if (!tenantSlug) {
     throw new AuthorizationError("Missing tenant identity");
   }
@@ -38,6 +74,6 @@ export function authenticate(event: APIGatewayProxyEventV2): AuthenticatedPrinci
     subject: jwtSubject ?? header(event, "x-principal-subject") ?? "unknown-principal",
     tenantSlug: parsedTenant.data,
     roles: jwtRoles,
-    source: jwtTenant ? "jwt" : "developer-header"
+    source: jwtTenant ? "jwt" : authorizerTenant ? "authorizer" : "developer-header"
   };
 }

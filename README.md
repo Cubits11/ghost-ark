@@ -45,9 +45,10 @@ It is designed for teams that need more than logs in a bucket and less than a ma
 2. Validate local code with `npm run validate`.
 3. Bootstrap a dev account from `infra/terraform/bootstrap`.
 4. Deploy application services from `infra/cdk`.
-5. Run the example S3 to catalog to receipt pipeline.
-6. Query curated datasets in Athena.
-7. Inspect the signed receipt in DynamoDB and through the API.
+5. Follow `docs/operations/runbooks/sandbox-validation.md` for the dev-account plan, deploy, alarm, API, and tenant-isolation checks.
+6. Run the example S3 to catalog to receipt pipeline.
+7. Query curated datasets in Athena.
+8. Inspect the signed receipt in DynamoDB and through the API.
 
 ## Design Stance
 
@@ -56,15 +57,19 @@ Ghost Ark is a cryptographic tracking substrate, not a magical tool that automat
 ## Security Defaults
 
 - Tenant slugs are mandatory and must pass canonical validation.
-- IAM policies use `${aws:PrincipalTag/slug}` scoping and explicit region deny statements.
+- Terraform renders IAM policy variables as `${aws:PrincipalTag/slug}` using `$${...}` HCL escaping, and tenant sandbox policies keep explicit region deny statements.
+- Bootstrap S3 buckets have versioning enabled for raw, curated, export, and Athena result zones.
+- Receipt API routes use an API Gateway Cognito authorizer. Runtime handlers read tenant identity from `tenant_slug`, `custom:tenant_slug`, or Lambda-authorizer tenant context.
 - Service roles are centrally owned and passed only to intended AWS services.
 - KMS signing uses asymmetric keys with `SIGN_VERIFY` usage.
 - Raw, curated, receipt, and export paths are separated by tenant namespace.
 - Lake Formation is the fine-grained disclosure layer; bespoke ACL logic is not the primary governance mechanism.
+- OpenSearch access from API Lambda roles is scoped to the deployed domain ARN, and the domain security group only accepts HTTPS from the API search Lambda security group.
+- Observatory Lambda-error and Ghost Ark custom receipt-gap alarms notify the observatory SNS topic.
 
 ## Validation Lanes
 
 - Unit tests for canonicalization, schemas, policy compilers, and signing helpers.
 - Integration checks for handlers, OpenSearch templates, and Step Functions definitions.
-- AWS-gated tests for dev-account receipt pipeline and tenant isolation.
+- AWS-gated tests for dev-account receipt pipeline and tenant isolation with `RUN_AWS_TESTS=true`.
 - Policy simulation through `tools/policy-sim/simulate.sh`.

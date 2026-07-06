@@ -19,6 +19,7 @@ new ApiStack(app, `GhostArk-${stage}-Api`, {
   project,
   env,
   opensearchEndpoint: search.domainEndpoint,
+  opensearchDomainArn: search.domainArn,
   searchSecurityGroup: search.apiSearchSecurityGroup,
   searchVpc: search.vpc
 });

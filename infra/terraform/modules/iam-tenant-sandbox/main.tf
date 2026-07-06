@@ -76,17 +76,17 @@ data "aws_iam_policy_document" "tenant_sandbox" {
       "s3:AbortMultipartUpload"
     ]
     resources = [
-      "arn:aws:s3:::${var.raw_bucket}/tenants/&{aws:PrincipalTag/slug}/*",
-      "arn:aws:s3:::${var.curated_bucket}/tenants/&{aws:PrincipalTag/slug}/*",
-      "arn:aws:s3:::${var.export_bucket}/tenants/&{aws:PrincipalTag/slug}/*",
-      "arn:aws:s3:::${var.athena_results_bucket}/tenants/&{aws:PrincipalTag/slug}/*"
+      "arn:aws:s3:::${var.raw_bucket}/tenants/$${aws:PrincipalTag/slug}/*",
+      "arn:aws:s3:::${var.curated_bucket}/tenants/$${aws:PrincipalTag/slug}/*",
+      "arn:aws:s3:::${var.export_bucket}/tenants/$${aws:PrincipalTag/slug}/*",
+      "arn:aws:s3:::${var.athena_results_bucket}/tenants/$${aws:PrincipalTag/slug}/*"
     ]
   }
 
   statement {
-    sid       = "AllowTenantScopedBucketListing"
-    effect    = "Allow"
-    actions   = ["s3:ListBucket"]
+    sid     = "AllowTenantScopedBucketListing"
+    effect  = "Allow"
+    actions = ["s3:ListBucket"]
     resources = [
       "arn:aws:s3:::${var.raw_bucket}",
       "arn:aws:s3:::${var.curated_bucket}",
@@ -97,7 +97,7 @@ data "aws_iam_policy_document" "tenant_sandbox" {
     condition {
       test     = "StringLike"
       variable = "s3:prefix"
-      values   = ["tenants/&{aws:PrincipalTag/slug}", "tenants/&{aws:PrincipalTag/slug}/*"]
+      values   = ["tenants/$${aws:PrincipalTag/slug}", "tenants/$${aws:PrincipalTag/slug}/*"]
     }
   }
 
@@ -119,7 +119,7 @@ data "aws_iam_policy_document" "tenant_sandbox" {
     condition {
       test     = "ForAllValues:StringEquals"
       variable = "dynamodb:LeadingKeys"
-      values   = ["&{aws:PrincipalTag/slug}"]
+      values   = ["$${aws:PrincipalTag/slug}"]
     }
   }
 
