@@ -10,6 +10,10 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_policy_simulation_denies_cross_tenant_s3():
+    required = ["AWS_PROFILE", "GHOST_ARK_TENANT_SLUG"]
+    missing = [name for name in required if not os.environ.get(name)]
+    assert not missing, f"Missing required environment variables: {missing}"
+
     result = subprocess.run(
         ["bash", "tools/policy-sim/simulate.sh", "--profile", os.environ["AWS_PROFILE"], "--tenant", os.environ["GHOST_ARK_TENANT_SLUG"]],
         check=False,

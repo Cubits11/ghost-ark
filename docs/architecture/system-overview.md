@@ -30,7 +30,10 @@ flowchart LR
 ## Trust Boundaries
 
 - Raw evidence is immutable by convention and lifecycle policy, but source systems can still be mutable.
+- Terraform-managed evidence buckets enable S3 versioning across raw, curated, export, and Athena result zones.
 - Curated datasets are reproducible transform outputs, partitioned by tenant and ingest date.
 - Receipts bind evidence references, transform metadata, policy context, claim references, and lineage pointers.
-- Lake Formation governs analytical disclosure; IAM governs service and resource access.
+- Lake Formation governs analytical disclosure; IAM governs service and resource access, including domain-scoped OpenSearch HTTP permissions.
 - Tenant isolation relies on principal tags, explicit region lockouts, and centrally owned service roles.
+- API Gateway authorizer context carries the tenant identity into receipt handlers before tenant access checks run.
+- Observatory alarms publish to the observatory SNS topic for Lambda errors and Ghost Ark custom receipt-gap metrics.

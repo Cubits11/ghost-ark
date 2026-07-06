@@ -20,4 +20,8 @@ Every tenant has a canonical slug. The slug is used in S3 prefixes, DynamoDB par
 
 ## Boundary Controls
 
-IAM policies use `${aws:PrincipalTag/slug}` for resource scoping and reject requests outside approved regions. System roles are not tenant-editable. Tenants can pass only centrally created service roles to the intended AWS service.
+IAM policies use `${aws:PrincipalTag/slug}` for resource scoping and reject requests outside approved regions. Terraform source uses `$${aws:PrincipalTag/slug}` so the planned IAM JSON contains the AWS policy variable instead of a Terraform interpolation.
+
+Receipt API calls are authenticated through an API Gateway Cognito authorizer. The runtime tenant identity comes from the JWT `tenant_slug` claim, Cognito `custom:tenant_slug` claim, or an equivalent Lambda-authorizer tenant context when a custom authorizer is introduced.
+
+System roles are not tenant-editable. Tenants can pass only centrally created service roles to the intended AWS service.

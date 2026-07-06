@@ -1,6 +1,7 @@
 import path from "path";
-import { Stack, StackProps } from "aws-cdk-lib";
-import { RestApi, LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
+import { CfnOutput, Stack, StackProps } from "aws-cdk-lib";
+import { AuthorizationType, CognitoUserPoolsAuthorizer, LambdaIntegration, RestApi } from "aws-cdk-lib/aws-apigateway";
+import { StringAttribute, UserPool } from "aws-cdk-lib/aws-cognito";
 import { ISecurityGroup, IVpc } from "aws-cdk-lib/aws-ec2";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction, NodejsFunctionProps } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -17,6 +18,7 @@ export interface ApiStackProps extends StackProps {
   stage: string;
   project?: string;
   opensearchEndpoint?: string;
+  opensearchDomainArn?: string;
   searchSecurityGroup?: ISecurityGroup;
   searchVpc?: IVpc;
 }
@@ -30,8 +32,8 @@ export class ApiStack extends Stack {
     super(scope, id, props);
     const project = props.project ?? "ghost-ark";
     const lake = new S3EvidenceLake(this, "EvidenceLake", { stage: props.stage, project });
-    if (!props.opensearchEndpoint) {
-      throw new Error("ApiStack requires an OpenSearch endpoint from SearchStack");
+    if (!props.opensearchEndpoint || !props.opensearchDomainArn) {
+      throw new Error("ApiStack requires an OpenSearch endpoint and domain ARN from SearchStack");
     }
     const signing = new KmsSigning(this, "Signing", { stage: props.stage, project });
     const ledger = new DynamoDbLedger(this, "Ledger", { stage: props.stage });
@@ -92,9 +94,32 @@ export class ApiStack extends Stack {
     searchEvidence.addToRolePolicy(
       new PolicyStatement({
         actions: ["es:ESHttpGet", "es:ESHttpPost"],
-        resources: ["*"]
+        resources: [`${props.opensearchDomainArn}/*`]
       })
     );
+
+    const userPool = new UserPool(this, "ReceiptUserPool", {
+      userPoolName: `${project}-${props.stage}-receipt-users`,
+      selfSignUpEnabled: false,
+      signInAliases: { email: true, username: true },
+      customAttributes: {
+        tenant_slug: new StringAttribute({ minLen: 1, maxLen: 48, mutable: true })
+      }
+    });
+    const userPoolClient = userPool.addClient("ReceiptApiClient", {
+      userPoolClientName: `${project}-${props.stage}-receipt-api-client`,
+      authFlows: {
+        userPassword: true,
+        userSrp: true
+      }
+    });
+    const receiptAuthorizer = new CognitoUserPoolsAuthorizer(this, "ReceiptAuthorizer", {
+      cognitoUserPools: [userPool]
+    });
+    const receiptMethodOptions = {
+      authorizationType: AuthorizationType.COGNITO,
+      authorizer: receiptAuthorizer
+    };
 
     const api = new RestApi(this, "GhostArkApi", {
       restApiName: `ghost-ark-${props.stage}`,
@@ -105,11 +130,14 @@ export class ApiStack extends Stack {
       }
     });
     const receipts = api.root.addResource("receipts");
-    receipts.addMethod("POST", new LambdaIntegration(createReceipt));
+    receipts.addMethod("POST", new LambdaIntegration(createReceipt), receiptMethodOptions);
     const tenants = api.root.addResource("tenants");
     const tenant = tenants.addResource("{tenantSlug}");
-    tenant.addResource("receipts").addResource("{receiptId}").addMethod("GET", new LambdaIntegration(getReceipt));
+    tenant.addResource("receipts").addResource("{receiptId}").addMethod("GET", new LambdaIntegration(getReceipt), receiptMethodOptions);
     tenant.addResource("claims").addMethod("GET", new LambdaIntegration(listClaims));
     tenant.addResource("search").addMethod("GET", new LambdaIntegration(searchEvidence));
+
+    new CfnOutput(this, "ReceiptUserPoolId", { value: userPool.userPoolId });
+    new CfnOutput(this, "ReceiptUserPoolClientId", { value: userPoolClient.userPoolClientId });
   }
 }

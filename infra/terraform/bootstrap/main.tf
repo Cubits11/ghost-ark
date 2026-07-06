@@ -64,6 +64,21 @@ resource "aws_s3_bucket_public_access_block" "all" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_versioning" "all" {
+  for_each = {
+    raw            = aws_s3_bucket.raw.id
+    curated        = aws_s3_bucket.curated.id
+    exports        = aws_s3_bucket.exports.id
+    athena_results = aws_s3_bucket.athena_results.id
+  }
+
+  bucket = each.value
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_kms_key" "receipt_signing" {
   description              = "Ghost Ark ${var.stage} asymmetric receipt signing key"
   key_usage                = "SIGN_VERIFY"
