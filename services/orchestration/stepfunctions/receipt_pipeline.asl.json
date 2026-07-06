@@ -1,0 +1,146 @@
+{
+  "Comment": "Ghost Ark receipt pipeline: crawl, query, collect Athena proof, publish notification, and invoke receipt issuer.",
+  "StartAt": "StartMetadataCrawler",
+  "States": {
+    "StartMetadataCrawler": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:glue:startCrawler",
+      "Parameters": {
+        "Name.$": "$.crawlerName"
+      },
+      "Next": "WaitForCrawler"
+    },
+    "WaitForCrawler": {
+      "Type": "Wait",
+      "SecondsPath": "$.crawlerPollSeconds",
+      "Next": "GetCrawlerStatus"
+    },
+    "GetCrawlerStatus": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:glue:getCrawler",
+      "Parameters": {
+        "Name.$": "$.crawlerName"
+      },
+      "Next": "CrawlerComplete?"
+    },
+    "CrawlerComplete?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.Crawler.State",
+          "StringEquals": "READY",
+          "Next": "StartAthenaValidation"
+        }
+      ],
+      "Default": "WaitForCrawler"
+    },
+    "StartAthenaValidation": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:athena:startQueryExecution",
+      "Parameters": {
+        "QueryString.$": "$.validationQuery",
+        "WorkGroup.$": "$.athenaWorkgroup",
+        "QueryExecutionContext": {
+          "Database.$": "$.databaseName"
+        },
+        "ResultConfiguration": {
+          "OutputLocation.$": "$.athenaOutputLocation"
+        }
+      },
+      "ResultPath": "$.athenaStart",
+      "Next": "WaitForAthena"
+    },
+    "WaitForAthena": {
+      "Type": "Wait",
+      "SecondsPath": "$.athenaPollSeconds",
+      "Next": "GetAthenaStatus"
+    },
+    "GetAthenaStatus": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:athena:getQueryExecution",
+      "Parameters": {
+        "QueryExecutionId.$": "$.athenaStart.QueryExecutionId"
+      },
+      "ResultPath": "$.athenaStatus",
+      "Next": "AthenaComplete?"
+    },
+    "AthenaComplete?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.athenaStatus.QueryExecution.Status.State",
+          "StringEquals": "SUCCEEDED",
+          "Next": "GetAthenaRows"
+        },
+        {
+          "Variable": "$.athenaStatus.QueryExecution.Status.State",
+          "StringEquals": "FAILED",
+          "Next": "PublishFailure"
+        },
+        {
+          "Variable": "$.athenaStatus.QueryExecution.Status.State",
+          "StringEquals": "CANCELLED",
+          "Next": "PublishFailure"
+        }
+      ],
+      "Default": "WaitForAthena"
+    },
+    "GetAthenaRows": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:athena:getQueryResults",
+      "Parameters": {
+        "QueryExecutionId.$": "$.athenaStart.QueryExecutionId",
+        "MaxResults": 100
+      },
+      "ResultPath": "$.athenaRows",
+      "Next": "IssueReceipt"
+    },
+    "IssueReceipt": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName.$": "$.receiptIssuerFunctionArn",
+        "Payload": {
+          "requestContext": {
+            "http": {
+              "method": "POST",
+              "path": "/receipts"
+            }
+          },
+          "headers": {
+            "x-tenant-slug.$": "$.tenantSlug",
+            "x-principal-subject": "stepfunctions:receipt-pipeline"
+          },
+          "body.$": "States.JsonToString($.receiptRequest)"
+        }
+      },
+      "ResultPath": "$.receiptResponse",
+      "Next": "PublishSuccess"
+    },
+    "PublishSuccess": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn.$": "$.notificationTopicArn",
+        "Subject": "Ghost Ark receipt pipeline succeeded",
+        "Message.$": "States.JsonToString($.receiptResponse.Payload)"
+      },
+      "End": true
+    },
+    "PublishFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn.$": "$.notificationTopicArn",
+        "Subject": "Ghost Ark receipt pipeline failed",
+        "Message.$": "States.JsonToString($.athenaStatus)"
+      },
+      "Next": "FailPipeline"
+    },
+    "FailPipeline": {
+      "Type": "Fail",
+      "Error": "GhostArkReceiptPipelineFailed",
+      "Cause": "Crawler or Athena validation failed"
+    }
+  }
+}

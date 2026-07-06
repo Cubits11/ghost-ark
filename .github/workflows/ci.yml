@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+      - run: python -m py_compile services/transform/glue/jobs/*.py tests/aws/dev-account/*.py
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive infra/terraform
+      - run: terraform -chdir=infra/terraform/bootstrap init -backend=false
+      - run: terraform -chdir=infra/terraform/bootstrap validate
+      - run: bash tools/policy-sim/simulate.sh --dry-run --profile example-tenant

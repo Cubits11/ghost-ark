@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+cdk.out/
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+tmp/

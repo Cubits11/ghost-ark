@@ -1,0 +1,6 @@
+{
+  "app": "node dist/infra/cdk/bin/app.js",
+  "context": {
+    "@aws-cdk/core:defaultCrossStackReferences": "strong"
+  }
+}

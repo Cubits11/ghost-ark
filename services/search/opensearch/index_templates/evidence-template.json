@@ -1,0 +1,34 @@
+{
+  "index_patterns": ["ghost-ark-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "index.mapping.total_fields.limit": 2000
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "id": { "type": "keyword" },
+        "tenantSlug": { "type": "keyword" },
+        "title": { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } },
+        "body": { "type": "text" },
+        "objectUri": { "type": "keyword" },
+        "observedAt": { "type": "date" },
+        "indexedAt": { "type": "date" },
+        "receiptIds": { "type": "keyword" },
+        "lineageEventIds": { "type": "keyword" },
+        "classification": { "type": "keyword" },
+        "metadata": {
+          "type": "object",
+          "dynamic": true
+        }
+      }
+    }
+  },
+  "priority": 500,
+  "_meta": {
+    "owner": "ghost-ark",
+    "purpose": "Evidence search with tenant-scoped aliases and disclosure-safe fields."
+  }
+}

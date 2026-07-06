@@ -1,0 +1,24 @@
+{
+  "tags": [
+    {
+      "key": "tenant_slug",
+      "description": "Canonical tenant boundary tag.",
+      "values": ["example-tenant"]
+    },
+    {
+      "key": "classification",
+      "description": "Disclosure classification for analytical access.",
+      "values": ["public", "internal", "confidential", "restricted"]
+    },
+    {
+      "key": "evidence_role",
+      "description": "Evidence lifecycle role.",
+      "values": ["raw", "curated", "receipt", "export"]
+    },
+    {
+      "key": "retention",
+      "description": "Retention policy class.",
+      "values": ["short", "standard", "legal_hold", "archive"]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "tenantSlug": "example-tenant",
+  "databaseName": "ghost_ark_dev_example_tenant",
+  "tableName": "curated_evidence",
+  "rowFilterExpression": "tenant_slug = 'example-tenant'",
+  "columnAllowList": [
+    "evidence_object_id",
+    "tenant_slug",
+    "object_uri",
+    "content_sha256",
+    "classification",
+    "observed_at"
+  ],
+  "lfTags": {
+    "tenant_slug": "example-tenant",
+    "classification": "internal",
+    "evidence_role": "curated"
+  }
+}

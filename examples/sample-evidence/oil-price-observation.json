@@ -1,0 +1,16 @@
+{
+  "tenantSlug": "acme-lab",
+  "source": {
+    "kind": "batch-import",
+    "system": "workshop-lab-1",
+    "sourceId": "crude-oil-demo"
+  },
+  "objectUri": "s3://ghost-ark-dev-raw/tenants/acme-lab/raw/oil/2026/07/06/oil.csv",
+  "contentType": "text/csv",
+  "sizeBytes": 24576,
+  "classification": "internal",
+  "metadata": {
+    "dataset": "raw_oil",
+    "expectedPartitions": ["year"]
+  }
+}
