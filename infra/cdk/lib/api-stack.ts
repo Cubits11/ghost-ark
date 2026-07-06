@@ -1,8 +1,9 @@
 import path from "path";
 import { Stack, StackProps } from "aws-cdk-lib";
 import { RestApi, LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
+import { ISecurityGroup, IVpc } from "aws-cdk-lib/aws-ec2";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
-import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { NodejsFunction, NodejsFunctionProps } from "aws-cdk-lib/aws-lambda-nodejs";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 import { DynamoDbLedger } from "../modules/dynamodb-ledger";
@@ -14,7 +15,10 @@ import { LakeFormationGovernance } from "../modules/lakeformation-governance";
 
 export interface ApiStackProps extends StackProps {
   stage: string;
+  project?: string;
   opensearchEndpoint?: string;
+  searchSecurityGroup?: ISecurityGroup;
+  searchVpc?: IVpc;
 }
 
 function handlerEntry(relativePath: string): string {
@@ -24,11 +28,12 @@ function handlerEntry(relativePath: string): string {
 export class ApiStack extends Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
-    const lake = new S3EvidenceLake(this, "EvidenceLake", { stage: props.stage });
+    const project = props.project ?? "ghost-ark";
+    const lake = new S3EvidenceLake(this, "EvidenceLake", { stage: props.stage, project });
     if (!props.opensearchEndpoint) {
       throw new Error("ApiStack requires an OpenSearch endpoint from SearchStack");
     }
-    const signing = new KmsSigning(this, "Signing", { stage: props.stage });
+    const signing = new KmsSigning(this, "Signing", { stage: props.stage, project });
     const ledger = new DynamoDbLedger(this, "Ledger", { stage: props.stage });
     const catalog = new GlueCatalog(this, "Catalog", { stage: props.stage, curatedBucket: lake.curatedBucket });
     new AthenaWorkgroup(this, "Athena", { stage: props.stage, resultsBucket: lake.athenaResultsBucket });
@@ -39,11 +44,18 @@ export class ApiStack extends Stack {
       RECEIPT_LEDGER_TABLE: ledger.receipts.tableName,
       CLAIM_LEDGER_TABLE: ledger.claims.tableName,
       LINEAGE_LEDGER_TABLE: ledger.lineage.tableName,
-      KMS_SIGNING_KEY_ID: signing.key.keyId,
+      KMS_SIGNING_KEY_ID: signing.keyId,
       OPENSEARCH_ENDPOINT: props.opensearchEndpoint,
       OPENSEARCH_INDEX_PREFIX: `ghost-ark-${props.stage}`,
       ALLOW_DEVELOPER_HEADERS: props.stage === "prod" ? "false" : "true"
     };
+    let searchVpcConfig: Pick<NodejsFunctionProps, "vpc" | "securityGroups"> = {};
+    if (props.searchVpc && props.searchSecurityGroup) {
+      searchVpcConfig = {
+        vpc: props.searchVpc,
+        securityGroups: [props.searchSecurityGroup]
+      };
+    }
 
     const createReceipt = new NodejsFunction(this, "CreateReceiptHandler", {
       runtime: Runtime.NODEJS_22_X,
@@ -67,7 +79,8 @@ export class ApiStack extends Stack {
       runtime: Runtime.NODEJS_22_X,
       entry: handlerEntry("apps/api/src/handlers/searchEvidence.ts"),
       handler: "handler",
-      environment
+      environment,
+      ...searchVpcConfig
     });
 
     for (const fn of [createReceipt, getReceipt, listClaims]) {
@@ -75,7 +88,7 @@ export class ApiStack extends Stack {
       ledger.claims.grantReadWriteData(fn);
       ledger.lineage.grantReadWriteData(fn);
     }
-    signing.key.grantSign(createReceipt);
+    signing.grantSign(createReceipt);
     searchEvidence.addToRolePolicy(
       new PolicyStatement({
         actions: ["es:ESHttpGet", "es:ESHttpPost"],

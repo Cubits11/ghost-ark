@@ -1,12 +1,12 @@
 import { Stack } from "aws-cdk-lib";
 import { CfnCrawler, CfnDatabase } from "aws-cdk-lib/aws-glue";
 import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
-import { Bucket } from "aws-cdk-lib/aws-s3";
+import { IBucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
 export interface GlueCatalogProps {
   stage: string;
-  curatedBucket: Bucket;
+  curatedBucket: IBucket;
 }
 
 export class GlueCatalog extends Construct {
