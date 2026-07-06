@@ -1,0 +1,23 @@
+name: deploy-prod
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+      - run: npx cdk synth --app "node dist/infra/cdk/bin/app.js" -c stage=prod
+      - run: npx cdk deploy --app "node dist/infra/cdk/bin/app.js" --all -c stage=prod

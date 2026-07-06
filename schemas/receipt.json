@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/receipt.json",
+  "title": "Ghost Ark Receipt",
+  "type": "object",
+  "required": ["payload", "signature"],
+  "additionalProperties": false,
+  "properties": {
+    "payload": {
+      "type": "object",
+      "required": [
+        "receiptId",
+        "schemaVersion",
+        "tenantSlug",
+        "issuedAt",
+        "subject",
+        "evidenceObjects",
+        "lineageEventIds",
+        "claimIds",
+        "governanceContext"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "receiptId": { "type": "string", "pattern": "^rct_[a-f0-9]{32,64}$" },
+        "schemaVersion": { "const": "ghost-ark.receipt.v1" },
+        "tenantSlug": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$" },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "subject": { "type": "object", "additionalProperties": true },
+        "evidenceObjects": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "lineageEventIds": { "type": "array", "items": { "type": "string" } },
+        "claimIds": { "type": "array", "items": { "type": "string" } },
+        "governanceContext": { "type": "object", "additionalProperties": true },
+        "transform": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "required": ["keyId", "algorithm", "messageType", "digestSha256", "signatureBase64", "signedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "keyId": { "type": "string" },
+        "algorithm": { "type": "string" },
+        "messageType": { "const": "DIGEST" },
+        "digestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "signatureBase64": { "type": "string" },
+        "signedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/evidence_object.json",
+  "title": "Ghost Ark Evidence Object",
+  "type": "object",
+  "required": ["evidenceObjectId", "tenantSlug", "source", "objectUri", "contentSha256", "observedAt"],
+  "additionalProperties": false,
+  "properties": {
+    "evidenceObjectId": { "type": "string", "pattern": "^ev_[a-f0-9]{32,64}$" },
+    "tenantSlug": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$" },
+    "source": {
+      "type": "object",
+      "required": ["kind", "system"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["s3-drop", "api-upload", "cdc", "notebook", "batch-import"] },
+        "system": { "type": "string", "minLength": 1 },
+        "sourceId": { "type": "string" }
+      }
+    },
+    "objectUri": { "type": "string", "pattern": "^s3://" },
+    "contentSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "contentType": { "type": "string" },
+    "sizeBytes": { "type": "integer", "minimum": 0 },
+    "classification": { "type": "string" },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "metadata": { "type": "object", "additionalProperties": true }
+  }
+}

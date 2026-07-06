@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/claim_envelope.json",
+  "title": "Ghost Ark Claim Envelope",
+  "type": "object",
+  "required": ["claimId", "tenantSlug", "state", "statement", "receiptIds", "createdAt", "updatedAt"],
+  "additionalProperties": false,
+  "properties": {
+    "claimId": { "type": "string", "pattern": "^clm_[a-f0-9]{32,64}$" },
+    "tenantSlug": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$" },
+    "state": { "enum": ["draft", "under-review", "accepted", "disputed", "revoked", "superseded"] },
+    "statement": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string" },
+    "receiptIds": { "type": "array", "items": { "type": "string" } },
+    "reviewer": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "metadata": { "type": "object", "additionalProperties": true }
+  }
+}

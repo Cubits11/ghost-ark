@@ -1,0 +1,56 @@
+{
+  "name": "ghost-ark-v50",
+  "version": "50.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "AWS-native evidence lakehouse and cryptographic receipt-control platform.",
+  "type": "commonjs",
+  "workspaces": [
+    "apps/api",
+    "apps/console",
+    "packages/*",
+    "services/signing/kms",
+    "services/ledger/dynamodb",
+    "services/search/opensearch/ingestion",
+    "services/ingest/lambda/*",
+    "services/transform/lambda/*",
+    "infra/cdk",
+    "tools/scripts"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist coverage cdk.out",
+    "docs:check": "node -e \"const fs=require('fs'); const required=['docs/architecture/system-overview.md','docs/compliance/non-claims.md','README.md']; for (const f of required) { if (!fs.existsSync(f)) throw new Error('Missing '+f); }\"",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "validate": "npm run lint && npm test && npm run docs:check"
+  },
+  "dependencies": {
+    "@aws-sdk/client-athena": "^3.1080.0",
+    "@aws-sdk/client-dynamodb": "^3.1080.0",
+    "@aws-sdk/client-glue": "^3.1080.0",
+    "@aws-sdk/client-iam": "^3.1080.0",
+    "@aws-sdk/client-kms": "^3.1080.0",
+    "@aws-sdk/client-lakeformation": "^3.1080.0",
+    "@aws-sdk/client-s3": "^3.1080.0",
+    "@aws-sdk/client-sfn": "^3.1080.0",
+    "@aws-sdk/client-sns": "^3.1080.0",
+    "@aws-sdk/lib-dynamodb": "^3.1080.0",
+    "aws-cdk-lib": "^2.261.0",
+    "constructs": "^10.4.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.152",
+    "@types/node": "^24.0.10",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "aws-cdk": "^2.1129.0",
+    "esbuild": "^0.25.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

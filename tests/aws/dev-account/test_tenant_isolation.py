@@ -1,0 +1,20 @@
+import os
+import subprocess
+import pytest
+
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("RUN_AWS_TESTS") != "true",
+    reason="Set RUN_AWS_TESTS=true and provide tenant IAM profiles to run this test.",
+)
+
+
+def test_policy_simulation_denies_cross_tenant_s3():
+    result = subprocess.run(
+        ["bash", "tools/policy-sim/simulate.sh", "--profile", os.environ["AWS_PROFILE"], "--tenant", os.environ["GHOST_ARK_TENANT_SLUG"]],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "crossTenantDecision=explicitDeny" in result.stdout

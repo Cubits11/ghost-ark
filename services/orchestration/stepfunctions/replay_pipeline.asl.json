@@ -1,0 +1,54 @@
+{
+  "Comment": "Ghost Ark replay pipeline for deterministic receipt repair and supersession.",
+  "StartAt": "ReplayReceipts",
+  "States": {
+    "ReplayReceipts": {
+      "Type": "Map",
+      "ItemsPath": "$.receiptIds",
+      "MaxConcurrency": 5,
+      "Parameters": {
+        "tenantSlug.$": "$.tenantSlug",
+        "receiptId.$": "$$.Map.Item.Value",
+        "replayReason.$": "$.replayReason",
+        "replayFunctionArn.$": "$.replayFunctionArn"
+      },
+      "Iterator": {
+        "StartAt": "InvokeReplayWorker",
+        "States": {
+          "InvokeReplayWorker": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName.$": "$.replayFunctionArn",
+              "Payload": {
+                "tenantSlug.$": "$.tenantSlug",
+                "receiptId.$": "$.receiptId",
+                "replayReason.$": "$.replayReason"
+              }
+            },
+            "Retry": [
+              {
+                "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "End": true
+          }
+        }
+      },
+      "Next": "PublishReplaySummary"
+    },
+    "PublishReplaySummary": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn.$": "$.notificationTopicArn",
+        "Subject": "Ghost Ark replay completed",
+        "Message.$": "States.JsonToString($)"
+      },
+      "End": true
+    }
+  }
+}

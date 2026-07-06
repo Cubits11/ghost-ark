@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/lineage_event.json",
+  "title": "Ghost Ark Lineage Event",
+  "type": "object",
+  "required": ["eventId", "tenantSlug", "eventType", "occurredAt", "inputs", "outputs", "actor"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": { "type": "string", "pattern": "^lin_[a-f0-9]{32,64}$" },
+    "tenantSlug": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$" },
+    "eventType": {
+      "enum": ["ingested", "normalized", "curated", "cataloged", "queried", "signed", "indexed", "exported", "replayed", "revoked"]
+    },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "inputs": { "type": "array", "items": { "type": "string" } },
+    "outputs": { "type": "array", "items": { "type": "string" } },
+    "actor": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string" },
+    "metadata": { "type": "object", "additionalProperties": true }
+  }
+}

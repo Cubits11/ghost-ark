@@ -1,0 +1,6 @@
+{
+  "name": "@ghost-ark/s3-drop-handler",
+  "version": "50.0.0",
+  "private": true,
+  "main": "index.js"
+}

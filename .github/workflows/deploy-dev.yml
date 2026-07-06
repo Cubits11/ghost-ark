@@ -1,0 +1,27 @@
+name: deploy-dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      tenantSeed:
+        description: Initial tenant slug to seed after deployment
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+      - run: npx cdk deploy --app "node dist/infra/cdk/bin/app.js" --all --require-approval never -c stage=dev

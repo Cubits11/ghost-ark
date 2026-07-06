@@ -1,0 +1,6 @@
+{
+  "name": "@ghost-ark/console",
+  "version": "50.0.0",
+  "private": true,
+  "main": "dist/index.js"
+}
