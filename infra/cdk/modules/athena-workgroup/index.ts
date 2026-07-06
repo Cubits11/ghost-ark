@@ -1,10 +1,10 @@
 import { CfnWorkGroup } from "aws-cdk-lib/aws-athena";
-import { Bucket } from "aws-cdk-lib/aws-s3";
+import { IBucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
 export interface AthenaWorkgroupProps {
   stage: string;
-  resultsBucket: Bucket;
+  resultsBucket: IBucket;
 }
 
 export class AthenaWorkgroup extends Construct {

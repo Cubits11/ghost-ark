@@ -1,27 +1,35 @@
-import { Duration, RemovalPolicy } from "aws-cdk-lib";
-import { Alias, Key, KeySpec, KeyUsage } from "aws-cdk-lib/aws-kms";
+import { PolicyStatement, IGrantable } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 export interface KmsSigningProps {
   stage: string;
+  project?: string;
+  aliasName?: string;
+  keyId?: string;
 }
 
 export class KmsSigning extends Construct {
-  readonly key: Key;
-  readonly alias: Alias;
+  readonly aliasName: string;
+  readonly keyId: string;
 
   constructor(scope: Construct, id: string, props: KmsSigningProps) {
     super(scope, id);
-    this.key = new Key(this, "ReceiptSigningKey", {
-      description: `Ghost Ark ${props.stage} asymmetric receipt signing key`,
-      keySpec: KeySpec.RSA_3072,
-      keyUsage: KeyUsage.SIGN_VERIFY,
-      pendingWindow: Duration.days(30),
-      removalPolicy: RemovalPolicy.RETAIN
-    });
-    this.alias = new Alias(this, "ReceiptSigningAlias", {
-      aliasName: `alias/ghost-ark-${props.stage}-receipt-signing`,
-      targetKey: this.key
-    });
+    const project = props.project ?? "ghost-ark";
+    this.aliasName = props.aliasName ?? `alias/${project}-${props.stage}-receipt-signing`;
+    this.keyId = props.keyId ?? this.aliasName;
+  }
+
+  grantSign(grantee: IGrantable): void {
+    grantee.grantPrincipal.addToPrincipalPolicy(
+      new PolicyStatement({
+        actions: ["kms:DescribeKey", "kms:GetPublicKey", "kms:Sign"],
+        resources: ["*"],
+        conditions: {
+          "ForAnyValue:StringEquals": {
+            "kms:ResourceAliases": this.aliasName
+          }
+        }
+      })
+    );
   }
 }

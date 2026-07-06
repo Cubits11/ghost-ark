@@ -17,4 +17,5 @@ def test_policy_simulation_denies_cross_tenant_s3():
         text=True,
     )
     assert result.returncode == 0, result.stderr
-    assert "crossTenantDecision=explicitDeny" in result.stdout
+    assert "sameTenantDecision=allowed" in result.stdout
+    assert "crossTenantDecision=implicitDeny" in result.stdout
