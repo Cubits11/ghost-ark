@@ -4,10 +4,12 @@ import { ConsentState, DecisionKind, EnforcementPhase, PolicyDecision } from "..
 import { PolicyRepository } from "../policy/repository";
 import { PolicyMemoryTier } from "../policy/schema";
 import { RetrievedContextCandidate } from "../retrieval/types";
+import { RetrievalProvider } from "../retrieval/types";
 import { DecisionReceiptEmitter } from "../receipts/emission";
 import { VaultStore } from "../vault/store";
 import { ModelInvoker } from "../bedrock/types";
 import { GovernedInvokeStatus } from "./result";
+import { GovernedInvokeMetrics } from "./metrics";
 
 export interface GovernedInvokeRequest {
   pathTenantId: string;
@@ -50,6 +52,16 @@ export interface GovernedInvokeDependencies {
   receiptEmitter: DecisionReceiptEmitter;
   logger?: Logger;
   identityDigestSecret?: string;
+  modelAllowlist?: string[];
+  retrievalProvider?: RetrievalProvider;
+  retrievalOptions?: {
+    rejectCallerSuppliedContexts?: boolean;
+    requireProviderWhenEnabled?: boolean;
+  };
+  metrics?: GovernedInvokeMetrics;
+  metricDimensions?: {
+    stage?: string;
+  };
 }
 
 export function isModelInvocationAllowed(decision: PolicyDecision): boolean {

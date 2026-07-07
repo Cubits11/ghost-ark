@@ -1,5 +1,4 @@
 import { canonicalUnsignedDecisionReceipt, decisionReceiptDigest, receiptIdFromUnsignedDecisionReceipt, unsignedReceiptForSigning } from "./canonical";
-import { DecisionReceiptSigner } from "./signer";
 import { SignedDecisionReceipt, validateSignedDecisionReceipt } from "./schema";
 
 export interface DecisionReceiptVerificationCheck {
@@ -13,28 +12,39 @@ export interface DecisionReceiptVerificationResult {
   checks: DecisionReceiptVerificationCheck[];
 }
 
-interface ParsedSignatureEnvelope {
+export interface ParsedDecisionReceiptSignatureEnvelope {
   keyId?: unknown;
   digestSha256?: unknown;
   signature?: unknown;
+}
+
+export interface DecisionReceiptCanonicalVerifier {
+  readonly algorithm: SignedDecisionReceipt["signature_alg"];
+  readonly keyId?: string;
+  verifyCanonical(
+    canonicalPayload: string,
+    signature: string,
+    receipt: SignedDecisionReceipt,
+    envelope: ParsedDecisionReceiptSignatureEnvelope
+  ): boolean | Promise<boolean>;
 }
 
 function check(name: string, passed: boolean, detail: string): DecisionReceiptVerificationCheck {
   return { name, passed, detail };
 }
 
-function parseSignatureEnvelope(signatureEnvelope: string): ParsedSignatureEnvelope {
+export function parseDecisionReceiptSignatureEnvelope(signatureEnvelope: string): ParsedDecisionReceiptSignatureEnvelope {
   try {
-    return JSON.parse(Buffer.from(signatureEnvelope, "base64url").toString("utf8")) as ParsedSignatureEnvelope;
+    return JSON.parse(Buffer.from(signatureEnvelope, "base64url").toString("utf8")) as ParsedDecisionReceiptSignatureEnvelope;
   } catch {
     return {};
   }
 }
 
-export function verifyDecisionReceipt(
+export async function verifyDecisionReceipt(
   value: unknown,
-  signer: Pick<DecisionReceiptSigner, "algorithm" | "verifyCanonical">
-): DecisionReceiptVerificationResult {
+  verifier: DecisionReceiptCanonicalVerifier
+): Promise<DecisionReceiptVerificationResult> {
   const checks: DecisionReceiptVerificationCheck[] = [];
   let receipt: SignedDecisionReceipt;
 
@@ -62,15 +72,32 @@ export function verifyDecisionReceipt(
   checks.push(
     check(
       "algorithm",
-      receipt.signature_alg === signer.algorithm,
-      receipt.signature_alg === signer.algorithm
+      receipt.signature_alg === verifier.algorithm,
+      receipt.signature_alg === verifier.algorithm
         ? `Signature algorithm ${receipt.signature_alg} is expected.`
         : `Unexpected signature algorithm ${receipt.signature_alg}.`
     )
   );
 
-  const signatureEnvelope = parseSignatureEnvelope(receipt.receipt_signature);
+  const canonicalPayload = canonicalUnsignedDecisionReceipt(receipt);
+  const signatureEnvelope = parseDecisionReceiptSignatureEnvelope(receipt.receipt_signature);
+  const embeddedKeyId = typeof signatureEnvelope.keyId === "string" ? signatureEnvelope.keyId : "";
   const embeddedDigest = typeof signatureEnvelope.digestSha256 === "string" ? signatureEnvelope.digestSha256 : "";
+  const embeddedSignature = typeof signatureEnvelope.signature === "string" ? signatureEnvelope.signature : "";
+  const expectedKeyId = verifier.keyId;
+
+  checks.push(
+    check(
+      "key_id",
+      Boolean(embeddedKeyId) && (!expectedKeyId || embeddedKeyId === expectedKeyId),
+      !embeddedKeyId
+        ? "Signature envelope does not contain a keyId."
+        : expectedKeyId && embeddedKeyId !== expectedKeyId
+          ? `Signature keyId mismatch. Expected ${expectedKeyId}; observed ${embeddedKeyId}.`
+          : `Signature keyId ${embeddedKeyId} is present.`
+    )
+  );
+
   const recomputedDigest = decisionReceiptDigest(receipt);
   checks.push(
     check(
@@ -82,15 +109,33 @@ export function verifyDecisionReceipt(
     )
   );
 
-  if (!signer.verifyCanonical) {
-    checks.push(check("signature", false, "Signer does not expose local verification."));
+  checks.push(
+    check(
+      "canonical_payload",
+      canonicalPayload.length > 0,
+      canonicalPayload.length > 0
+        ? "Canonical unsigned decision receipt payload was recomputed."
+        : "Canonical unsigned decision receipt payload was empty."
+    )
+  );
+
+  if (!embeddedSignature) {
+    checks.push(check("signature", false, "Signature envelope does not contain a signature."));
+  } else if (receipt.signature_alg !== verifier.algorithm) {
+    checks.push(check("signature", false, "Signature verification skipped because algorithm check failed."));
   } else {
-    const signature = typeof signatureEnvelope.signature === "string" ? signatureEnvelope.signature : "";
+    let signaturePassed = false;
+    let detail = "Signature verification over canonical unsigned envelope completed.";
+    try {
+      signaturePassed = await verifier.verifyCanonical(canonicalPayload, embeddedSignature, receipt, signatureEnvelope);
+    } catch (error) {
+      detail = error instanceof Error ? error.message : String(error);
+    }
     checks.push(
       check(
         "signature",
-        signer.verifyCanonical(canonicalUnsignedDecisionReceipt(receipt), signature),
-        "Signature verification over canonical unsigned envelope completed."
+        signaturePassed,
+        detail
       )
     );
   }

@@ -12,6 +12,17 @@ const enableSearch =
   app.node.tryGetContext("enableSearch") === true ||
   app.node.tryGetContext("enableSearch") === "true" ||
   process.env.GHOST_ARK_ENABLE_SEARCH === "true";
+const bedrockModelAllowlistContext = app.node.tryGetContext("bedrockModelAllowlist") ?? process.env.GHOST_ARK_BEDROCK_MODEL_ALLOWLIST ?? "";
+const bedrockModelAllowlist = Array.isArray(bedrockModelAllowlistContext)
+  ? bedrockModelAllowlistContext
+  : String(bedrockModelAllowlistContext)
+      .split(",")
+      .map((modelId) => modelId.trim())
+      .filter(Boolean);
+const allowWildcardBedrockModels =
+  app.node.tryGetContext("allowWildcardBedrockModels") === true ||
+  app.node.tryGetContext("allowWildcardBedrockModels") === "true" ||
+  process.env.GHOST_ARK_ALLOW_WILDCARD_BEDROCK_MODELS === "true";
 
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
@@ -21,7 +32,9 @@ const env = {
 const apiProps: ApiStackProps = {
   stage,
   project,
-  env
+  env,
+  bedrockModelAllowlist,
+  allowWildcardBedrockModels
 };
 
 if (enableSearch) {

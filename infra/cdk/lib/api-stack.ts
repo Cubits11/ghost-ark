@@ -1,12 +1,14 @@
 import path from "path";
-import { CfnOutput, RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
+import { CfnOutput, Duration, RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
 import { AuthorizationType, CognitoUserPoolsAuthorizer, LambdaIntegration, RestApi } from "aws-cdk-lib/aws-apigateway";
+import { Alarm, ComparisonOperator, Metric } from "aws-cdk-lib/aws-cloudwatch";
 import { StringAttribute, UserPool } from "aws-cdk-lib/aws-cognito";
 import { AttributeType, BillingMode, Table } from "aws-cdk-lib/aws-dynamodb";
 import { ISecurityGroup, IVpc } from "aws-cdk-lib/aws-ec2";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction, NodejsFunctionProps } from "aws-cdk-lib/aws-lambda-nodejs";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 import { DynamoDbLedger } from "../modules/dynamodb-ledger";
 import { KmsSigning } from "../modules/kms-signing";
@@ -15,6 +17,7 @@ import { GlueCatalog } from "../modules/glue-catalog";
 import { AthenaWorkgroup } from "../modules/athena-workgroup";
 import { LakeFormationGovernance } from "../modules/lakeformation-governance";
 import { PrivacyVault } from "../modules/privacy-vault";
+import { foundationModelArn } from "./utils/bedrock-model-arns";
 
 export interface ApiStackProps extends StackProps {
   stage: string;
@@ -23,6 +26,8 @@ export interface ApiStackProps extends StackProps {
   opensearchDomainArn?: string;
   searchSecurityGroup?: ISecurityGroup;
   searchVpc?: IVpc;
+  bedrockModelAllowlist?: string[];
+  allowWildcardBedrockModels?: boolean;
 }
 
 function handlerEntry(relativePath: string): string {
@@ -38,6 +43,7 @@ export class ApiStack extends Stack {
     const signing = new KmsSigning(this, "Signing", { stage: props.stage, project });
     const ledger = new DynamoDbLedger(this, "Ledger", { stage: props.stage });
     const privacyVault = new PrivacyVault(this, "PrivacyVault", { stage: props.stage });
+    const bedrockModelAllowlist = props.bedrockModelAllowlist ?? [];
     const removalPolicy = props.stage === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
     const policyTable = new Table(this, "TenantPolicyTable", {
       tableName: `ghost-ark-${props.stage}-tenant-policies`,
@@ -54,6 +60,13 @@ export class ApiStack extends Stack {
       billingMode: BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy
+    });
+    const decisionReceiptHmacSecret = new Secret(this, "DecisionReceiptHmacSecret", {
+      secretName: `ghost-ark-${props.stage}-decision-receipt-hmac-secret`,
+      generateSecretString: {
+        passwordLength: 48,
+        excludePunctuation: true
+      }
     });
     const catalog = new GlueCatalog(this, "Catalog", { stage: props.stage, curatedBucket: lake.curatedBucket });
     new AthenaWorkgroup(this, "Athena", { stage: props.stage, resultsBucket: lake.athenaResultsBucket });
@@ -74,7 +87,11 @@ export class ApiStack extends Stack {
       GHOST_ARK_PRIVACY_VAULT_TABLE: privacyVault.table.tableName,
       GHOST_ARK_DECISION_RECEIPT_TABLE: decisionReceiptTable.tableName,
       GHOST_ARK_DECISION_SIGNING_KEY_ID: signing.keyId,
-      GHOST_ARK_RECEIPT_HMAC_SECRET: "",
+      GHOST_ARK_RECEIPT_HMAC_SECRET_ARN: decisionReceiptHmacSecret.secretArn,
+      GHOST_ARK_ALLOW_DEFAULT_POLICY: "false",
+      GHOST_ARK_BEDROCK_MODEL_ALLOWLIST: bedrockModelAllowlist.join(","),
+      GHOST_ARK_REJECT_CALLER_RETRIEVAL_CONTEXTS: "true",
+      GHOST_ARK_REQUIRE_RETRIEVAL_PROVIDER: "true",
       OPENSEARCH_ENDPOINT: props.opensearchEndpoint ?? "",
       OPENSEARCH_INDEX_PREFIX: `ghost-ark-${props.stage}`,
       ALLOW_DEVELOPER_HEADERS: "false"
@@ -129,14 +146,20 @@ export class ApiStack extends Stack {
     policyTable.grantReadData(invokeGoverned);
     privacyVault.table.grantReadWriteData(invokeGoverned);
     decisionReceiptTable.grantReadWriteData(invokeGoverned);
+    decisionReceiptHmacSecret.grantRead(invokeGoverned);
     signing.grantSign(createReceipt);
     signing.grantSign(invokeGoverned);
-    invokeGoverned.addToRolePolicy(
-      new PolicyStatement({
-        actions: ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
-        resources: ["*"]
-      })
-    );
+    if (bedrockModelAllowlist.length > 0 || props.allowWildcardBedrockModels === true) {
+      invokeGoverned.addToRolePolicy(
+        new PolicyStatement({
+          actions: ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+          resources:
+            bedrockModelAllowlist.length > 0
+              ? bedrockModelAllowlist.map((modelId) => foundationModelArn(modelId))
+              : ["*"]
+        })
+      );
+    }
     if (searchEvidence && props.opensearchDomainArn) {
       searchEvidence.addToRolePolicy(
         new PolicyStatement({
@@ -187,6 +210,72 @@ export class ApiStack extends Stack {
     if (searchEvidence) {
       tenant.addResource("search").addMethod("GET", new LambdaIntegration(searchEvidence), receiptMethodOptions);
     }
+
+    const governedInvokeFailedClosed = new Metric({
+      namespace: "GhostArk/GovernedInvoke",
+      metricName: "GovernedInvokeFailedClosed",
+      dimensionsMap: { stage: props.stage, status: "failed_closed" },
+      statistic: "sum",
+      period: Duration.minutes(5)
+    });
+    const governedInvokeReceiptFailure = new Metric({
+      namespace: "GhostArk/GovernedInvoke",
+      metricName: "GovernedInvokeReceiptEmissionFailed",
+      dimensionsMap: { stage: props.stage, status: "failed_closed" },
+      statistic: "sum",
+      period: Duration.minutes(5)
+    });
+    const governedInvokeKmsSigningFailure = new Metric({
+      namespace: "GhostArk/GovernedInvoke",
+      metricName: "GovernedInvokeKmsSigningFailed",
+      dimensionsMap: { stage: props.stage, status: "failed_closed" },
+      statistic: "sum",
+      period: Duration.minutes(5)
+    });
+    const governedInvokeBedrockFailure = new Metric({
+      namespace: "GhostArk/GovernedInvoke",
+      metricName: "GovernedInvokeBedrockFailed",
+      dimensionsMap: { stage: props.stage, status: "failed_closed" },
+      statistic: "sum",
+      period: Duration.minutes(5)
+    });
+
+    new Alarm(this, "GovernedInvokeFailedClosedAlarm", {
+      metric: governedInvokeFailedClosed,
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD
+    });
+    new Alarm(this, "GovernedInvokeReceiptEmissionFailureAlarm", {
+      metric: governedInvokeReceiptFailure,
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD
+    });
+    new Alarm(this, "GovernedInvokeKmsSigningFailureAlarm", {
+      metric: governedInvokeKmsSigningFailure,
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD
+    });
+    new Alarm(this, "GovernedInvokeBedrockFailureAlarm", {
+      metric: governedInvokeBedrockFailure,
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD
+    });
+    new Alarm(this, "InvokeGovernedLambdaErrorsAlarm", {
+      metric: invokeGoverned.metricErrors({ period: Duration.minutes(5), statistic: "sum" }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD
+    });
+    new Alarm(this, "InvokeGovernedLambdaDurationHighAlarm", {
+      metric: invokeGoverned.metricDuration({ period: Duration.minutes(5), statistic: "p99" }),
+      threshold: 15000,
+      evaluationPeriods: 1,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD
+    });
 
     new CfnOutput(this, "ReceiptUserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "ReceiptUserPoolClientId", { value: userPoolClient.userPoolClientId });

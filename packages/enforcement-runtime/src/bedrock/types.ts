@@ -11,6 +11,9 @@ export interface ModelInvokeOutput {
   rawOutputDigest: string;
   latencyMs: number;
   costEstimateUsd?: number;
+  metadata?: {
+    guardrailConfigured?: boolean;
+  };
 }
 
 export interface ModelInvoker {

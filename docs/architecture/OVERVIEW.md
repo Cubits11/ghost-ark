@@ -5,7 +5,7 @@ Ghost Ark currently has two connected slices:
 1. An AWS evidence and receipt-control plane for governed evidence records.
 2. A governed invocation runtime slice for deterministic LLM policy decisions, tenant and taint-filtered retrieval context, Bedrock invocation adapters, memory-write gates, and decision receipts.
 
-The repository now has a complete local governed invocation path and AWS-ready API/CDK wiring. It is not yet release-ready as a production Bedrock enforcement runtime because live AWS validation, model-format breadth, KMS verification for decision receipts, and operational runbooks remain incomplete.
+The repository now has a complete local governed invocation path and an AWS-runtime-validation-candidate API/CDK path. It is not release-ready as a production Bedrock enforcement runtime because live AWS validation, model-format breadth, retrieval service integration, and operational evidence remain incomplete.
 
 ## Enforcement Lifecycle
 
@@ -14,10 +14,10 @@ The implemented runtime lifecycle is:
 1. Normalize request.
 2. Resolve verified identity from Cognito, JWT, or Lambda-authorizer context.
 3. Reject client-declared tenant, user, or session authority.
-4. Load tenant/user policy from a tenant-scoped repository, or an explicit conservative default policy.
+4. Load tenant/user policy from a tenant-scoped repository. AWS mode disables default policy fallback unless `GHOST_ARK_ALLOW_DEFAULT_POLICY=true`.
 5. Compile the policies into canonical deterministic policy objects.
 6. Evaluate pre-retrieval and pre-model policy decisions.
-7. Filter retrieved context by tenant and taint before prompt construction.
+7. Retrieve server-side context when a provider is configured, reject caller-supplied retrieval in AWS mode, and filter retrieved context by tenant and taint before prompt construction.
 8. Invoke the configured model adapter only when pre-model policy allows.
 9. Evaluate post-model output.
 10. Gate memory writes by tier, consent, TTL, and suppression decision.
@@ -31,22 +31,20 @@ The implemented runtime lifecycle is:
 - Tenant-scoped in-memory and DynamoDB policy repository interfaces.
 - Decision vocabulary: ALLOW, MODIFY, REDACT, REFUSE, SILENCE, ESCALATE, REQUIRE_CONSENT, MEMORY_SUPPRESS, RECEIPT_ONLY, HUMAN_REVIEW.
 - Local and DynamoDB-shaped memory vault gates for KAPPA, SESSION, CONSTITUTION, AUDIT, and RESTRICTED tiers.
-- Decision receipt schema with canonical JSON signing input, local-dev HMAC signer, KMS decision signer, verifier for local signatures, and hash-chain check.
-- Retrieval firewall that rejects cross-tenant context and contains untrusted instruction taint before prompt construction.
+- Decision receipt schema with canonical JSON signing input, local-dev HMAC signer/verifier, KMS decision signer, KMS public-key verifier for `KMS_SIGN_RSASSA_PSS_SHA_256`, and hash-chain check.
+- Retrieval firewall and provider interface that reject cross-tenant context and contain untrusted instruction taint before prompt construction.
 - `governedInvoke` runtime that evaluates pre-retrieval, pre-model, post-model, and memory-write decisions around model invocation.
 - Fake model invoker for deterministic tests and AWS Bedrock Runtime adapter for deployed use.
-- `POST /tenants/{tenantSlug}/invoke` CDK route with Cognito authorization.
+- `POST /tenants/{tenantSlug}/invoke` CDK route with Cognito authorization, Secrets Manager HMAC digest material, strict policy mode, model allowlist configuration, optional Bedrock Guardrails passthrough, and governed invoke alarms.
 - API tenant identity derived from authorizer/JWT context, with body-declared tenant/user/session identifiers rejected for receipt creation.
 - Redacted structured logging helper for prompt, completion, memory, raw body, and credential-like fields.
 
 ## Current Missing Pieces
 
-- Bedrock Guardrails integration.
-- KMS decision receipt verification. KMS signing is implemented; local verification remains the tested verifier path.
-- Live AWS validation of the governed invoke route, KMS signer, policy table, privacy vault table, and Bedrock call.
-- Retrieval engine integration. The runtime filters provided candidates but does not yet own a retrieval service.
+- Live AWS validation of the governed invoke route, seeded policy, Secrets Manager HMAC digest secret, KMS signer/verifier, privacy vault table, alarms, and Bedrock call.
+- Retrieval engine integration. The runtime has a provider interface plus no-op/static implementations, but no OpenSearch retrieval provider in this pass.
 - Bedrock adapter support beyond one Anthropic Messages path and one generic JSON path.
-- Release-ready IAM and operational evidence for the LLM runtime.
+- Release-ready IAM and operational evidence for the LLM runtime. Bedrock wildcard IAM is removed by default, but any explicit wildcard opt-in remains a release blocker until reviewed.
 
 ## Receipt Boundaries
 

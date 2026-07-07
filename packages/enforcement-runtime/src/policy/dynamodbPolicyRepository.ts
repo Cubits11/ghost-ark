@@ -9,6 +9,7 @@ export interface DynamoDbPolicyRepositoryOptions {
   tableName: string;
   client?: DynamoDBDocumentClient;
   defaultPolicy?: PolicySource;
+  allowDefaultPolicy?: boolean;
 }
 
 interface PolicyItem {
@@ -45,11 +46,13 @@ export class DynamoDbPolicyRepository implements PolicyRepository {
   private readonly tableName: string;
   private readonly client: DynamoDBDocumentClient;
   private readonly defaultPolicy: PolicySource;
+  private readonly allowDefaultPolicy: boolean;
 
   constructor(options: DynamoDbPolicyRepositoryOptions) {
     this.tableName = options.tableName;
     this.client = options.client ?? DynamoDBDocumentClient.from(new DynamoDBClient({}));
     this.defaultPolicy = options.defaultPolicy ?? DEFAULT_GOVERNED_INVOKE_POLICY;
+    this.allowDefaultPolicy = options.allowDefaultPolicy ?? true;
   }
 
   async loadPolicies(input: PolicyRepositoryLoadInput): Promise<PolicySource[]> {
@@ -68,6 +71,12 @@ export class DynamoDbPolicyRepository implements PolicyRepository {
       }
       return validatePolicySource(item.policySource);
     });
+
+    if (policies.length === 0 && !this.allowDefaultPolicy) {
+      throw new AuthorizationError("No active governed invoke policy found for tenant and default policy is disabled", {
+        tenantId: input.tenantId
+      });
+    }
 
     return policies.length > 0 ? policies : [this.defaultPolicy];
   }

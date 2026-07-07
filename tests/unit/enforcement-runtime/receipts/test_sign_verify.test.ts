@@ -33,26 +33,28 @@ function unsignedReceipt() {
 }
 
 describe("decision receipt signing and verification", () => {
-  it("verifies a locally signed decision receipt", () => {
+  it("verifies a locally signed decision receipt", async () => {
     const signer = new LocalDevHmacReceiptSigner({ secret: "local-secret" });
     const signed = signDecisionReceipt(unsignedReceipt(), signer);
-    const result = verifyDecisionReceipt(signed, signer);
+    const result = await verifyDecisionReceipt(signed, signer);
 
     expect(result.verdict).toBe(true);
     expect(result.checks.map((check) => [check.name, check.passed])).toEqual([
       ["schema", true],
       ["receipt_id", true],
       ["algorithm", true],
+      ["key_id", true],
       ["digest", true],
+      ["canonical_payload", true],
       ["signature", true]
     ]);
   });
 
-  it("fails when the signed policy-bound field is tampered", () => {
+  it("fails when the signed policy-bound field is tampered", async () => {
     const signer = new LocalDevHmacReceiptSigner({ secret: "local-secret" });
     const signed = signDecisionReceipt(unsignedReceipt(), signer);
     const tampered = { ...signed, policy_hash: "c".repeat(64) };
-    const result = verifyDecisionReceipt(tampered, signer);
+    const result = await verifyDecisionReceipt(tampered, signer);
 
     expect(result.verdict).toBe(false);
     expect(result.checks.find((check) => check.name === "receipt_id")?.passed).toBe(false);
@@ -60,10 +62,10 @@ describe("decision receipt signing and verification", () => {
     expect(result.checks.find((check) => check.name === "signature")?.passed).toBe(false);
   });
 
-  it("fails when the verifier uses a different secret", () => {
+  it("fails when the verifier uses a different secret", async () => {
     const signer = new LocalDevHmacReceiptSigner({ secret: "local-secret" });
     const verifier = new LocalDevHmacReceiptSigner({ secret: "different-secret" });
-    const result = verifyDecisionReceipt(signDecisionReceipt(unsignedReceipt(), signer), verifier);
+    const result = await verifyDecisionReceipt(signDecisionReceipt(unsignedReceipt(), signer), verifier);
 
     expect(result.verdict).toBe(false);
     expect(result.checks.find((check) => check.name === "signature")?.passed).toBe(false);

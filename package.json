@@ -24,7 +24,9 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "validate": "npm run lint && npm test && npm run docs:check",
-    "receipt:verify": "ts-node tools/scripts/receiptVerify.ts"
+    "receipt:verify": "ts-node tools/scripts/receiptVerify.ts",
+    "seed:governed-policy": "ts-node tools/scripts/seedGovernedPolicy.ts",
+    "smoke:governed-invoke": "ts-node tools/scripts/smokeGovernedInvoke.ts"
   },
   "dependencies": {
     "@aws-sdk/client-athena": "^3.1080.0",
@@ -35,6 +37,7 @@
     "@aws-sdk/client-kms": "^3.1080.0",
     "@aws-sdk/client-lakeformation": "^3.1080.0",
     "@aws-sdk/client-s3": "^3.1080.0",
+    "@aws-sdk/client-secrets-manager": "^3.1081.0",
     "@aws-sdk/client-sfn": "^3.1080.0",
     "@aws-sdk/client-sns": "^3.1080.0",
     "@aws-sdk/lib-dynamodb": "^3.1080.0",

@@ -14,9 +14,13 @@ export class InMemoryPolicyRepository implements PolicyRepository {
   private readonly tenantPolicies = new Map<string, PolicySource[]>();
   private readonly userPolicies = new Map<string, PolicySource[]>();
   private readonly defaultPolicy: PolicySource;
+  private readonly allowDefaultPolicy: boolean;
 
-  constructor(options: { defaultPolicy?: PolicySource; policiesByTenant?: Record<string, PolicySource[]> } = {}) {
+  constructor(
+    options: { defaultPolicy?: PolicySource; policiesByTenant?: Record<string, PolicySource[]>; allowDefaultPolicy?: boolean } = {}
+  ) {
     this.defaultPolicy = options.defaultPolicy ?? DEFAULT_GOVERNED_INVOKE_POLICY;
+    this.allowDefaultPolicy = options.allowDefaultPolicy ?? true;
     for (const [tenantId, policies] of Object.entries(options.policiesByTenant ?? {})) {
       this.putTenantPolicies(tenantId, policies);
     }
@@ -38,6 +42,11 @@ export class InMemoryPolicyRepository implements PolicyRepository {
       ...(this.tenantPolicies.get(tenantKey(input.tenantId)) ?? []),
       ...(this.userPolicies.get(userKey(input.tenantId, input.userId)) ?? [])
     ];
+    if (policies.length === 0 && !this.allowDefaultPolicy) {
+      throw new AuthorizationError("No active governed invoke policy found for tenant and default policy is disabled", {
+        tenantId: input.tenantId
+      });
+    }
     return policies.length > 0 ? policies : [this.defaultPolicy];
   }
 }

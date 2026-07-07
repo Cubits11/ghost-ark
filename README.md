@@ -4,7 +4,7 @@ Ghost Ark v50 is an AWS-native reference implementation for bounded governance r
 
 The existing AWS slice stores raw and curated evidence in S3, catalogs it through AWS-native metadata layers, enforces governed access, issues signed evidence receipts, records receipt state in a ledger, and exposes query, search, replay, and review workflows. The enforcement-runtime slice adds deterministic policy evaluation, tenant-scoped policy loading, tenant and taint-filtered retrieval context, Bedrock invocation adapters, memory-write gates, redacted logging, and decision receipt emission for governed LLM paths.
 
-Ghost Ark now includes a local governed Bedrock invocation runtime spine. AWS wiring exists for the invoke API route, DynamoDB policy and privacy-vault tables, decision receipt storage, KMS decision signing, and Bedrock invocation permission, but live AWS validation and full model-format coverage remain release blockers.
+Ghost Ark now includes a local governed Bedrock invocation runtime spine and an AWS validation-candidate path. AWS wiring exists for the invoke API route, DynamoDB policy and privacy-vault tables, decision receipt storage, KMS decision signing and verification support, Bedrock model allowlisting, scoped Bedrock IAM when an allowlist is supplied, a Secrets Manager HMAC digest secret, and operational alarms. Live AWS validation and full model-format coverage remain release blockers.
 
 ## What Ghost Ark Is
 
@@ -69,9 +69,12 @@ Ghost Ark is a cryptographic tracking substrate, not a magical tool that automat
 - General structured logs redact prompt, completion, memory, raw body, and credential-like fields by default.
 - Service roles are centrally owned and passed only to intended AWS services.
 - KMS signing uses asymmetric keys with `SIGN_VERIFY` usage.
+- Governed invoke decision receipts can be verified locally for HMAC-dev signatures or with a KMS public-key verifier for `KMS_SIGN_RSASSA_PSS_SHA_256`.
 - Raw, curated, receipt, and export paths are separated by tenant namespace.
 - Governed invoke resolves tenant and user authority from JWT or authorizer context, rejects client-declared tenant/user/session authority, and fails closed on path/auth tenant mismatch.
 - Governed invoke emits minimized decision receipts containing digests and decisions, not raw prompts, completions, or memory contents.
+- AWS governed invoke mode requires a configured HMAC digest secret through Secrets Manager or explicit deployment-time injection; CDK does not place the secret value in plaintext environment variables.
+- AWS governed invoke mode requires a Bedrock model allowlist. If no allowlist is configured, invocation fails closed before Bedrock.
 - KAPPA memory is invocation-only, SESSION memory requires expiry, and RESTRICTED memory requires explicit consent.
 - Lake Formation is the fine-grained disclosure layer; bespoke ACL logic is not the primary governance mechanism.
 - OpenSearch access from API Lambda roles is scoped to the deployed domain ARN, and the domain security group only accepts HTTPS from the API search Lambda security group.
@@ -94,4 +97,14 @@ Local validation:
 npm test -- tests/unit/enforcement-runtime/runtime tests/unit/enforcement-runtime/retrieval tests/unit/enforcement-runtime/receipts tests/integration/test_governedInvokeLifecycle.test.ts
 ```
 
-CDK adds `POST /tenants/{tenantSlug}/invoke` with Cognito authorization. Deployed defaults are AWS-backed (`GHOST_ARK_MODEL_MODE=bedrock`, `GHOST_ARK_RECEIPT_SIGNER=kms`, `GHOST_ARK_POLICY_REPOSITORY=dynamodb`, `GHOST_ARK_VAULT=dynamodb`) and fail closed unless `GHOST_ARK_RECEIPT_HMAC_SECRET` is configured for private identifier digests.
+CDK adds `POST /tenants/{tenantSlug}/invoke` with Cognito authorization. Deployed defaults are AWS-backed (`GHOST_ARK_MODEL_MODE=bedrock`, `GHOST_ARK_RECEIPT_SIGNER=kms`, `GHOST_ARK_POLICY_REPOSITORY=dynamodb`, `GHOST_ARK_VAULT=dynamodb`) and read private identifier digest material from `GHOST_ARK_RECEIPT_HMAC_SECRET_ARN`. The plaintext secret value is not set in CDK Lambda environment variables.
+
+AWS validation candidate setup:
+
+```bash
+npx cdk synth -c bedrockModelAllowlist=anthropic.claude-3-5-sonnet-20240620-v1:0
+npm run seed:governed-policy -- --table ghost-ark-dev-tenant-policies --tenant acme-lab
+npm run smoke:governed-invoke -- --api "$API_URL" --token "$ID_TOKEN" --tenant acme-lab --model anthropic.claude-3-5-sonnet-20240620-v1:0
+```
+
+The AWS path is not production-ready until the live smoke gates and alarm/log inspection pass.

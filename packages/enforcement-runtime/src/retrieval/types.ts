@@ -9,6 +9,15 @@ export interface RetrievedContextCandidate {
   source?: string;
 }
 
+export interface RetrievalProvider {
+  retrieve(input: {
+    tenantId: string;
+    userId: string;
+    queryText: string;
+    requestId: string;
+  }): Promise<RetrievedContextCandidate[]>;
+}
+
 export interface RetrievalFilterInput {
   identityTenantId: string;
   candidates: RetrievedContextCandidate[];

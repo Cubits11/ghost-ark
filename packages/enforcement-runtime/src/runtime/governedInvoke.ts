@@ -1,4 +1,5 @@
 import { AuthorizationError } from "../../../shared/src/errors";
+import { assertModelAllowed } from "../bedrock/modelAllowlist";
 import { assertNoClientDeclaredIdentity, resolveVerifiedIdentity, VerifiedIdentityContext } from "../identity/context";
 import { compilePolicySet } from "../policy/compiler";
 import { evaluatePolicy } from "../policy/evaluator";
@@ -19,6 +20,7 @@ import {
   statusForBlockingDecision,
   syntheticDecision
 } from "./lifecycle";
+import { GovernedInvokeMetricName, normalizeModelIdForMetric } from "./metrics";
 import { GovernedInvokeResult, GovernedInvokeStatus } from "./result";
 
 function emptyDecision(phase: PolicyDecision["phase"], policyVersion = "unavailable", policyHash = "0".repeat(64)): PolicyDecision {
@@ -105,6 +107,54 @@ function allowedCandidates(candidates: RetrievedContextCandidate[], allowedDiges
   return candidates.filter((candidate) => allowed.has(candidate.digest));
 }
 
+async function emitMetric(
+  deps: GovernedInvokeDependencies,
+  name: GovernedInvokeMetricName,
+  status: string,
+  modelId: string
+): Promise<void> {
+  try {
+    await deps.metrics?.emit({
+      name,
+      dimensions: {
+        stage: deps.metricDimensions?.stage ?? "unknown",
+        status,
+        modelId: normalizeModelIdForMetric(modelId)
+      }
+    });
+  } catch (error) {
+    deps.logger?.warn("governed invoke metric emission failed", { error: safeErrorMessage(error), metricName: name });
+  }
+}
+
+async function finalizeResult(
+  deps: GovernedInvokeDependencies,
+  result: GovernedInvokeResult,
+  extraMetrics: GovernedInvokeMetricName[] = []
+): Promise<GovernedInvokeResult> {
+  for (const metric of extraMetrics) {
+    await emitMetric(deps, metric, result.status, result.modelId);
+  }
+  if (result.status === "completed") {
+    await emitMetric(deps, "GovernedInvokeCompleted", result.status, result.modelId);
+  }
+  if (result.status === "failed_closed") {
+    await emitMetric(deps, "GovernedInvokeFailedClosed", result.status, result.modelId);
+  }
+  return result;
+}
+
+function receiptFailureMetrics(receipt: { emitted: boolean; failureReason?: string }): GovernedInvokeMetricName[] {
+  if (receipt.emitted) {
+    return [];
+  }
+  const metrics: GovernedInvokeMetricName[] = ["GovernedInvokeReceiptEmissionFailed"];
+  if (/kms|sign/iu.test(receipt.failureReason ?? "")) {
+    metrics.push("GovernedInvokeKmsSigningFailed");
+  }
+  return metrics;
+}
+
 async function emitReceipt(input: {
   deps: GovernedInvokeDependencies;
   identity: VerifiedIdentityContext;
@@ -157,15 +207,50 @@ export async function governedInvoke(
     identity = resolveIdentity(request);
   } catch (error) {
     deps.logger?.warn("governed invoke identity rejected", { error: safeErrorMessage(error), requestId });
-    return baseResult({
-      requestId,
-      tenantIdHash,
-      userIdHash,
-      modelId: request.model.modelId,
-      status: "failed_closed",
-      preModel: emptyDecision("pre_model"),
-      errors: [safeErrorMessage(error)]
-    });
+    return finalizeResult(
+      deps,
+      baseResult({
+        requestId,
+        tenantIdHash,
+        userIdHash,
+        modelId: request.model.modelId,
+        status: "failed_closed",
+        preModel: emptyDecision("pre_model"),
+        errors: [safeErrorMessage(error)]
+      })
+    );
+  }
+
+  if (deps.modelAllowlist) {
+    try {
+      assertModelAllowed(request.model.modelId, deps.modelAllowlist);
+    } catch (error) {
+      deps.logger?.warn("governed invoke model rejected by allowlist", {
+        error: safeErrorMessage(error),
+        requestId: identity.requestId,
+        modelId: request.model.modelId
+      });
+      return finalizeResult(
+        deps,
+        baseResult({
+          requestId: identity.requestId,
+          tenantIdHash,
+          userIdHash,
+          modelId: request.model.modelId,
+          status: "failed_closed",
+          preModel: syntheticDecision({
+            phase: "pre_model",
+            decision: "REFUSE",
+            policyVersion: "unavailable",
+            policyHash: "0".repeat(64),
+            reason: "model id is not in governed invoke allowlist",
+            actionTaken: ["block_model_invocation"],
+            riskScore: 1
+          }),
+          errors: [safeErrorMessage(error)]
+        })
+      );
+    }
   }
 
   let compiledPolicy;
@@ -178,15 +263,19 @@ export async function governedInvoke(
     compiledPolicy = compilePolicySet({ policies });
   } catch (error) {
     deps.logger?.error("governed invoke policy load failed", { error: safeErrorMessage(error), requestId: identity.requestId });
-    return baseResult({
-      requestId: identity.requestId,
-      tenantIdHash,
-      userIdHash,
-      modelId: request.model.modelId,
-      status: "failed_closed",
-      preModel: emptyDecision("pre_model"),
-      errors: [safeErrorMessage(error)]
-    });
+    return finalizeResult(
+      deps,
+      baseResult({
+        requestId: identity.requestId,
+        tenantIdHash,
+        userIdHash,
+        modelId: request.model.modelId,
+        status: "failed_closed",
+        preModel: emptyDecision("pre_model"),
+        errors: [safeErrorMessage(error)]
+      }),
+      ["GovernedInvokePolicyLoadFailed"]
+    );
   }
 
   const preRetrieval = evaluatePolicy(compiledPolicy, {
@@ -218,26 +307,181 @@ export async function governedInvoke(
       latencyMs: 0,
       now
     });
-    return baseResult({
-      requestId: identity.requestId,
-      tenantIdHash,
-      userIdHash,
-      modelId: request.model.modelId,
-      status: receipt.emitted ? statusForBlockingDecision(preRetrieval.decision, "refused_pre_model") : "failed_closed",
-      preRetrieval,
-      preModel,
-      postModel: preModel,
-      receipt: {
-        attempted: true,
-        emitted: receipt.emitted,
-        receiptId: receipt.emitted ? receipt.receiptId : undefined,
-        failureReason: receipt.emitted ? undefined : receipt.failureReason
-      },
-      errors: receipt.emitted ? [] : [receipt.failureReason]
-    });
+    return finalizeResult(
+      deps,
+      baseResult({
+        requestId: identity.requestId,
+        tenantIdHash,
+        userIdHash,
+        modelId: request.model.modelId,
+        status: receipt.emitted ? statusForBlockingDecision(preRetrieval.decision, "refused_pre_model") : "failed_closed",
+        preRetrieval,
+        preModel,
+        postModel: preModel,
+        receipt: {
+          attempted: true,
+          emitted: receipt.emitted,
+          receiptId: receipt.emitted ? receipt.receiptId : undefined,
+          failureReason: receipt.emitted ? undefined : receipt.failureReason
+        },
+        errors: receipt.emitted ? [] : [receipt.failureReason]
+      }),
+      receiptFailureMetrics(receipt)
+    );
   }
 
-  const requestedContexts = request.retrieval?.enabled ? request.retrieval.contexts ?? [] : [];
+  const callerSuppliedContexts = request.retrieval?.enabled ? request.retrieval.contexts ?? [] : [];
+  let requestedContexts: RetrievedContextCandidate[] = [];
+
+  if (request.retrieval?.enabled) {
+    if (deps.retrievalOptions?.rejectCallerSuppliedContexts && callerSuppliedContexts.length > 0) {
+      const preModel = syntheticDecision({
+        phase: "pre_model",
+        decision: "REFUSE",
+        policyVersion: compiledPolicy.policyVersion,
+        policyHash: compiledPolicy.policyHash,
+        reason: "caller-supplied retrieval context is not trusted in this runtime mode",
+        actionTaken: ["block_model_invocation", "quarantine_retrieval"],
+        riskScore: 1
+      });
+      const receipt = await emitReceipt({
+        deps,
+        identity,
+        request,
+        inputDigest,
+        retrievedContextDigests: [],
+        preDecision: preModel,
+        postDecision: preModel,
+        memoryWritten: false,
+        latencyMs: 0,
+        now
+      });
+      return finalizeResult(
+        deps,
+        baseResult({
+          requestId: identity.requestId,
+          tenantIdHash,
+          userIdHash,
+          modelId: request.model.modelId,
+          status: "failed_closed",
+          preRetrieval,
+          preModel,
+          postModel: preModel,
+          receipt: {
+            attempted: true,
+            emitted: receipt.emitted,
+            receiptId: receipt.emitted ? receipt.receiptId : undefined,
+            failureReason: receipt.emitted ? undefined : receipt.failureReason
+          },
+          errors: ["caller-supplied retrieval context is not trusted in this runtime mode", ...(receipt.emitted ? [] : [receipt.failureReason])]
+        }),
+        receiptFailureMetrics(receipt)
+      );
+    }
+
+    if (deps.retrievalProvider) {
+      try {
+        requestedContexts = await deps.retrievalProvider.retrieve({
+          tenantId: identity.tenantId,
+          userId: identity.userId,
+          queryText: request.input.text,
+          requestId: identity.requestId
+        });
+        if (!deps.retrievalOptions?.rejectCallerSuppliedContexts) {
+          requestedContexts = [...requestedContexts, ...callerSuppliedContexts];
+        }
+      } catch (error) {
+        const preModel = syntheticDecision({
+          phase: "pre_model",
+          decision: "REFUSE",
+          policyVersion: compiledPolicy.policyVersion,
+          policyHash: compiledPolicy.policyHash,
+          reason: "server-side retrieval provider failed",
+          actionTaken: ["fail_closed"],
+          riskScore: 1
+        });
+        const receipt = await emitReceipt({
+          deps,
+          identity,
+          request,
+          inputDigest,
+          retrievedContextDigests: [],
+          preDecision: preModel,
+          postDecision: preModel,
+          memoryWritten: false,
+          latencyMs: 0,
+          now
+        });
+        return finalizeResult(
+          deps,
+          baseResult({
+            requestId: identity.requestId,
+            tenantIdHash,
+            userIdHash,
+            modelId: request.model.modelId,
+            status: "failed_closed",
+            preRetrieval,
+            preModel,
+            postModel: preModel,
+            receipt: {
+              attempted: true,
+              emitted: receipt.emitted,
+              receiptId: receipt.emitted ? receipt.receiptId : undefined,
+              failureReason: receipt.emitted ? undefined : receipt.failureReason
+            },
+            errors: [safeErrorMessage(error), ...(receipt.emitted ? [] : [receipt.failureReason])]
+          }),
+          receiptFailureMetrics(receipt)
+        );
+      }
+    } else if (deps.retrievalOptions?.requireProviderWhenEnabled) {
+      const preModel = syntheticDecision({
+        phase: "pre_model",
+        decision: "REFUSE",
+        policyVersion: compiledPolicy.policyVersion,
+        policyHash: compiledPolicy.policyHash,
+        reason: "server-side retrieval provider is required when retrieval is enabled",
+        actionTaken: ["block_model_invocation"],
+        riskScore: 1
+      });
+      const receipt = await emitReceipt({
+        deps,
+        identity,
+        request,
+        inputDigest,
+        retrievedContextDigests: [],
+        preDecision: preModel,
+        postDecision: preModel,
+        memoryWritten: false,
+        latencyMs: 0,
+        now
+      });
+      return finalizeResult(
+        deps,
+        baseResult({
+          requestId: identity.requestId,
+          tenantIdHash,
+          userIdHash,
+          modelId: request.model.modelId,
+          status: "failed_closed",
+          preRetrieval,
+          preModel,
+          postModel: preModel,
+          receipt: {
+            attempted: true,
+            emitted: receipt.emitted,
+            receiptId: receipt.emitted ? receipt.receiptId : undefined,
+            failureReason: receipt.emitted ? undefined : receipt.failureReason
+          },
+          errors: ["server-side retrieval provider is required when retrieval is enabled", ...(receipt.emitted ? [] : [receipt.failureReason])]
+        }),
+        receiptFailureMetrics(receipt)
+      );
+    } else {
+      requestedContexts = callerSuppliedContexts;
+    }
+  }
+
   const retrieval = filterRetrievedContext({
     identityTenantId: identity.tenantId,
     candidates: requestedContexts,
@@ -267,23 +511,27 @@ export async function governedInvoke(
       latencyMs: 0,
       now
     });
-    return baseResult({
-      requestId: identity.requestId,
-      tenantIdHash,
-      userIdHash,
-      modelId: request.model.modelId,
-      status: "failed_closed",
-      preRetrieval,
-      preModel,
-      postModel: preModel,
-      receipt: {
-        attempted: true,
-        emitted: receipt.emitted,
-        receiptId: receipt.emitted ? receipt.receiptId : undefined,
-        failureReason: receipt.emitted ? undefined : receipt.failureReason
-      },
-      errors: ["cross-tenant retrieval contamination detected", ...(receipt.emitted ? [] : [receipt.failureReason])]
-    });
+    return finalizeResult(
+      deps,
+      baseResult({
+        requestId: identity.requestId,
+        tenantIdHash,
+        userIdHash,
+        modelId: request.model.modelId,
+        status: "failed_closed",
+        preRetrieval,
+        preModel,
+        postModel: preModel,
+        receipt: {
+          attempted: true,
+          emitted: receipt.emitted,
+          receiptId: receipt.emitted ? receipt.receiptId : undefined,
+          failureReason: receipt.emitted ? undefined : receipt.failureReason
+        },
+        errors: ["cross-tenant retrieval contamination detected", ...(receipt.emitted ? [] : [receipt.failureReason])]
+      }),
+      ["GovernedInvokeCrossTenantRetrievalBlocked", ...receiptFailureMetrics(receipt)]
+    );
   }
 
   const preModel = evaluatePolicy(compiledPolicy, {
@@ -308,23 +556,27 @@ export async function governedInvoke(
       latencyMs: 0,
       now
     });
-    return baseResult({
-      requestId: identity.requestId,
-      tenantIdHash,
-      userIdHash,
-      modelId: request.model.modelId,
-      status: receipt.emitted ? statusForBlockingDecision(preModel.decision, "refused_pre_model") : "failed_closed",
-      preRetrieval,
-      preModel,
-      postModel: preModel,
-      receipt: {
-        attempted: true,
-        emitted: receipt.emitted,
-        receiptId: receipt.emitted ? receipt.receiptId : undefined,
-        failureReason: receipt.emitted ? undefined : receipt.failureReason
-      },
-      errors: receipt.emitted ? [] : [receipt.failureReason]
-    });
+    return finalizeResult(
+      deps,
+      baseResult({
+        requestId: identity.requestId,
+        tenantIdHash,
+        userIdHash,
+        modelId: request.model.modelId,
+        status: receipt.emitted ? statusForBlockingDecision(preModel.decision, "refused_pre_model") : "failed_closed",
+        preRetrieval,
+        preModel,
+        postModel: preModel,
+        receipt: {
+          attempted: true,
+          emitted: receipt.emitted,
+          receiptId: receipt.emitted ? receipt.receiptId : undefined,
+          failureReason: receipt.emitted ? undefined : receipt.failureReason
+        },
+        errors: receipt.emitted ? [] : [receipt.failureReason]
+      }),
+      receiptFailureMetrics(receipt)
+    );
   }
 
   let outputText = "";
@@ -366,23 +618,27 @@ export async function governedInvoke(
       latencyMs,
       now
     });
-    return baseResult({
-      requestId: identity.requestId,
-      tenantIdHash,
-      userIdHash,
-      modelId: request.model.modelId,
-      status: "failed_closed",
-      preRetrieval,
-      preModel,
-      postModel,
-      receipt: {
-        attempted: true,
-        emitted: receipt.emitted,
-        receiptId: receipt.emitted ? receipt.receiptId : undefined,
-        failureReason: receipt.emitted ? undefined : receipt.failureReason
-      },
-      errors: [safeErrorMessage(error), ...(receipt.emitted ? [] : [receipt.failureReason])]
-    });
+    return finalizeResult(
+      deps,
+      baseResult({
+        requestId: identity.requestId,
+        tenantIdHash,
+        userIdHash,
+        modelId: request.model.modelId,
+        status: "failed_closed",
+        preRetrieval,
+        preModel,
+        postModel,
+        receipt: {
+          attempted: true,
+          emitted: receipt.emitted,
+          receiptId: receipt.emitted ? receipt.receiptId : undefined,
+          failureReason: receipt.emitted ? undefined : receipt.failureReason
+        },
+        errors: [safeErrorMessage(error), ...(receipt.emitted ? [] : [receipt.failureReason])]
+      }),
+      ["GovernedInvokeBedrockFailed", ...receiptFailureMetrics(receipt)]
+    );
   }
 
   const postModel = evaluatePolicy(compiledPolicy, {
@@ -473,25 +729,29 @@ export async function governedInvoke(
           costEstimateUsd,
           now
         });
-        return baseResult({
-          requestId: identity.requestId,
-          tenantIdHash,
-          userIdHash,
-          modelId: request.model.modelId,
-          status: "failed_closed",
-          preRetrieval,
-          preModel,
-          postModel,
-          memoryWrite: memoryDecision,
-          memory: { attempted: true, written: false, reason: safeErrorMessage(error) },
-          receipt: {
-            attempted: true,
-            emitted: receipt.emitted,
-            receiptId: receipt.emitted ? receipt.receiptId : undefined,
-            failureReason: receipt.emitted ? undefined : receipt.failureReason
-          },
-          errors: [safeErrorMessage(error), ...(receipt.emitted ? [] : [receipt.failureReason])]
-        });
+        return finalizeResult(
+          deps,
+          baseResult({
+            requestId: identity.requestId,
+            tenantIdHash,
+            userIdHash,
+            modelId: request.model.modelId,
+            status: "failed_closed",
+            preRetrieval,
+            preModel,
+            postModel,
+            memoryWrite: memoryDecision,
+            memory: { attempted: true, written: false, reason: safeErrorMessage(error) },
+            receipt: {
+              attempted: true,
+              emitted: receipt.emitted,
+              receiptId: receipt.emitted ? receipt.receiptId : undefined,
+              failureReason: receipt.emitted ? undefined : receipt.failureReason
+            },
+            errors: [safeErrorMessage(error), ...(receipt.emitted ? [] : [receipt.failureReason])]
+          }),
+          receiptFailureMetrics(receipt)
+        );
       }
     }
   }
@@ -511,12 +771,43 @@ export async function governedInvoke(
   });
 
   if (!receipt.emitted) {
-    return baseResult({
+    return finalizeResult(
+      deps,
+      baseResult({
+        requestId: identity.requestId,
+        tenantIdHash,
+        userIdHash,
+        modelId: request.model.modelId,
+        status: "failed_closed",
+        preRetrieval,
+        preModel,
+        postModel,
+        memoryWrite: memoryDecision,
+        memory: {
+          attempted: Boolean(request.memoryWrite),
+          written: memoryResult.written,
+          reason: memoryResult.reason
+        },
+        receipt: { attempted: true, emitted: false, failureReason: receipt.failureReason },
+        errors: [receipt.failureReason]
+      }),
+      [
+        ...receiptFailureMetrics(receipt),
+        ...(memoryDecision?.decision === "MEMORY_SUPPRESS" ? (["GovernedInvokeMemorySuppressed"] as const) : [])
+      ]
+    );
+  }
+
+  return finalizeResult(
+    deps,
+    baseResult({
       requestId: identity.requestId,
       tenantIdHash,
       userIdHash,
       modelId: request.model.modelId,
-      status: "failed_closed",
+      status,
+      responseText,
+      redacted,
       preRetrieval,
       preModel,
       postModel,
@@ -526,28 +817,8 @@ export async function governedInvoke(
         written: memoryResult.written,
         reason: memoryResult.reason
       },
-      receipt: { attempted: true, emitted: false, failureReason: receipt.failureReason },
-      errors: [receipt.failureReason]
-    });
-  }
-
-  return baseResult({
-    requestId: identity.requestId,
-    tenantIdHash,
-    userIdHash,
-    modelId: request.model.modelId,
-    status,
-    responseText,
-    redacted,
-    preRetrieval,
-    preModel,
-    postModel,
-    memoryWrite: memoryDecision,
-    memory: {
-      attempted: Boolean(request.memoryWrite),
-      written: memoryResult.written,
-      reason: memoryResult.reason
-    },
-    receipt: { attempted: true, emitted: true, receiptId: receipt.receiptId }
-  });
+      receipt: { attempted: true, emitted: true, receiptId: receipt.receiptId }
+    }),
+    memoryDecision?.decision === "MEMORY_SUPPRESS" ? ["GovernedInvokeMemorySuppressed"] : []
+  );
 }

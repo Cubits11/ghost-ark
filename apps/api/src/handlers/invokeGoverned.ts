@@ -1,3 +1,4 @@
+import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 import { z } from "zod";
 import { AuthorizationError, ValidationError, errorResponse } from "../../../../packages/shared/src/errors";
@@ -7,6 +8,7 @@ import { authenticate } from "../lib/auth";
 import { assertTenantAccess } from "../lib/tenancy";
 import { jsonResponse, parseJsonBody } from "../lib/validation";
 import { assertNoClientDeclaredIdentity } from "../../../../packages/enforcement-runtime/src/identity/context";
+import { parseModelAllowlist } from "../../../../packages/enforcement-runtime/src/bedrock/modelAllowlist";
 import { AwsBedrockInvoker } from "../../../../packages/enforcement-runtime/src/bedrock/awsBedrockInvoker";
 import { FakeModelInvoker } from "../../../../packages/enforcement-runtime/src/bedrock/fakeInvoker";
 import { DynamoDbPolicyRepository } from "../../../../packages/enforcement-runtime/src/policy/dynamodbPolicyRepository";
@@ -15,10 +17,14 @@ import { DynamoDbVaultStore } from "../../../../packages/enforcement-runtime/src
 import { InMemoryVaultStore } from "../../../../packages/enforcement-runtime/src/vault/store";
 import { DynamoDbDecisionReceiptRepository } from "../../../../packages/enforcement-runtime/src/receipts/repository";
 import { InMemoryDecisionReceiptRepository } from "../../../../packages/enforcement-runtime/src/receipts/inMemoryReceiptRepository";
-import { DefaultDecisionReceiptEmitter } from "../../../../packages/enforcement-runtime/src/receipts/emission";
+import {
+  DEFAULT_DECISION_RECEIPT_HMAC_SECRET,
+  DefaultDecisionReceiptEmitter
+} from "../../../../packages/enforcement-runtime/src/receipts/emission";
 import { LocalDevHmacReceiptSigner } from "../../../../packages/enforcement-runtime/src/receipts/signer";
 import { KmsDecisionReceiptSigner } from "../../../../packages/enforcement-runtime/src/receipts/kmsSigner";
 import { governedInvoke } from "../../../../packages/enforcement-runtime/src/runtime/governedInvoke";
+import { EmfGovernedInvokeMetrics } from "../../../../packages/enforcement-runtime/src/runtime/metrics";
 
 const logger = createLogger({ handler: "invokeGoverned" });
 
@@ -67,36 +73,86 @@ function parseInvokeBody(value: unknown): InvokeBody {
   return parsed.data;
 }
 
-function hmacSecretForMode(env: NodeJS.ProcessEnv): string {
+const secretCache = new Map<string, string>();
+
+function parseBooleanEnv(name: string, fallback: boolean, env: NodeJS.ProcessEnv): boolean {
+  const value = env[name];
+  if (value === undefined || value.trim().length === 0) {
+    return fallback;
+  }
+  return value.toLowerCase() === "true";
+}
+
+export interface HmacSecretResolverOptions {
+  readSecret?: (secretId: string) => Promise<string>;
+}
+
+async function readSecretsManagerString(secretId: string): Promise<string> {
+  const cached = secretCache.get(secretId);
+  if (cached) {
+    return cached;
+  }
+  const client = new SecretsManagerClient({});
+  const response = await client.send(new GetSecretValueCommand({ SecretId: secretId }));
+  const value = response.SecretString ?? (response.SecretBinary ? Buffer.from(response.SecretBinary).toString("utf8") : "");
+  if (!value || value.trim().length === 0) {
+    throw new ValidationError("Configured decision receipt HMAC secret is empty", { secretId });
+  }
+  secretCache.set(secretId, value);
+  return value;
+}
+
+export async function hmacSecretForMode(env: NodeJS.ProcessEnv, options: HmacSecretResolverOptions = {}): Promise<string> {
   const configured = env.GHOST_ARK_RECEIPT_HMAC_SECRET;
   const signerMode = optionalEnv("GHOST_ARK_RECEIPT_SIGNER", "kms", env);
   if (configured && configured.trim().length > 0) {
+    if (signerMode !== "local" && configured === DEFAULT_DECISION_RECEIPT_HMAC_SECRET) {
+      throw new ValidationError("AWS/KMS governed invoke mode cannot use the local default decision receipt HMAC secret", {
+        name: "GHOST_ARK_RECEIPT_HMAC_SECRET"
+      });
+    }
     return configured;
   }
   if (signerMode === "local") {
-    return "ghost-ark-local-decision-receipt-secret";
+    return DEFAULT_DECISION_RECEIPT_HMAC_SECRET;
   }
-  throw new ValidationError("Missing required environment variable GHOST_ARK_RECEIPT_HMAC_SECRET", {
-    name: "GHOST_ARK_RECEIPT_HMAC_SECRET"
+  const secretId =
+    env.GHOST_ARK_RECEIPT_HMAC_SECRET_ARN ?? env.GHOST_ARK_RECEIPT_HMAC_SECRET_ID ?? env.GHOST_ARK_RECEIPT_HMAC_SECRET_NAME;
+  if (secretId && secretId.trim().length > 0) {
+    return options.readSecret ? options.readSecret(secretId) : readSecretsManagerString(secretId);
+  }
+  throw new ValidationError("Missing governed invoke decision receipt HMAC secret configuration", {
+    name: "GHOST_ARK_RECEIPT_HMAC_SECRET_ARN"
   });
 }
 
-function buildDependencies(env: NodeJS.ProcessEnv) {
+async function buildDependencies(env: NodeJS.ProcessEnv) {
   const modelMode = optionalEnv("GHOST_ARK_MODEL_MODE", "bedrock", env);
   const policyMode = optionalEnv("GHOST_ARK_POLICY_REPOSITORY", "dynamodb", env);
   const vaultMode = optionalEnv("GHOST_ARK_VAULT", "dynamodb", env);
   const signerMode = optionalEnv("GHOST_ARK_RECEIPT_SIGNER", "kms", env);
   const receiptRepositoryMode = optionalEnv("GHOST_ARK_DECISION_RECEIPT_REPOSITORY", "dynamodb", env);
-  const hmacSecret = hmacSecretForMode(env);
+  const allowDefaultPolicy = parseBooleanEnv("GHOST_ARK_ALLOW_DEFAULT_POLICY", policyMode === "in_memory", env);
+  const modelAllowlist = parseModelAllowlist(env.GHOST_ARK_BEDROCK_MODEL_ALLOWLIST);
+  const hmacSecret = await hmacSecretForMode(env);
+
+  if (modelMode !== "fake" && modelAllowlist.length === 0) {
+    throw new ValidationError("GHOST_ARK_BEDROCK_MODEL_ALLOWLIST must be configured in AWS Bedrock mode", {
+      name: "GHOST_ARK_BEDROCK_MODEL_ALLOWLIST"
+    });
+  }
 
   const policyRepository =
     policyMode === "in_memory"
-      ? new InMemoryPolicyRepository()
-      : new DynamoDbPolicyRepository({ tableName: requiredEnv("GHOST_ARK_POLICY_TABLE", env) });
+      ? new InMemoryPolicyRepository({ allowDefaultPolicy })
+      : new DynamoDbPolicyRepository({ tableName: requiredEnv("GHOST_ARK_POLICY_TABLE", env), allowDefaultPolicy });
   const modelInvoker =
     modelMode === "fake"
       ? new FakeModelInvoker({ outputText: optionalEnv("GHOST_ARK_FAKE_MODEL_OUTPUT", "fake governed invoke output", env) })
-      : new AwsBedrockInvoker();
+      : new AwsBedrockInvoker({
+          guardrailId: env.GHOST_ARK_BEDROCK_GUARDRAIL_ID,
+          guardrailVersion: env.GHOST_ARK_BEDROCK_GUARDRAIL_VERSION
+        });
   const vaultStore =
     vaultMode === "in_memory" ? new InMemoryVaultStore() : new DynamoDbVaultStore({ tableName: requiredEnv("GHOST_ARK_PRIVACY_VAULT_TABLE", env) });
   const receiptRepository =
@@ -114,7 +170,14 @@ function buildDependencies(env: NodeJS.ProcessEnv) {
     vaultStore,
     receiptEmitter: new DefaultDecisionReceiptEmitter({ signer, repository: receiptRepository, hmacSecret }),
     logger,
-    identityDigestSecret: hmacSecret
+    identityDigestSecret: hmacSecret,
+    modelAllowlist: modelAllowlist.length > 0 ? modelAllowlist : undefined,
+    retrievalOptions: {
+      rejectCallerSuppliedContexts: parseBooleanEnv("GHOST_ARK_REJECT_CALLER_RETRIEVAL_CONTEXTS", modelMode !== "fake", env),
+      requireProviderWhenEnabled: parseBooleanEnv("GHOST_ARK_REQUIRE_RETRIEVAL_PROVIDER", modelMode !== "fake", env)
+    },
+    metrics: new EmfGovernedInvokeMetrics(),
+    metricDimensions: { stage: optionalEnv("STAGE", "dev", env) }
   };
 }
 
@@ -130,7 +193,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     assertNoClientDeclaredIdentity(rawBody, { recursive: true });
     const body = parseInvokeBody(rawBody);
 
-    const result = await governedInvoke(buildDependencies(process.env), {
+    const result = await governedInvoke(await buildDependencies(process.env), {
       pathTenantId: tenantSlug,
       body: rawBody,
       auth: {

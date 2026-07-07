@@ -31,6 +31,8 @@ Decision receipts are signed over canonical JSON for the unsigned receipt envelo
 
 - canonical receipt id,
 - canonical digest,
+- signature key id,
+- canonical unsigned payload,
 - signature validity,
 - hash-chain continuity where a chain is supplied.
 
@@ -45,8 +47,16 @@ Decision receipt signing paths now include:
 - `LOCAL_HMAC_SHA256_DEV_ONLY` for deterministic local tests.
 - `KMS_SIGN_RSASSA_PSS_SHA_256` for AWS KMS-backed decision receipt signing.
 
-Local HMAC verification remains implemented and tested. KMS verification for decision receipts is not implemented in this pass. Evidence receipt KMS verification remains separate from decision receipt verification.
+Local HMAC verification remains implemented and tested. KMS verification for decision receipts is implemented with a public-key verifier for `KMS_SIGN_RSASSA_PSS_SHA_256`; unit tests use a generated RSA keypair and do not require live KMS. Evidence receipt KMS verification remains separate from decision receipt verification.
 
 ## Governed Invoke Emission
 
 The governed invoke runtime attempts receipt emission for governed invocation attempts. If a model output exists and receipt emission fails, the runtime returns `failed_closed` and does not return the model output normally. Blocked pre-model paths still attempt a receipt; if that receipt fails, the response records the receipt failure but no model output was produced.
+
+## AWS Digest Secret
+
+Decision receipts use HMAC digests for low-entropy tenant, user, and session IDs. In AWS/KMS mode the digest secret must come from Secrets Manager or explicit deployment-time injection. CDK creates `ghost-ark-{stage}-decision-receipt-hmac-secret` and passes only `GHOST_ARK_RECEIPT_HMAC_SECRET_ARN` to the invoke Lambda.
+
+## Non-Claims
+
+Decision receipt verification proves only schema, canonical digest, key binding, and signature validity for the receipt envelope. It does not prove model correctness, safety, legal compliance, clinical or emotional safety, empirical truth, or production readiness.
