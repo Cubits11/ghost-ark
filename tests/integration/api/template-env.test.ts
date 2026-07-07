@@ -38,7 +38,7 @@ describe("API Lambda environment security settings", () => {
     const template = synthApiTemplate("prod");
     const environments = lambdaEnvironmentVariables(template);
 
-    expect(environments.length).toBe(3);
+    expect(environments.length).toBe(4);
 
     for (const variables of environments) {
       expect(variables.ALLOW_DEVELOPER_HEADERS).toBe("false");
@@ -49,7 +49,7 @@ describe("API Lambda environment security settings", () => {
     const template = synthApiTemplate("dev");
     const environments = lambdaEnvironmentVariables(template);
 
-    expect(environments.length).toBe(3);
+    expect(environments.length).toBe(4);
 
     for (const variables of environments) {
       expect(variables.ALLOW_DEVELOPER_HEADERS).toBe("false");
@@ -60,7 +60,7 @@ describe("API Lambda environment security settings", () => {
     const template = synthApiTemplate("dev");
     const environments = lambdaEnvironmentVariables(template);
 
-    expect(environments.length).toBe(3);
+    expect(environments.length).toBe(4);
 
     for (const variables of environments) {
       expect(variables.STAGE).toBe("dev");
@@ -68,6 +68,11 @@ describe("API Lambda environment security settings", () => {
       expect(variables.CLAIM_LEDGER_TABLE).toBeDefined();
       expect(variables.LINEAGE_LEDGER_TABLE).toBeDefined();
       expect(variables.KMS_SIGNING_KEY_ID).toBeDefined();
+      expect(variables.GHOST_ARK_MODEL_MODE).toBe("bedrock");
+      expect(variables.GHOST_ARK_RECEIPT_SIGNER).toBe("kms");
+      expect(variables.GHOST_ARK_POLICY_REPOSITORY).toBe("dynamodb");
+      expect(variables.GHOST_ARK_VAULT).toBe("dynamodb");
+      expect(variables.GHOST_ARK_DECISION_RECEIPT_REPOSITORY).toBe("dynamodb");
       expect(variables.OPENSEARCH_ENDPOINT).toBe("");
       expect(variables.OPENSEARCH_INDEX_PREFIX).toBe("ghost-ark-dev");
     }

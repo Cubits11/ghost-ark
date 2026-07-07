@@ -1,7 +1,8 @@
 import path from "path";
-import { CfnOutput, Stack, StackProps } from "aws-cdk-lib";
+import { CfnOutput, RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
 import { AuthorizationType, CognitoUserPoolsAuthorizer, LambdaIntegration, RestApi } from "aws-cdk-lib/aws-apigateway";
 import { StringAttribute, UserPool } from "aws-cdk-lib/aws-cognito";
+import { AttributeType, BillingMode, Table } from "aws-cdk-lib/aws-dynamodb";
 import { ISecurityGroup, IVpc } from "aws-cdk-lib/aws-ec2";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction, NodejsFunctionProps } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -13,6 +14,7 @@ import { S3EvidenceLake } from "../modules/s3-evidence-lake";
 import { GlueCatalog } from "../modules/glue-catalog";
 import { AthenaWorkgroup } from "../modules/athena-workgroup";
 import { LakeFormationGovernance } from "../modules/lakeformation-governance";
+import { PrivacyVault } from "../modules/privacy-vault";
 
 export interface ApiStackProps extends StackProps {
   stage: string;
@@ -35,6 +37,24 @@ export class ApiStack extends Stack {
     const searchEnabled = Boolean(props.opensearchEndpoint && props.opensearchDomainArn);
     const signing = new KmsSigning(this, "Signing", { stage: props.stage, project });
     const ledger = new DynamoDbLedger(this, "Ledger", { stage: props.stage });
+    const privacyVault = new PrivacyVault(this, "PrivacyVault", { stage: props.stage });
+    const removalPolicy = props.stage === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
+    const policyTable = new Table(this, "TenantPolicyTable", {
+      tableName: `ghost-ark-${props.stage}-tenant-policies`,
+      partitionKey: { name: "PK", type: AttributeType.STRING },
+      sortKey: { name: "SK", type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+      removalPolicy
+    });
+    const decisionReceiptTable = new Table(this, "DecisionReceiptTable", {
+      tableName: `ghost-ark-${props.stage}-decision-receipts`,
+      partitionKey: { name: "tenantId", type: AttributeType.STRING },
+      sortKey: { name: "receiptId", type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+      removalPolicy
+    });
     const catalog = new GlueCatalog(this, "Catalog", { stage: props.stage, curatedBucket: lake.curatedBucket });
     new AthenaWorkgroup(this, "Athena", { stage: props.stage, resultsBucket: lake.athenaResultsBucket });
     new LakeFormationGovernance(this, "Governance", { adminRole: catalog.role });
@@ -45,6 +65,16 @@ export class ApiStack extends Stack {
       CLAIM_LEDGER_TABLE: ledger.claims.tableName,
       LINEAGE_LEDGER_TABLE: ledger.lineage.tableName,
       KMS_SIGNING_KEY_ID: signing.keyId,
+      GHOST_ARK_MODEL_MODE: "bedrock",
+      GHOST_ARK_RECEIPT_SIGNER: "kms",
+      GHOST_ARK_POLICY_REPOSITORY: "dynamodb",
+      GHOST_ARK_VAULT: "dynamodb",
+      GHOST_ARK_DECISION_RECEIPT_REPOSITORY: "dynamodb",
+      GHOST_ARK_POLICY_TABLE: policyTable.tableName,
+      GHOST_ARK_PRIVACY_VAULT_TABLE: privacyVault.table.tableName,
+      GHOST_ARK_DECISION_RECEIPT_TABLE: decisionReceiptTable.tableName,
+      GHOST_ARK_DECISION_SIGNING_KEY_ID: signing.keyId,
+      GHOST_ARK_RECEIPT_HMAC_SECRET: "",
       OPENSEARCH_ENDPOINT: props.opensearchEndpoint ?? "",
       OPENSEARCH_INDEX_PREFIX: `ghost-ark-${props.stage}`,
       ALLOW_DEVELOPER_HEADERS: "false"
@@ -75,6 +105,12 @@ export class ApiStack extends Stack {
       handler: "handler",
       environment
     });
+    const invokeGoverned = new NodejsFunction(this, "InvokeGovernedHandler", {
+      runtime: Runtime.NODEJS_22_X,
+      entry: handlerEntry("apps/api/src/handlers/invokeGoverned.ts"),
+      handler: "handler",
+      environment
+    });
     const searchEvidence = searchEnabled
       ? new NodejsFunction(this, "SearchEvidenceHandler", {
           runtime: Runtime.NODEJS_22_X,
@@ -90,7 +126,17 @@ export class ApiStack extends Stack {
       ledger.claims.grantReadWriteData(fn);
       ledger.lineage.grantReadWriteData(fn);
     }
+    policyTable.grantReadData(invokeGoverned);
+    privacyVault.table.grantReadWriteData(invokeGoverned);
+    decisionReceiptTable.grantReadWriteData(invokeGoverned);
     signing.grantSign(createReceipt);
+    signing.grantSign(invokeGoverned);
+    invokeGoverned.addToRolePolicy(
+      new PolicyStatement({
+        actions: ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+        resources: ["*"]
+      })
+    );
     if (searchEvidence && props.opensearchDomainArn) {
       searchEvidence.addToRolePolicy(
         new PolicyStatement({
@@ -137,6 +183,7 @@ export class ApiStack extends Stack {
     const tenant = tenants.addResource("{tenantSlug}");
     tenant.addResource("receipts").addResource("{receiptId}").addMethod("GET", new LambdaIntegration(getReceipt), receiptMethodOptions);
     tenant.addResource("claims").addMethod("GET", new LambdaIntegration(listClaims), receiptMethodOptions);
+    tenant.addResource("invoke").addMethod("POST", new LambdaIntegration(invokeGoverned), receiptMethodOptions);
     if (searchEvidence) {
       tenant.addResource("search").addMethod("GET", new LambdaIntegration(searchEvidence), receiptMethodOptions);
     }
