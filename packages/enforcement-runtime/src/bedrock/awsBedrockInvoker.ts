@@ -5,13 +5,19 @@ import { ModelInvokeInput, ModelInvokeOutput, ModelInvoker } from "./types";
 
 export interface AwsBedrockInvokerOptions {
   client?: BedrockRuntimeClient;
+  guardrailId?: string;
+  guardrailVersion?: string;
 }
 
 export class AwsBedrockInvoker implements ModelInvoker {
   private readonly client: BedrockRuntimeClient;
+  private readonly guardrailId?: string;
+  private readonly guardrailVersion?: string;
 
   constructor(options: AwsBedrockInvokerOptions = {}) {
     this.client = options.client ?? new BedrockRuntimeClient({});
+    this.guardrailId = options.guardrailId;
+    this.guardrailVersion = options.guardrailVersion;
   }
 
   async invoke(input: ModelInvokeInput): Promise<ModelInvokeOutput> {
@@ -21,6 +27,12 @@ export class AwsBedrockInvoker implements ModelInvoker {
         modelId: input.modelId,
         contentType: "application/json",
         accept: "application/json",
+        ...(this.guardrailId && this.guardrailVersion
+          ? {
+              guardrailIdentifier: this.guardrailId,
+              guardrailVersion: this.guardrailVersion
+            }
+          : {}),
         body: Buffer.from(
           JSON.stringify(
             buildBedrockRequestBody({
@@ -39,7 +51,10 @@ export class AwsBedrockInvoker implements ModelInvoker {
     return {
       outputText,
       rawOutputDigest: publicSha256Digest(outputText),
-      latencyMs: Math.max(0, Date.now() - started)
+      latencyMs: Math.max(0, Date.now() - started),
+      metadata: {
+        guardrailConfigured: Boolean(this.guardrailId && this.guardrailVersion)
+      }
     };
   }
 }
