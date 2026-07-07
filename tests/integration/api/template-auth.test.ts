@@ -31,13 +31,13 @@ describe("API Gateway authorization template", () => {
     const template = synthApiTemplate();
     const methods = resourcesOfType(template, "AWS::ApiGateway::Method");
 
-    expect(methods.length).toBe(3);
+    expect(methods.length).toBe(4);
 
     const httpMethods = methods
       .map((method) => method.Properties?.HttpMethod)
       .sort();
 
-    expect(httpMethods).toEqual(["GET", "GET", "POST"]);
+    expect(httpMethods).toEqual(["GET", "GET", "POST", "POST"]);
 
     for (const method of methods) {
       expect(method.Properties?.AuthorizationType).toBe("COGNITO_USER_POOLS");
@@ -55,6 +55,7 @@ describe("API Gateway authorization template", () => {
 
     expect(pathParts).toEqual([
       "claims",
+      "invoke",
       "receipts",
       "receipts",
       "tenants",

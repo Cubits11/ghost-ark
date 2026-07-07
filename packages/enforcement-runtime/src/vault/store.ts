@@ -29,6 +29,19 @@ export interface MemoryReadRequest extends VaultIdentity {
   now?: string;
 }
 
+export interface VaultStore {
+  write(
+    request: MemoryWriteRequest,
+    decision: PolicyDecision,
+    consentState?: ConsentState
+  ): Promise<MemoryWriteResult> | MemoryWriteResult;
+  list(request: MemoryReadRequest): Promise<MemoryRecord[]> | MemoryRecord[];
+  get(request: VaultIdentity & { id: string; now?: string }): Promise<MemoryRecord> | MemoryRecord;
+  tombstone(request: VaultIdentity & { id: string; now?: string }): Promise<MemoryRecord> | MemoryRecord;
+  deleteErasable(request: VaultIdentity & { id: string; now?: string }): Promise<void> | void;
+  exportUserMemory(request: VaultIdentity & { now?: string }): Promise<MemoryRecord[]> | MemoryRecord[];
+}
+
 function isExpired(record: MemoryRecord, now: string): boolean {
   return Boolean(record.expiresAt && record.expiresAt <= now);
 }
@@ -43,7 +56,7 @@ function recordId(input: MemoryWriteRequest): string {
   })}`;
 }
 
-export class InMemoryVaultStore {
+export class InMemoryVaultStore implements VaultStore {
   private readonly records = new Map<string, MemoryRecord>();
 
   write(request: MemoryWriteRequest, decision: PolicyDecision, consentState: ConsentState = "missing"): MemoryWriteResult {
