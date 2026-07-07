@@ -23,7 +23,8 @@
     "docs:check": "node -e \"const fs=require('fs'); const required=['docs/architecture/system-overview.md','docs/compliance/non-claims.md','README.md']; for (const f of required) { if (!fs.existsSync(f)) throw new Error('Missing '+f); }\"",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "validate": "npm run lint && npm test && npm run docs:check"
+    "validate": "npm run lint && npm test && npm run docs:check",
+    "receipt:verify": "ts-node tools/scripts/receiptVerify.ts"
   },
   "dependencies": {
     "@aws-sdk/client-athena": "^3.1080.0",
