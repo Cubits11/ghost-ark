@@ -79,7 +79,7 @@ describe("receipt verification", () => {
     expect(result.checks.find((check) => check.name === "tenant")?.passed).toBe(false);
   });
 
-  it("fails before signature verification when the digest is tampered", async () => {
+  it("fails before signature verification when the stored digest is tampered", async () => {
     const record = buildRecord();
     let signatureVerifierCalled = false;
     record.signature.digestSha256 = "0".repeat(64);
@@ -96,5 +96,76 @@ describe("receipt verification", () => {
     expect(signatureVerifierCalled).toBe(false);
     expect(result.checks.find((check) => check.name === "digest")?.passed).toBe(false);
     expect(result.checks.find((check) => check.name === "signature")?.passed).toBe(false);
+  });
+
+  it("fails before signature verification when the payload is tampered after signing", async () => {
+    const record = buildRecord();
+    let signatureVerifierCalled = false;
+
+    record.payload.subject.id = "tampered-dataset-version";
+
+    const result = await verifyReceiptRecord(record, {
+      expectedTenantSlug: "acme-lab",
+      verifySignature: async () => {
+        signatureVerifierCalled = true;
+        return true;
+      }
+    });
+
+    expect(result.verdict).toBe(false);
+    expect(signatureVerifierCalled).toBe(false);
+    expect(result.checks.find((check) => check.name === "receiptId")?.passed).toBe(false);
+    expect(result.checks.find((check) => check.name === "digest")?.passed).toBe(false);
+    expect(result.checks.find((check) => check.name === "signature")?.passed).toBe(false);
+  });
+
+  it("fails when the signature verifier rejects the signature", async () => {
+    const record = buildRecord();
+
+    const result = await verifyReceiptRecord(record, {
+      expectedTenantSlug: "acme-lab",
+      verifySignature: async () => false
+    });
+
+    expect(result.verdict).toBe(false);
+    expect(result.checks.find((check) => check.name === "schema")?.passed).toBe(true);
+    expect(result.checks.find((check) => check.name === "receiptId")?.passed).toBe(true);
+    expect(result.checks.find((check) => check.name === "digest")?.passed).toBe(true);
+    expect(result.checks.find((check) => check.name === "signature")?.passed).toBe(false);
+  });
+
+  it("fails schema validation for malformed receipt records", async () => {
+    const record = buildRecord();
+    const malformed = {
+      ...record,
+      payload: {
+        ...record.payload,
+        receiptId: "not-a-valid-receipt-id"
+      }
+    };
+
+    const result = await verifyReceiptRecord(malformed, {
+      expectedTenantSlug: "acme-lab",
+      verifySignature: async () => true
+    });
+
+    expect(result.verdict).toBe(false);
+    expect(result.checks).toHaveLength(1);
+    expect(result.checks[0].name).toBe("schema");
+    expect(result.checks[0].passed).toBe(false);
+  });
+
+  it("fails when signing metadata uses an unexpected algorithm", async () => {
+    const record = buildRecord();
+
+    record.signature.algorithm = "RSASSA_PKCS1_V1_5_SHA_256";
+
+    const result = await verifyReceiptRecord(record, {
+      expectedTenantSlug: "acme-lab",
+      verifySignature: async () => true
+    });
+
+    expect(result.verdict).toBe(false);
+    expect(result.checks.find((check) => check.name === "algorithm")?.passed).toBe(false);
   });
 });
