@@ -40,4 +40,13 @@ Decision receipts should contain digests, not raw prompts, completions, or memor
 
 ## Signing Status
 
-The current decision receipt signer is `LOCAL_HMAC_SHA256_DEV_ONLY` for local tests. Production decision receipts require a KMS-backed signer and verifier before the runtime can claim AWS-native signing for LLM decisions.
+Decision receipt signing paths now include:
+
+- `LOCAL_HMAC_SHA256_DEV_ONLY` for deterministic local tests.
+- `KMS_SIGN_RSASSA_PSS_SHA_256` for AWS KMS-backed decision receipt signing.
+
+Local HMAC verification remains implemented and tested. KMS verification for decision receipts is not implemented in this pass. Evidence receipt KMS verification remains separate from decision receipt verification.
+
+## Governed Invoke Emission
+
+The governed invoke runtime attempts receipt emission for governed invocation attempts. If a model output exists and receipt emission fails, the runtime returns `failed_closed` and does not return the model output normally. Blocked pre-model paths still attempt a receipt; if that receipt fails, the response records the receipt failure but no model output was produced.

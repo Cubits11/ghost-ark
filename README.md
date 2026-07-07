@@ -1,10 +1,10 @@
 # Ghost Ark v50
 
-Ghost Ark v50 is an AWS-native reference implementation for bounded governance receipts and early constitutional enforcement primitives around LLM applications.
+Ghost Ark v50 is an AWS-native reference implementation for bounded governance receipts and deterministic enforcement primitives around LLM applications.
 
-The existing AWS slice stores raw and curated evidence in S3, catalogs it through AWS-native metadata layers, enforces governed access, issues signed evidence receipts, records receipt state in a ledger, and exposes query, search, replay, and review workflows. The enforcement-runtime slice adds deterministic policy evaluation, memory-write suppression, tenant-authority checks, redacted logging, and local decision receipts for LLM governance paths.
+The existing AWS slice stores raw and curated evidence in S3, catalogs it through AWS-native metadata layers, enforces governed access, issues signed evidence receipts, records receipt state in a ledger, and exposes query, search, replay, and review workflows. The enforcement-runtime slice adds deterministic policy evaluation, tenant-scoped policy loading, tenant and taint-filtered retrieval context, Bedrock invocation adapters, memory-write gates, redacted logging, and decision receipt emission for governed LLM paths.
 
-This repository is not yet a complete Amazon Bedrock enforcement runtime. The Bedrock invocation wrapper, production decision-receipt KMS signer, DynamoDB-backed privacy vault, and retrieval taint filter still need to be wired into a consequential request path.
+Ghost Ark now includes a local governed Bedrock invocation runtime spine. AWS wiring exists for the invoke API route, DynamoDB policy and privacy-vault tables, decision receipt storage, KMS decision signing, and Bedrock invocation permission, but live AWS validation and full model-format coverage remain release blockers.
 
 ## What Ghost Ark Is
 
@@ -13,7 +13,7 @@ This repository is not yet a complete Amazon Bedrock enforcement runtime. The Be
 - A lineage and replay framework for evidence-producing workflows.
 - A governed query plane built on cataloged datasets.
 - A multi-tenant control plane with namespaced IAM and policy templates.
-- A local deterministic enforcement-runtime package for policy decisions, memory gates, and decision receipts.
+- A deterministic enforcement-runtime package for policy decisions, tenant and taint-filtered retrieval context, Bedrock invocation adapters, memory gates, and decision receipts.
 - A product surface for claims, review, search, and exportable evidence packs.
 
 ## What Ghost Ark Is Not
@@ -70,6 +70,9 @@ Ghost Ark is a cryptographic tracking substrate, not a magical tool that automat
 - Service roles are centrally owned and passed only to intended AWS services.
 - KMS signing uses asymmetric keys with `SIGN_VERIFY` usage.
 - Raw, curated, receipt, and export paths are separated by tenant namespace.
+- Governed invoke resolves tenant and user authority from JWT or authorizer context, rejects client-declared tenant/user/session authority, and fails closed on path/auth tenant mismatch.
+- Governed invoke emits minimized decision receipts containing digests and decisions, not raw prompts, completions, or memory contents.
+- KAPPA memory is invocation-only, SESSION memory requires expiry, and RESTRICTED memory requires explicit consent.
 - Lake Formation is the fine-grained disclosure layer; bespoke ACL logic is not the primary governance mechanism.
 - OpenSearch access from API Lambda roles is scoped to the deployed domain ARN, and the domain security group only accepts HTTPS from the API search Lambda security group.
 - Observatory Lambda-error and Ghost Ark custom receipt-gap alarms notify the observatory SNS topic.
@@ -78,6 +81,17 @@ Ghost Ark is a cryptographic tracking substrate, not a magical tool that automat
 
 - Unit tests for canonicalization, schemas, policy compilers, and signing helpers.
 - Unit tests for deterministic LLM policy decisions, conflict precedence, memory suppression, consent, TTL filtering, decision receipt verification, hash-chain checks, tenant override rejection, and log redaction.
+- Unit and integration tests for governed invoke refusal, successful model invocation, post-model redaction, retrieval taint filtering, memory gates, receipt emission, and fail-closed receipt emission.
 - Integration checks for handlers, OpenSearch templates, and Step Functions definitions.
 - AWS-gated tests for dev-account receipt pipeline and tenant isolation with `RUN_AWS_TESTS=true`.
 - Policy simulation through `tools/policy-sim/simulate.sh`.
+
+## Governed Invoke
+
+Local validation:
+
+```bash
+npm test -- tests/unit/enforcement-runtime/runtime tests/unit/enforcement-runtime/retrieval tests/unit/enforcement-runtime/receipts tests/integration/test_governedInvokeLifecycle.test.ts
+```
+
+CDK adds `POST /tenants/{tenantSlug}/invoke` with Cognito authorization. Deployed defaults are AWS-backed (`GHOST_ARK_MODEL_MODE=bedrock`, `GHOST_ARK_RECEIPT_SIGNER=kms`, `GHOST_ARK_POLICY_REPOSITORY=dynamodb`, `GHOST_ARK_VAULT=dynamodb`) and fail closed unless `GHOST_ARK_RECEIPT_HMAC_SECRET` is configured for private identifier digests.

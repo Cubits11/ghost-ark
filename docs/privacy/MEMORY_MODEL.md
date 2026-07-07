@@ -15,9 +15,11 @@ Ghost Ark treats memory as a policy-controlled privacy vault, not as an unbounde
 A memory write is allowed only after policy evaluation.
 
 - `MEMORY_SUPPRESS` prevents persistence.
+- `REQUIRE_CONSENT`, `REFUSE`, `SILENCE`, `ESCALATE`, and `HUMAN_REVIEW` prevent runtime memory persistence.
 - `RESTRICTED` requires consent state `granted`.
 - `SESSION` requires `expiresAt`.
 - `KAPPA` is never written.
+- The governed invoke runtime records `memory_written` in the decision receipt.
 
 ## TTL Semantics
 
@@ -31,4 +33,10 @@ DynamoDB TTL, when used, is only a storage cleanup backstop. It is not immediate
 
 ## Current Status
 
-The repository contains a local in-memory vault implementation and tests for suppression, TTL filtering, consent, delete, and export behavior. It is not yet a DynamoDB-backed production privacy vault.
+The repository contains:
+
+- A local in-memory vault implementation and tests for suppression, TTL filtering, consent, delete, and export behavior.
+- A DynamoDB-backed vault implementation that partitions by tenant and user, stores content digests rather than raw memory content, rejects KAPPA persistence, requires SESSION expiry, filters expired records at read time, and tombstones AUDIT records.
+- CDK wiring for a `ghost-ark-{stage}-privacy-vault` table with on-demand billing, TTL on `expiresAtEpoch`, and point-in-time recovery.
+
+Live AWS validation of the DynamoDB vault path is still required before production claims.
