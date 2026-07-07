@@ -1,8 +1,10 @@
 # Ghost Ark v50
 
-Ghost Ark v50 is an AWS-native evidence lake and receipt-control platform for governed ingestion, transform, cataloging, search, signing, lineage, and disclosure.
+Ghost Ark v50 is an AWS-native reference implementation for bounded governance receipts and early constitutional enforcement primitives around LLM applications.
 
-It is designed for teams that need more than logs in a bucket and less than a magical safety-certification story. Ghost Ark stores raw and curated evidence in S3, catalogs it through AWS-native metadata layers, enforces governed access, issues signed receipts, records receipt state in a ledger, and exposes query, search, replay, and review workflows for analysts, auditors, and platform operators.
+The existing AWS slice stores raw and curated evidence in S3, catalogs it through AWS-native metadata layers, enforces governed access, issues signed evidence receipts, records receipt state in a ledger, and exposes query, search, replay, and review workflows. The enforcement-runtime slice adds deterministic policy evaluation, memory-write suppression, tenant-authority checks, redacted logging, and local decision receipts for LLM governance paths.
+
+This repository is not yet a complete Amazon Bedrock enforcement runtime. The Bedrock invocation wrapper, production decision-receipt KMS signer, DynamoDB-backed privacy vault, and retrieval taint filter still need to be wired into a consequential request path.
 
 ## What Ghost Ark Is
 
@@ -11,6 +13,7 @@ It is designed for teams that need more than logs in a bucket and less than a ma
 - A lineage and replay framework for evidence-producing workflows.
 - A governed query plane built on cataloged datasets.
 - A multi-tenant control plane with namespaced IAM and policy templates.
+- A local deterministic enforcement-runtime package for policy decisions, memory gates, and decision receipts.
 - A product surface for claims, review, search, and exportable evidence packs.
 
 ## What Ghost Ark Is Not
@@ -20,6 +23,8 @@ It is designed for teams that need more than logs in a bucket and less than a ma
 - Not a claim that cryptographic integrity equals empirical truth.
 - Not a one-click compliance certificate.
 - Not an excuse to collapse tenant, cohort, or account boundaries.
+- Not clinical, therapeutic, emotional-safety, or legal-compliance software.
+- Not proof that a model output is semantically correct.
 
 ## Core Planes
 
@@ -32,7 +37,7 @@ It is designed for teams that need more than logs in a bucket and less than a ma
 ## Repository Map
 
 - `apps/` user-facing API handlers and console feature surfaces.
-- `packages/` shared receipt schemas, policy compilers, lineage models, and runtime utilities.
+- `packages/` shared receipt schemas, policy compilers, lineage models, enforcement-runtime primitives, and runtime utilities.
 - `services/` ingest, transform, orchestration, governance, signing, search, and ledger implementations.
 - `infra/` Terraform account bootstrap plus CDK application stacks.
 - `schemas/` JSON Schema contracts for external validation.
@@ -60,6 +65,8 @@ Ghost Ark is a cryptographic tracking substrate, not a magical tool that automat
 - Terraform renders IAM policy variables as `${aws:PrincipalTag/slug}` using `$${...}` HCL escaping, and tenant sandbox policies keep explicit region deny statements.
 - Bootstrap S3 buckets have versioning enabled for raw, curated, export, and Athena result zones.
 - Receipt API routes use an API Gateway Cognito authorizer. Runtime handlers read tenant identity from `tenant_slug`, `custom:tenant_slug`, or Lambda-authorizer tenant context.
+- Client-declared tenant, user, and session identifiers are rejected for receipt creation.
+- General structured logs redact prompt, completion, memory, raw body, and credential-like fields by default.
 - Service roles are centrally owned and passed only to intended AWS services.
 - KMS signing uses asymmetric keys with `SIGN_VERIFY` usage.
 - Raw, curated, receipt, and export paths are separated by tenant namespace.
@@ -70,6 +77,7 @@ Ghost Ark is a cryptographic tracking substrate, not a magical tool that automat
 ## Validation Lanes
 
 - Unit tests for canonicalization, schemas, policy compilers, and signing helpers.
+- Unit tests for deterministic LLM policy decisions, conflict precedence, memory suppression, consent, TTL filtering, decision receipt verification, hash-chain checks, tenant override rejection, and log redaction.
 - Integration checks for handlers, OpenSearch templates, and Step Functions definitions.
 - AWS-gated tests for dev-account receipt pipeline and tenant isolation with `RUN_AWS_TESTS=true`.
 - Policy simulation through `tools/policy-sim/simulate.sh`.

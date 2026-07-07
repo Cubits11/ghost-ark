@@ -1,0 +1,57 @@
+schemaVersion: ghost.policy.v1
+policyId: org-minimal
+version: 1.0.0
+layer: organization
+defaultDecision: ALLOW
+unknownRiskDecision: REQUIRE_CONSENT
+rules:
+  - id: private-memory-extraction
+    phase: pre_model
+    decision: REFUSE
+    riskScore: 0.95
+    actionTaken:
+      - block_model_invocation
+    match:
+      riskTagsAny:
+        - private_memory_extraction
+  - id: untrusted-retrieval-instruction
+    phase: pre_model
+    decision: ESCALATE
+    riskScore: 0.8
+    actionTaken:
+      - quarantine_retrieval
+    match:
+      retrievalTaintAny:
+        - untrusted_instruction
+  - id: pii-redaction
+    phase: post_model
+    decision: REDACT
+    riskScore: 0.65
+    actionTaken:
+      - redact_output
+    match:
+      outputContainsAny:
+        - ssn
+        - social security number
+        - "email:"
+  - id: restricted-memory-consent
+    phase: memory_write
+    decision: REQUIRE_CONSENT
+    riskScore: 0.7
+    actionTaken:
+      - request_explicit_consent
+    match:
+      memoryTierAny:
+        - RESTRICTED
+      requiresConsent: true
+  - id: sensitive-memory-suppression
+    phase: memory_write
+    decision: MEMORY_SUPPRESS
+    riskScore: 0.9
+    actionTaken:
+      - drop_memory_write
+    match:
+      memoryClassificationAny:
+        - secret
+        - credential
+        - sensitive
