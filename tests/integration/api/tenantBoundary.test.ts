@@ -16,15 +16,19 @@ vi.mock("../../../packages/shared/src/config", () => ({
 }));
 
 vi.mock("../../../services/ledger/dynamodb/data/receiptRepository", () => ({
-  ReceiptRepository: vi.fn().mockImplementation(() => ({
-    get: mocks.receiptGet
-  }))
+  ReceiptRepository: vi.fn(function ReceiptRepository() {
+    return {
+      get: mocks.receiptGet
+    };
+  })
 }));
 
 vi.mock("../../../services/ledger/dynamodb/data/claimRepository", () => ({
-  ClaimRepository: vi.fn().mockImplementation(() => ({
-    list: mocks.claimsList
-  }))
+  ClaimRepository: vi.fn(function ClaimRepository() {
+    return {
+      list: mocks.claimsList
+    };
+  })
 }));
 
 import { handler as getReceiptHandler } from "../../../apps/api/src/handlers/getReceipt";
@@ -84,10 +88,15 @@ describe("API tenant boundary", () => {
   });
 
   it("allows receipt retrieval when path tenant matches identity tenant", async () => {
-    mocks.receiptGet.mockResolvedValue({
-      payload: { receiptId: "rct_abc", tenantSlug: "acme-lab" },
+    const record = {
+      payload: {
+        receiptId: "rct_abc",
+        tenantSlug: "acme-lab"
+      },
       status: "issued"
-    });
+    };
+
+    mocks.receiptGet.mockResolvedValue(record);
 
     const response = await getReceiptHandler(
       eventWithTenantPath({
@@ -98,6 +107,7 @@ describe("API tenant boundary", () => {
     );
 
     expect(response.statusCode).toBe(200);
+    expect(parsedBody(response)).toEqual(record);
     expect(mocks.receiptGet).toHaveBeenCalledWith("acme-lab", "rct_abc");
   });
 
