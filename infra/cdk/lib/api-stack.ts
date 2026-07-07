@@ -47,7 +47,7 @@ export class ApiStack extends Stack {
       KMS_SIGNING_KEY_ID: signing.keyId,
       OPENSEARCH_ENDPOINT: props.opensearchEndpoint ?? "",
       OPENSEARCH_INDEX_PREFIX: `ghost-ark-${props.stage}`,
-      ALLOW_DEVELOPER_HEADERS: props.stage === "prod" ? "false" : "true"
+      ALLOW_DEVELOPER_HEADERS: "false"
     };
     let searchVpcConfig: Pick<NodejsFunctionProps, "vpc" | "securityGroups"> = {};
     if (props.searchVpc && props.searchSecurityGroup) {

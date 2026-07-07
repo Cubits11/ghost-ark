@@ -1,0 +1,26 @@
+schemaVersion: ghost.policy.v1
+policyId: personal-minimal
+version: 1.0.0
+layer: user
+defaultDecision: ALLOW
+unknownRiskDecision: REQUIRE_CONSENT
+rules:
+  - id: receipt-for-memory-changes
+    phase: memory_write
+    decision: RECEIPT_ONLY
+    riskScore: 0.2
+    actionTaken:
+      - emit_receipt
+    match:
+      memoryTierAny:
+        - CONSTITUTION
+        - RESTRICTED
+  - id: user-prefers-human-review-for-uncertain-memory
+    phase: memory_write
+    decision: HUMAN_REVIEW
+    riskScore: 0.6
+    actionTaken:
+      - queue_review
+    match:
+      riskTagsAny:
+        - unknown_risk

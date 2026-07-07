@@ -2,6 +2,8 @@
 
 Ghost Ark v50 is organized into five operational planes:
 
+This page describes the existing AWS evidence and receipt-control plane. For the newer local LLM enforcement-runtime slice and its remaining Bedrock gaps, see `docs/architecture/OVERVIEW.md`.
+
 1. Ingest accepts raw evidence through S3 drops, API uploads, SQS fan-in, and CDC normalization.
 2. Transform promotes raw records into curated, partitioned, schema-checked Parquet datasets.
 3. Catalog and govern register datasets in Glue, expose Athena query paths, and enforce Lake Formation controls.

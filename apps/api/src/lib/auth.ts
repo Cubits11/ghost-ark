@@ -6,7 +6,7 @@ export interface AuthenticatedPrincipal {
   subject: string;
   tenantSlug: string;
   roles: string[];
-  source: "jwt" | "authorizer" | "developer-header";
+  source: "jwt" | "authorizer";
 }
 
 type Claims = Record<string, unknown>;
@@ -20,11 +20,6 @@ interface AuthorizerContext {
   principalId?: unknown;
   roles?: unknown;
   [key: string]: unknown;
-}
-
-function header(event: APIGatewayProxyEventV2, name: string): string | undefined {
-  const lower = name.toLowerCase();
-  return Object.entries(event.headers ?? {}).find(([key]) => key.toLowerCase() === lower)?.[1];
 }
 
 function stringValue(value: unknown): string | undefined {
@@ -59,8 +54,7 @@ export function authenticate(event: APIGatewayProxyEventV2): AuthenticatedPrinci
   const jwtSubject = claim(claims, "sub", "username", "cognito:username") ?? stringValue(authorizer?.principalId);
   const jwtRoles = parseRoles(claims?.roles ?? claims?.["cognito:groups"] ?? authorizer?.roles);
 
-  const devTenant = process.env.ALLOW_DEVELOPER_HEADERS === "true" ? header(event, "x-tenant-slug") : undefined;
-  const tenantSlug = jwtTenant ?? authorizerTenant ?? devTenant;
+  const tenantSlug = jwtTenant ?? authorizerTenant;
   if (!tenantSlug) {
     throw new AuthorizationError("Missing tenant identity");
   }
@@ -71,9 +65,9 @@ export function authenticate(event: APIGatewayProxyEventV2): AuthenticatedPrinci
   }
 
   return {
-    subject: jwtSubject ?? header(event, "x-principal-subject") ?? "unknown-principal",
+    subject: jwtSubject ?? "unknown-principal",
     tenantSlug: parsedTenant.data,
     roles: jwtRoles,
-    source: jwtTenant ? "jwt" : authorizerTenant ? "authorizer" : "developer-header"
+    source: jwtTenant ? "jwt" : "authorizer"
   };
 }

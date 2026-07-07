@@ -10,6 +10,7 @@ import { ClaimRepository } from "../../../../services/ledger/dynamodb/data/claim
 import { LineageRepository } from "../../../../services/ledger/dynamodb/data/lineageRepository";
 import { authenticate } from "../lib/auth";
 import { jsonResponse, parseJsonBody } from "../lib/validation";
+import { assertNoClientDeclaredIdentity } from "../../../../packages/enforcement-runtime/src/identity/context";
 
 interface CreateReceiptBody {
   subject: ReceiptSubject;
@@ -33,6 +34,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     const config = loadRuntimeConfig();
     const principal = authenticate(event);
     const body = parseJsonBody<CreateReceiptBody>(event.body);
+    assertNoClientDeclaredIdentity(body);
     const payload = buildReceiptPayload({
       tenantSlug: principal.tenantSlug,
       subject: body.subject,

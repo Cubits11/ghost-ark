@@ -7,12 +7,29 @@ export interface Logger {
   error(message: string, fields?: Record<string, unknown>): void;
 }
 
+const sensitiveFieldPattern = /(authorization|body|completion|cookie|memory|password|prompt|raw|secret|token|transcript)/iu;
+
+export function redactForLog(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => redactForLog(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, entryValue]) => [
+        key,
+        sensitiveFieldPattern.test(key) ? "[REDACTED]" : redactForLog(entryValue)
+      ])
+    );
+  }
+  return value;
+}
+
 function write(level: LogLevel, message: string, fields: Record<string, unknown> = {}): void {
   const line = {
     level,
     message,
     time: new Date().toISOString(),
-    ...fields
+    ...(redactForLog(fields) as Record<string, unknown>)
   };
   const serialized = JSON.stringify(line);
   if (level === "error") {

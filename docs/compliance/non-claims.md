@@ -8,5 +8,6 @@ Ghost Ark deliberately does not claim:
 - That AWS service-level immutability equals legal immutability.
 - That search results are complete without catalog and lineage verification.
 - That a compliance export is certification by itself.
+- That Ghost Ark provides legal, clinical, therapeutic, emotional-safety, or mental-health assurance.
 
 Ghost Ark claims only what its evidence path can support: observed object metadata, deterministic canonical payloads, KMS-backed signatures, ledger state, policy configuration, and replayable workflow records.
