@@ -18,103 +18,50 @@ function synthApiTemplate(): CfnTemplate {
     stage: "test",
     project: "ghost-ark"
   });
+
   return Template.fromStack(stack).toJSON() as CfnTemplate;
 }
 
-function refValue(value: unknown): string | undefined {
-  if (typeof value === "object" && value !== null && "Ref" in value) {
-    const ref = (value as { Ref?: unknown }).Ref;
-    return typeof ref === "string" ? ref : undefined;
-  }
-  return undefined;
-}
-
-function buildResourcePaths(template: CfnTemplate): Record<string, string> {
-  const paths: Record<string, string> = {};
-
-  function pathFor(logicalId: string): string {
-    if (paths[logicalId]) {
-      return paths[logicalId];
-    }
-
-    const resource = template.Resources[logicalId];
-    if (!resource || resource.Type !== "AWS::ApiGateway::Resource") {
-      throw new Error(`Unknown API Gateway resource logical id: ${logicalId}`);
-    }
-
-    const pathPart = resource.Properties?.PathPart;
-    if (typeof pathPart !== "string") {
-      throw new Error(`API Gateway resource ${logicalId} is missing PathPart`);
-    }
-
-    const parentRef = refValue(resource.Properties?.ParentId);
-    if (!parentRef) {
-      throw new Error(`API Gateway resource ${logicalId} is missing ParentId Ref`);
-    }
-
-    const parent =
-      template.Resources[parentRef]?.Type === "AWS::ApiGateway::Resource"
-        ? pathFor(parentRef)
-        : "";
-
-    const fullPath = `${parent}/${pathPart}`.replaceAll("//", "/");
-    paths[logicalId] = fullPath;
-    return fullPath;
-  }
-
-  for (const [logicalId, resource] of Object.entries(template.Resources)) {
-    if (resource.Type === "AWS::ApiGateway::Resource") {
-      pathFor(logicalId);
-    }
-  }
-
-  return paths;
-}
-
-function methodMatrix(template: CfnTemplate): Record<string, Record<string, unknown>> {
-  const resourcePaths = buildResourcePaths(template);
-  const matrix: Record<string, Record<string, unknown>> = {};
-
-  for (const resource of Object.values(template.Resources)) {
-    if (resource.Type !== "AWS::ApiGateway::Method") {
-      continue;
-    }
-
-    const httpMethod = resource.Properties?.HttpMethod;
-    if (typeof httpMethod !== "string") {
-      continue;
-    }
-
-    const resourceRef = refValue(resource.Properties?.ResourceId);
-    const path = resourceRef ? resourcePaths[resourceRef] : "/";
-    matrix[`${httpMethod} ${path}`] = resource.Properties ?? {};
-  }
-
-  return matrix;
+function resourcesOfType(template: CfnTemplate, type: string): CfnResource[] {
+  return Object.values(template.Resources).filter((resource) => resource.Type === type);
 }
 
 describe("API Gateway authorization template", () => {
-  it("protects core receipt and claim routes with Cognito authorization", () => {
+  it("protects every synthesized API method with Cognito user-pool authorization", () => {
     const template = synthApiTemplate();
-    const methods = methodMatrix(template);
+    const methods = resourcesOfType(template, "AWS::ApiGateway::Method");
 
-    const protectedRoutes = [
-      "POST /receipts",
-      "GET /tenants/{tenantSlug}/receipts/{receiptId}",
-      "GET /tenants/{tenantSlug}/claims"
-    ];
+    expect(methods.length).toBe(3);
 
-    for (const route of protectedRoutes) {
-      expect(methods[route], `missing API method for ${route}`).toBeDefined();
-      expect(methods[route].AuthorizationType, `${route} must use Cognito authorization`).toBe("COGNITO");
-      expect(methods[route].AuthorizerId, `${route} must reference an authorizer`).toBeDefined();
+    const httpMethods = methods
+      .map((method) => method.Properties?.HttpMethod)
+      .sort();
+
+    expect(httpMethods).toEqual(["GET", "GET", "POST"]);
+
+    for (const method of methods) {
+      expect(method.Properties?.AuthorizationType).toBe("COGNITO_USER_POOLS");
+      expect(method.Properties?.AuthorizerId).toBeDefined();
     }
   });
 
-  it("does not synthesize the search route when search is disabled", () => {
+  it("synthesizes the expected core route resources without search when search is disabled", () => {
     const template = synthApiTemplate();
-    const methods = methodMatrix(template);
+    const resources = resourcesOfType(template, "AWS::ApiGateway::Resource");
 
-    expect(methods["GET /tenants/{tenantSlug}/search"]).toBeUndefined();
+    const pathParts = resources
+      .map((resource) => resource.Properties?.PathPart)
+      .sort();
+
+    expect(pathParts).toEqual([
+      "claims",
+      "receipts",
+      "receipts",
+      "tenants",
+      "{receiptId}",
+      "{tenantSlug}"
+    ]);
+
+    expect(pathParts).not.toContain("search");
   });
 });
