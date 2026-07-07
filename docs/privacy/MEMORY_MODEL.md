@@ -20,6 +20,7 @@ A memory write is allowed only after policy evaluation.
 - `SESSION` requires `expiresAt`.
 - `KAPPA` is never written.
 - The governed invoke runtime records `memory_written` in the decision receipt.
+- The governed invoke request schema accepts `contentDigest` for memory writes. This pass does not store raw memory content in the vault.
 
 ## TTL Semantics
 
@@ -39,4 +40,4 @@ The repository contains:
 - A DynamoDB-backed vault implementation that partitions by tenant and user, stores content digests rather than raw memory content, rejects KAPPA persistence, requires SESSION expiry, filters expired records at read time, and tombstones AUDIT records.
 - CDK wiring for a `ghost-ark-{stage}-privacy-vault` table with on-demand billing, TTL on `expiresAtEpoch`, and point-in-time recovery.
 
-Live AWS validation of the DynamoDB vault path is still required before production claims.
+Live AWS validation of the DynamoDB vault path is still required before production claims. The AWS governed invoke smoke should include a memory-write case before any production readiness claim.

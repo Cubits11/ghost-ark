@@ -51,7 +51,7 @@ describe("decision receipt emission", () => {
     expect(receipt.tenant_id_hash).toMatch(/^hmac-sha256:/u);
     expect(receipt.decision_post).toBe("REDACT");
     expect(await repository.get({ tenantId: receipt.tenant_id_hash, receiptId: receipt.receipt_id })).toEqual(receipt);
-    expect(verifyDecisionReceipt(receipt, signer).verdict).toBe(true);
+    expect((await verifyDecisionReceipt(receipt, signer)).verdict).toBe(true);
     expect(JSON.stringify(receipt)).not.toContain("hello");
     expect(JSON.stringify(receipt)).not.toContain("model output");
   });
