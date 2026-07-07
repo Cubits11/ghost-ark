@@ -32,9 +32,7 @@ export class ApiStack extends Stack {
     super(scope, id, props);
     const project = props.project ?? "ghost-ark";
     const lake = new S3EvidenceLake(this, "EvidenceLake", { stage: props.stage, project });
-    if (!props.opensearchEndpoint || !props.opensearchDomainArn) {
-      throw new Error("ApiStack requires an OpenSearch endpoint and domain ARN from SearchStack");
-    }
+    const searchEnabled = Boolean(props.opensearchEndpoint && props.opensearchDomainArn);
     const signing = new KmsSigning(this, "Signing", { stage: props.stage, project });
     const ledger = new DynamoDbLedger(this, "Ledger", { stage: props.stage });
     const catalog = new GlueCatalog(this, "Catalog", { stage: props.stage, curatedBucket: lake.curatedBucket });
@@ -47,7 +45,7 @@ export class ApiStack extends Stack {
       CLAIM_LEDGER_TABLE: ledger.claims.tableName,
       LINEAGE_LEDGER_TABLE: ledger.lineage.tableName,
       KMS_SIGNING_KEY_ID: signing.keyId,
-      OPENSEARCH_ENDPOINT: props.opensearchEndpoint,
+      OPENSEARCH_ENDPOINT: props.opensearchEndpoint ?? "",
       OPENSEARCH_INDEX_PREFIX: `ghost-ark-${props.stage}`,
       ALLOW_DEVELOPER_HEADERS: props.stage === "prod" ? "false" : "true"
     };
@@ -77,13 +75,15 @@ export class ApiStack extends Stack {
       handler: "handler",
       environment
     });
-    const searchEvidence = new NodejsFunction(this, "SearchEvidenceHandler", {
-      runtime: Runtime.NODEJS_22_X,
-      entry: handlerEntry("apps/api/src/handlers/searchEvidence.ts"),
-      handler: "handler",
-      environment,
-      ...searchVpcConfig
-    });
+    const searchEvidence = searchEnabled
+      ? new NodejsFunction(this, "SearchEvidenceHandler", {
+          runtime: Runtime.NODEJS_22_X,
+          entry: handlerEntry("apps/api/src/handlers/searchEvidence.ts"),
+          handler: "handler",
+          environment,
+          ...searchVpcConfig
+        })
+      : undefined;
 
     for (const fn of [createReceipt, getReceipt, listClaims]) {
       ledger.receipts.grantReadWriteData(fn);
@@ -91,12 +91,14 @@ export class ApiStack extends Stack {
       ledger.lineage.grantReadWriteData(fn);
     }
     signing.grantSign(createReceipt);
-    searchEvidence.addToRolePolicy(
-      new PolicyStatement({
-        actions: ["es:ESHttpGet", "es:ESHttpPost"],
-        resources: [`${props.opensearchDomainArn}/*`]
-      })
-    );
+    if (searchEvidence && props.opensearchDomainArn) {
+      searchEvidence.addToRolePolicy(
+        new PolicyStatement({
+          actions: ["es:ESHttpGet", "es:ESHttpPost"],
+          resources: [`${props.opensearchDomainArn}/*`]
+        })
+      );
+    }
 
     const userPool = new UserPool(this, "ReceiptUserPool", {
       userPoolName: `${project}-${props.stage}-receipt-users`,
@@ -134,8 +136,10 @@ export class ApiStack extends Stack {
     const tenants = api.root.addResource("tenants");
     const tenant = tenants.addResource("{tenantSlug}");
     tenant.addResource("receipts").addResource("{receiptId}").addMethod("GET", new LambdaIntegration(getReceipt), receiptMethodOptions);
-    tenant.addResource("claims").addMethod("GET", new LambdaIntegration(listClaims));
-    tenant.addResource("search").addMethod("GET", new LambdaIntegration(searchEvidence));
+    tenant.addResource("claims").addMethod("GET", new LambdaIntegration(listClaims), receiptMethodOptions);
+    if (searchEvidence) {
+      tenant.addResource("search").addMethod("GET", new LambdaIntegration(searchEvidence), receiptMethodOptions);
+    }
 
     new CfnOutput(this, "ReceiptUserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "ReceiptUserPoolClientId", { value: userPoolClient.userPoolClientId });
