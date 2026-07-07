@@ -23,18 +23,25 @@ Current validated strengths:
 - POST /receipts is protected by Cognito authorization.
 - GET /tenants/{tenantSlug}/receipts/{receiptId} is protected by Cognito authorization.
 - GET /tenants/{tenantSlug}/claims is protected by Cognito authorization.
+- Developer-header tenant authority is disabled in synthesized API Lambda environments.
+- Receipt creation rejects client-declared tenant, user, and session fields.
+- TypeScript tests cover tenant path mismatch and body tenant override rejection.
 - Search route is absent when Search Mode is disabled.
 - Search Mode is opt-in.
 - Receipt signing uses configured KMS signing infrastructure.
+- Receipt verification CLI exists for evidence receipts.
+- Receipt tamper tests exist for evidence receipts and local decision receipts.
 - Receipt records persist in DynamoDB.
+- Local enforcement-runtime primitives exist for deterministic policy evaluation, decision receipts, and memory suppression.
 - Dev-core smoke validation is documented.
 - Explicit non-claims are documented.
 
 Current known limitations:
 
-- Receipt verification CLI is not implemented.
-- Cross-tenant negative API tests are not yet fully automated in the TypeScript suite.
-- Developer header behavior needs stronger production-mode tests.
+- Bedrock invocation is not yet wrapped by the enforcement runtime.
+- Decision receipts use a local-dev HMAC signer in tests; production KMS-backed decision receipt signing is not wired.
+- Privacy vault behavior is local in-memory test code, not DynamoDB-backed storage.
+- Policy storage and retrieval are not yet tenant-scoped AWS resources.
 - IAM least privilege has not been fully audited.
 - KMS key policy has not been fully audited.
 - Replay and idempotency controls need deeper review.
@@ -103,15 +110,17 @@ Risk:
 
 Current behavior:
 
-- ALLOW_DEVELOPER_HEADERS is set to false when stage is prod.
-- ALLOW_DEVELOPER_HEADERS is true outside prod.
+- ALLOW_DEVELOPER_HEADERS is set to false for all synthesized API Lambda environments.
+- Runtime auth does not read developer tenant headers.
 
-Required tests:
+Evidence:
 
-- prod stage sets ALLOW_DEVELOPER_HEADERS=false.
-- non-prod stage sets ALLOW_DEVELOPER_HEADERS=true.
-- Cognito tenant identity cannot be overridden by developer headers when Cognito identity exists.
-- developer headers are impossible or rejected in production paths.
+- tests/integration/api/template-env.test.ts
+- tests/security/tenantBoundary.test.ts
+
+Remaining work:
+
+- Keep local testing on signed test tokens or Lambda-authorizer fixtures, not client-declared identity headers.
 
 Authorization backlog
 ---------------------
@@ -467,11 +476,11 @@ Priority order
 
 Next engineering priorities:
 
-1. Add production developer-header regression test.
-2. Add cross-tenant negative handler tests.
-3. Add receipt verification CLI.
-4. Add receipt tamper tests.
-5. Add DynamoDB access pattern documentation.
+1. Wire the enforcement runtime around a Bedrock invocation path.
+2. Add tenant-scoped policy storage and retrieval.
+3. Add KMS-backed decision receipt signing and verification.
+4. Add DynamoDB-backed privacy vault storage with delete/export flows.
+5. Add retrieval tenant and taint filtering before prompt construction.
 6. Add API request validation tests.
 7. Add IAM least-privilege review notes.
 8. Add Search Mode validation only when intentionally needed.
@@ -479,13 +488,13 @@ Next engineering priorities:
 Current security verdict
 ------------------------
 
-Ghost Ark has a validated dev-core security baseline for API authorizer attachment.
+Ghost Ark has a validated dev-core security baseline for API authorizer attachment, tenant path checks, disabled developer-header tenant authority, receipt verification, and local enforcement-runtime primitives.
 
 Ghost Ark does not yet have a complete security posture.
 
 The correct claim is:
 
-Ghost Ark dev core has Cognito-protected synthesized API methods, documented claim boundaries, documented validation evidence, and documented cost mode boundaries.
+Ghost Ark dev core has Cognito-protected synthesized API methods, documented claim boundaries, documented validation evidence, documented cost mode boundaries, and local deterministic policy, memory, and decision-receipt tests.
 
 The forbidden claim is:
 

@@ -45,14 +45,14 @@ describe("API Lambda environment security settings", () => {
     }
   });
 
-  it("allows developer headers outside prod for controlled development flows", () => {
+  it("disables developer headers outside prod as well", () => {
     const template = synthApiTemplate("dev");
     const environments = lambdaEnvironmentVariables(template);
 
     expect(environments.length).toBe(3);
 
     for (const variables of environments) {
-      expect(variables.ALLOW_DEVELOPER_HEADERS).toBe("true");
+      expect(variables.ALLOW_DEVELOPER_HEADERS).toBe("false");
     }
   });
 
