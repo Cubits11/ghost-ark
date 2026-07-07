@@ -11,6 +11,8 @@ import { VerifiedIdentityContext } from "../identity/context";
 import { ConsentState, PolicyDecision } from "../policy/decisions";
 
 export const DEFAULT_DECISION_RECEIPT_HMAC_SECRET = "ghost-ark-local-decision-receipt-secret";
+const KMS_DECISION_RECEIPT_ALGORITHM = "KMS_SIGN_RSASSA_PSS_SHA_256";
+const KMS_ALIAS_ARN_PATTERN = /^arn:aws(?:-[a-z-]+)?:kms:[a-z0-9-]+:\d{12}:alias\/.+$/iu;
 
 export interface DecisionReceiptAsyncSigner {
   readonly keyId: string;
@@ -82,11 +84,15 @@ export class DefaultDecisionReceiptEmitter implements DecisionReceiptEmitter {
 
     const canonicalPayload = canonicalUnsignedDecisionReceipt(unsigned);
     const signature = await this.signer.signCanonical(canonicalPayload);
+    const signatureKeyId = this.signer.keyId;
+    if (this.signer.algorithm === KMS_DECISION_RECEIPT_ALGORITHM && isMutableKmsAliasKeyId(signatureKeyId)) {
+      throw new Error(`KMS decision receipt signer exposed mutable alias keyId after signing: ${signatureKeyId}`);
+    }
     const signed = validateSignedDecisionReceipt({
       ...unsigned,
       receipt_signature: Buffer.from(
         JSON.stringify({
-          keyId: this.signer.keyId,
+          keyId: signatureKeyId,
           digestSha256: decisionReceiptDigest(unsigned),
           signature
         }),
@@ -97,4 +103,8 @@ export class DefaultDecisionReceiptEmitter implements DecisionReceiptEmitter {
     await this.repository?.put(signed);
     return signed;
   }
+}
+
+function isMutableKmsAliasKeyId(keyId: string): boolean {
+  return keyId.startsWith("alias/") || KMS_ALIAS_ARN_PATTERN.test(keyId);
 }
