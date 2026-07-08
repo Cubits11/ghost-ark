@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  createSignedEpochCheckpoint,
   buildMerkleInclusionProof,
   buildUnsignedEpochCheckpoint,
   signEpochCheckpoint,
   verifyEpochCheckpoint,
   verifyMerkleInclusionProof
 } from "../../../../packages/enforcement-runtime/src/receipts/checkpoint";
+import { InMemoryReceiptCheckpointRepository } from "../../../../packages/enforcement-runtime/src/receipts/checkpointRepository";
 import { LocalDevHmacReceiptSigner } from "../../../../packages/enforcement-runtime/src/receipts/signer";
 
 const leaves = [
@@ -56,5 +58,37 @@ describe("receipt epoch checkpoints", () => {
 
     expect(result.verdict).toBe(true);
     expect(checkpoint.signerKeyId).toBe("epoch-local-key");
+  });
+
+  it("creates and persists signed checkpoints from repository chain heads", async () => {
+    const signer = new LocalDevHmacReceiptSigner({ keyId: "epoch-local-key", secret: "checkpoint-secret" });
+    const checkpointRepository = new InMemoryReceiptCheckpointRepository();
+    const checkpoint = await createSignedEpochCheckpoint({
+      epochId: "epoch-2026-07-08T01",
+      createdAt: "2026-07-08T01:00:00.000Z",
+      receiptRepository: {
+        listChainHeads: async () => [
+          {
+            tenantId: leaves[0].tenantId,
+            receiptId: "grct_" + "1".repeat(64),
+            headHash: leaves[0].headHash,
+            updatedAt: "2026-07-08T00:59:00.000Z"
+          },
+          {
+            tenantId: leaves[1].tenantId,
+            receiptId: "grct_" + "2".repeat(64),
+            headHash: leaves[1].headHash,
+            updatedAt: "2026-07-08T00:59:00.000Z"
+          }
+        ]
+      },
+      signer,
+      checkpointRepository
+    });
+
+    await expect(checkpointRepository.get("epoch-2026-07-08T01")).resolves.toEqual(checkpoint);
+    await expect(checkpointRepository.put(checkpoint)).rejects.toThrow(/already exists/u);
+    expect(checkpoint.leafCount).toBe(2);
+    expect(checkpoint.merkleRoot).toMatch(/^sha256:[a-f0-9]{64}$/u);
   });
 });

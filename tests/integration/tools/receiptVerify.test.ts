@@ -13,6 +13,7 @@ import {
   publicSha256Digest,
   signedDecisionReceiptHash
 } from "../../../packages/enforcement-runtime/src/receipts/canonical";
+import { buildMerkleInclusionProof } from "../../../packages/enforcement-runtime/src/receipts/checkpoint";
 import { LocalDevHmacReceiptSigner, signDecisionReceipt } from "../../../packages/enforcement-runtime/src/receipts/signer";
 
 const now = "2026-07-07T00:00:00.000Z";
@@ -101,12 +102,12 @@ function writeFixture(record: ReceiptRecord, publicKeyPem: string): { receiptPat
   return { receiptPath, publicKeyPath };
 }
 
-function decisionReceipt(prev_receipt_hash: string | null, request_id: string) {
+function decisionReceipt(prev_receipt_hash: string | null, request_id: string, tenantId = "tenant-a") {
   const signer = new LocalDevHmacReceiptSigner({ secret: "chain-secret" });
   return signDecisionReceipt(
     buildUnsignedDecisionReceipt({
       request_id,
-      tenant_id_hash: privateHmacDigest("secret", "tenant-a"),
+      tenant_id_hash: privateHmacDigest("secret", tenantId),
       user_id_hash: privateHmacDigest("secret", "user-a"),
       session_id_hash: privateHmacDigest("secret", "session-a"),
       timestamp: "2026-07-07T12:00:00.000Z",
@@ -334,5 +335,66 @@ describe("receipt verification", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("PASS chain_1");
     expect(result.stdout).toContain("VERDICT: PASS");
+  });
+
+  it("makes the standalone chain verifier fail on mixed tenant chains", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "ghost-ark-chain-"));
+    const first = decisionReceipt(null, "request-a");
+    const second = decisionReceipt(signedDecisionReceiptHash(first), "request-b", "tenant-b");
+    const chainPath = path.join(dir, "chain.json");
+    writeFileSync(chainPath, JSON.stringify([first, second], null, 2));
+
+    const result = spawnSync(process.execPath, ["tools/ghost-verify.mjs", "--verify-chain", chainPath], {
+      cwd: process.cwd(),
+      encoding: "utf8"
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("FAIL chain_1");
+    expect(result.stdout).toContain("Tenant-chain break");
+  });
+
+  it("runs the standalone inclusion proof verifier without a receipt", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "ghost-ark-proof-"));
+    const receipt = decisionReceipt(null, "request-a");
+    const leaf = {
+      tenantId: receipt.tenant_id_hash,
+      headHash: signedDecisionReceiptHash(receipt)
+    };
+    const proofPath = path.join(dir, "proof.json");
+    writeFileSync(proofPath, JSON.stringify(buildMerkleInclusionProof([leaf], leaf), null, 2));
+
+    const result = spawnSync(process.execPath, ["tools/ghost-verify.mjs", "--inclusion-proof", proofPath], {
+      cwd: process.cwd(),
+      encoding: "utf8"
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("PASS inclusion_proof_schema");
+    expect(result.stdout).toContain("PASS inclusion_proof");
+    expect(result.stdout).toContain("VERDICT: PASS");
+  });
+
+  it("makes the standalone inclusion proof verifier fail closed on malformed proofs", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "ghost-ark-proof-"));
+    const proofPath = path.join(dir, "proof.json");
+    writeFileSync(
+      proofPath,
+      JSON.stringify({
+        leaf: { tenantId: "tenant-a", headHash: "not-a-hash" },
+        leafHash: "not-a-hash",
+        proof: [],
+        root: "not-a-hash"
+      })
+    );
+
+    const result = spawnSync(process.execPath, ["tools/ghost-verify.mjs", "--inclusion-proof", proofPath], {
+      cwd: process.cwd(),
+      encoding: "utf8"
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("FAIL inclusion_proof_schema");
+    expect(result.stdout).toContain("VERDICT: FAIL");
   });
 });

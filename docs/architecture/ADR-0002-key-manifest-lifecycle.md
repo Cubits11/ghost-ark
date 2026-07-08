@@ -18,6 +18,8 @@ Ghost Ark uses `ghost.key_manifest.v1`, defined in `schemas/key-manifest.json`, 
 
 Verification succeeds only when the receipt execution timestamp is at or after `validFrom`, before `validUntil` when present, and before `revokedAt` when the key is revoked. A revoked key without `revokedAt` rejects all receipts.
 
+Manifest validation also rejects duplicate `(keyId, algorithm)` entries, `validUntil` values that do not come after `validFrom`, and `revokedAt` values earlier than `validFrom`. Verification treats an invalid manifest as a failed check rather than continuing with ambiguous key lifecycle state.
+
 ## Consequences
 
 Offline verifiers can use the manifest to select a public key and enforce lifecycle policy. Historical receipts remain valid when their timestamp predates revocation; post-revocation receipts fail even if their cryptographic signature still verifies.
