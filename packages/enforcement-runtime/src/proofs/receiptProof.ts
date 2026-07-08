@@ -49,6 +49,18 @@ export interface ReceiptProofVerificationResult {
   }[];
 }
 
+export interface ReceiptProofBackendVerification {
+  readonly passed: boolean;
+  readonly detail?: string;
+}
+
+export interface ReceiptProofBackendVerifier {
+  readonly supportedProofSystems: readonly ReceiptProofSystem[];
+  verify(input: {
+    proof: ReceiptProof;
+  }): boolean | ReceiptProofBackendVerification | Promise<boolean | ReceiptProofBackendVerification>;
+}
+
 export interface PrivateReceiptProofBundle<Receipt = unknown, Checkpoint = unknown, InclusionProof = unknown, KeyManifest = unknown> {
   readonly schemaVersion: "ghost.private_receipt_proof_bundle.v1";
   readonly receipts: readonly Receipt[];
@@ -61,6 +73,8 @@ export interface PrivateReceiptProofBundle<Receipt = unknown, Checkpoint = unkno
 
 const proofSystems = ["local-transcript", "risc0", "sp1", "halo2", "noir", "circom"] as const;
 const sha256DigestSchema = z.string().regex(/^sha256:[a-f0-9]{64}$/u);
+const base64Pattern = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u;
+const devOnlyBackendMetadataKeys = new Set(["transcriptWitnessDigest", "devOnly", "notZeroKnowledge"]);
 
 const receiptProofPublicInputsSchema: z.ZodType<ReceiptProofPublicInputs> = z
   .object({
@@ -160,9 +174,27 @@ function transcriptWitnessDigestFromMetadata(metadata: Record<string, unknown> |
   return typeof metadata?.transcriptWitnessDigest === "string" ? metadata.transcriptWitnessDigest : undefined;
 }
 
+function isStrictBase64(value: string | undefined): boolean {
+  return Boolean(value && value.length > 0 && value.length % 4 === 0 && base64Pattern.test(value));
+}
+
+function backendMetadataWitnessLeakage(metadata: Record<string, unknown> | undefined): string[] {
+  if (!metadata) {
+    return [];
+  }
+  return Object.keys(metadata).filter((key) => devOnlyBackendMetadataKeys.has(key));
+}
+
+function normalizeBackendVerifierResult(result: boolean | ReceiptProofBackendVerification): ReceiptProofBackendVerification {
+  return typeof result === "boolean"
+    ? { passed: result, detail: "Receipt proof backend verifier completed." }
+    : result;
+}
+
 export async function verifyReceiptProof(input: {
   proof: ReceiptProof;
   allowedProofSystems?: readonly ReceiptProofSystem[];
+  verifier?: ReceiptProofBackendVerifier;
 }): Promise<ReceiptProofVerificationResult> {
   const checks: Array<{ name: string; passed: boolean; detail: string }> = [];
   let proof: ReceiptProof;
@@ -246,12 +278,49 @@ export async function verifyReceiptProof(input: {
         : "Local transcript digest is required for local-transcript proofs."
     );
   } else {
+    const proofBytesValid = isStrictBase64(proof.proof.proofBytesBase64);
+    check(
+      checks,
+      "proof_bytes",
+      proofBytesValid,
+      proofBytesValid
+        ? "Proof bytes are present and strict base64 encoded for the reserved proof backend."
+        : `Proof system ${proof.proofSystem} requires non-empty strict base64 proof bytes.`
+    );
+
+    const leakedMetadataKeys = backendMetadataWitnessLeakage(proof.proof.backendMetadata);
+    check(
+      checks,
+      "private_witness_sealed",
+      leakedMetadataKeys.length === 0,
+      leakedMetadataKeys.length === 0
+        ? "Reserved proof backend metadata does not expose local witness-only fields."
+        : `Reserved proof backend metadata leaks local witness-only fields: ${leakedMetadataKeys.join(", ")}.`
+    );
+
     check(
       checks,
       "backend_implemented",
-      false,
-      `Proof system ${proof.proofSystem} is a reserved interface and is not implemented in this verifier.`
+      Boolean(input.verifier && input.verifier.supportedProofSystems.includes(proof.proofSystem)),
+      input.verifier
+        ? input.verifier.supportedProofSystems.includes(proof.proofSystem)
+          ? `A backend verifier was supplied for proof system ${proof.proofSystem}.`
+          : `Supplied backend verifier does not support proof system ${proof.proofSystem}.`
+        : `Proof system ${proof.proofSystem} is a reserved interface; bundled verification is not implemented, so evidence fails closed.`
     );
+
+    if (input.verifier && input.verifier.supportedProofSystems.includes(proof.proofSystem)) {
+      let backendPassed = false;
+      let detail = "Receipt proof backend verifier completed.";
+      try {
+        const verifierResult = normalizeBackendVerifierResult(await input.verifier.verify({ proof }));
+        backendPassed = verifierResult.passed;
+        detail = verifierResult.detail ?? detail;
+      } catch (error) {
+        detail = error instanceof Error ? error.message : String(error);
+      }
+      check(checks, "backend_verification", backendPassed, backendPassed ? detail : `Backend proof verification failed: ${detail}`);
+    }
   }
 
   return { verdict: checks.every((entry) => entry.passed), checks };

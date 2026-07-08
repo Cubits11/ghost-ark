@@ -243,6 +243,58 @@ describe("bounded tenant policy counterexample engine", () => {
     expect(report.warnings.join("\n")).toContain("Unsupported condition operator ArnLike");
   });
 
+  it("fails closed on supported operators with unsupported condition keys", () => {
+    const report = verifyNoTenantBoundaryCounterexample({
+      document: policyWithStatement({
+        Sid: "UnsupportedConditionKey",
+        Effect: "Allow",
+        Action: "s3:GetObject",
+        Resource: rawTenantObjectArn(),
+        Condition: {
+          StringEquals: {
+            "aws:PrincipalArn": `arn:aws:iam::${accountId}:role/out-of-model`
+          }
+        }
+      }),
+      boundary: boundary()
+    });
+
+    expect(report.verdict).toBe("FAIL");
+    expect(report.warnings.join("\n")).toContain("Unsupported condition key aws:PrincipalArn");
+  });
+
+  it("fails closed on resource-policy-only statement fields", () => {
+    const report = verifyNoTenantBoundaryCounterexample({
+      document: policyWithStatement({
+        Sid: "ResourcePolicyShape",
+        Effect: "Allow",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: rawTenantObjectArn()
+      }),
+      boundary: boundary()
+    });
+
+    expect(report.verdict).toBe("FAIL");
+    expect(report.warnings.join("\n")).toContain("Unsupported statement field Principal");
+  });
+
+  it("fails closed on malformed Action and Resource values", () => {
+    const report = verifyNoTenantBoundaryCounterexample({
+      document: policyWithStatement({
+        Sid: "MalformedActionResource",
+        Effect: "Allow",
+        Action: ["s3:GetObject", 42],
+        Resource: { Ref: "SomeBucket" }
+      }),
+      boundary: boundary()
+    });
+
+    expect(report.verdict).toBe("FAIL");
+    expect(report.warnings.join("\n")).toContain("Unsupported Action shape");
+    expect(report.warnings.join("\n")).toContain("Unsupported Resource shape");
+  });
+
   it("models principal tag substitution for the valid generated receipt-ledger case", () => {
     const request = {
       action: "dynamodb:PutItem",

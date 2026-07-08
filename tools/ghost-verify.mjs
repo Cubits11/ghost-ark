@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { constants, createHash, createHmac, createPublicKey, verify as verifySignature } from "crypto";
+import { constants, createHash, createHmac, createPublicKey, timingSafeEqual, verify as verifySignature } from "crypto";
 import fs from "fs";
 
 const nonClaim =
@@ -159,6 +159,11 @@ function isRecord(value) {
 
 const sha256DigestPattern = /^sha256:[a-f0-9]{64}$/u;
 const identityDigestPattern = /^(sha256|hmac-sha256):[a-f0-9]{64}$/u;
+const sha384HexPattern = /^[a-f0-9]{96}$/u;
+const runtimeMeasurementKeys = ["pcr0", "pcr1", "pcr2", "pcr3", "pcr4", "pcr8"];
+const nitroRequiredMeasurementKeys = ["pcr0", "pcr1", "pcr2"];
+const base64Pattern = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u;
+const devOnlyBackendMetadataKeys = new Set(["transcriptWitnessDigest", "devOnly", "notZeroKnowledge"]);
 
 function readJsonFile(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -705,6 +710,7 @@ function validateRuntimeAttestationPolicyShape(policy) {
     "allowedImageDigests",
     "allowedCodeDigests",
     "allowedPolicyCompilerDigests",
+    "requiredMeasurements",
     "maxClockSkewMs",
     "requireBindingToReceipt",
     "requireBindingToCheckpoint",
@@ -729,6 +735,21 @@ function validateRuntimeAttestationPolicyShape(policy) {
   }
   if (policy.requiredRuntimeIds !== undefined && (!Array.isArray(policy.requiredRuntimeIds) || !policy.requiredRuntimeIds.every((item) => typeof item === "string" && item.length > 0))) {
     return { passed: false, detail: "Runtime attestation policy requiredRuntimeIds must contain non-empty strings." };
+  }
+  if (policy.requiredMeasurements !== undefined) {
+    if (!isRecord(policy.requiredMeasurements)) {
+      return { passed: false, detail: "Runtime attestation policy requiredMeasurements must be an object." };
+    }
+    const measurementUnknown = exactKeys(policy.requiredMeasurements, runtimeMeasurementKeys);
+    if (measurementUnknown.length > 0) {
+      return { passed: false, detail: `Runtime attestation policy requiredMeasurements contains unknown fields: ${measurementUnknown.join(", ")}.` };
+    }
+    for (const key of runtimeMeasurementKeys) {
+      const values = policy.requiredMeasurements[key];
+      if (values !== undefined && (!Array.isArray(values) || values.length === 0 || !values.every((item) => typeof item === "string" && item.length > 0))) {
+        return { passed: false, detail: `Runtime attestation policy requiredMeasurements.${key} must contain non-empty strings.` };
+      }
+    }
   }
   if (policy.maxClockSkewMs !== undefined && (!Number.isInteger(policy.maxClockSkewMs) || policy.maxClockSkewMs < 0)) {
     return { passed: false, detail: "Runtime attestation policy maxClockSkewMs must be a non-negative integer." };
@@ -764,8 +785,67 @@ function localRuntimeAttestationSignature(secret, attestation) {
   return `hmac-sha256:${createHmac("sha256", secret).update(payloadDigest).digest("hex")}`;
 }
 
+function constantTimeStringEquals(left, right) {
+  const leftBuffer = Buffer.from(left, "utf8");
+  const rightBuffer = Buffer.from(right, "utf8");
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function listAllows(list, observed) {
   return list === undefined || list.includes(observed);
+}
+
+function expectedAlgorithmForAttestationType(attestationType) {
+  return attestationType === "aws-nitro-enclave" ? "aws-nitro-attestation" : "hmac-sha256";
+}
+
+function requiredMeasurementEntries(policy) {
+  return runtimeMeasurementKeys.flatMap((key) => {
+    const values = policy.requiredMeasurements?.[key];
+    return values && values.length > 0 ? [[key, values]] : [];
+  });
+}
+
+function measurementPolicyFailures(attestation, policy) {
+  return requiredMeasurementEntries(policy).flatMap(([key, allowedValues]) => {
+    const observed = attestation.measurements?.[key];
+    if (!observed) {
+      return [`${key} missing from attestation evidence`];
+    }
+    if (!allowedValues.includes(observed)) {
+      return [`${key} mismatch`];
+    }
+    return [];
+  });
+}
+
+function nitroPcrPolicyFailures(attestation, policy) {
+  const failures = [];
+  const measurements = attestation.measurements ?? {};
+  const requiredMeasurements = policy.requiredMeasurements ?? {};
+
+  for (const key of nitroRequiredMeasurementKeys) {
+    const pinnedValues = requiredMeasurements[key] ?? [];
+    const observed = measurements[key];
+    if (pinnedValues.length === 0) {
+      failures.push(`${key} is not pinned by policy`);
+    }
+    if (!observed) {
+      failures.push(`${key} missing from Nitro evidence`);
+    } else if (!sha384HexPattern.test(observed)) {
+      failures.push(`${key} must be a lowercase SHA-384 PCR value`);
+    }
+    for (const pinnedValue of pinnedValues) {
+      if (!sha384HexPattern.test(pinnedValue)) {
+        failures.push(`${key} policy pin must be a lowercase SHA-384 PCR value`);
+      }
+    }
+    if (observed && pinnedValues.length > 0 && !pinnedValues.includes(observed)) {
+      failures.push(`${key} does not match policy pin`);
+    }
+  }
+
+  return failures;
 }
 
 function verifyRuntimeAttestationCli(attestation, policy, options = {}) {
@@ -827,6 +907,28 @@ function verifyRuntimeAttestationCli(attestation, policy, options = {}) {
       ? "Runtime policy compiler digest is allowed."
       : `Runtime policy compiler digest ${attestation.runtime.policyCompilerDigest} is not allowed.`
   );
+  const measurementFailures = measurementPolicyFailures(attestation, policy);
+  check(
+    checks,
+    "runtime_attestation_measurement_policy",
+    measurementFailures.length === 0,
+    measurementFailures.length === 0
+      ? requiredMeasurementEntries(policy).length > 0
+        ? "Runtime measurements match all policy pins."
+        : "No exact runtime measurement pins were required by policy."
+      : `Runtime measurement policy failed: ${measurementFailures.join("; ")}.`
+  );
+  if (attestation.attestationType === "aws-nitro-enclave") {
+    const failures = nitroPcrPolicyFailures(attestation, policy);
+    check(
+      checks,
+      "runtime_attestation_nitro_pcr_policy",
+      failures.length === 0,
+      failures.length === 0
+        ? "Nitro PCR0/PCR1/PCR2 evidence is present, SHA-384 shaped, and pinned by policy."
+        : `Nitro attestation requires pinned PCR0/PCR1/PCR2 measurements: ${failures.join("; ")}.`
+    );
+  }
   if (policy.maxClockSkewMs !== undefined) {
     const delta = Math.abs(Date.now() - Date.parse(attestation.issuedAt));
     check(
@@ -885,12 +987,25 @@ function verifyRuntimeAttestationCli(attestation, policy, options = {}) {
         : "Payload binding was not required."
   );
 
-  if (attestation.attestationType === "aws-nitro-enclave" || attestation.signature.algorithm === "aws-nitro-attestation") {
+  const expectedAlgorithm = expectedAlgorithmForAttestationType(attestation.attestationType);
+  const algorithmMatchesType = attestation.signature.algorithm === expectedAlgorithm;
+  check(
+    checks,
+    "runtime_attestation_signature_algorithm_binding",
+    algorithmMatchesType,
+    algorithmMatchesType
+      ? `${attestation.signature.algorithm} is the expected algorithm for ${attestation.attestationType}.`
+      : `${attestation.attestationType} requires ${expectedAlgorithm}; observed ${attestation.signature.algorithm}.`
+  );
+
+  if (!algorithmMatchesType) {
+    check(checks, "runtime_attestation_signature", false, "Runtime attestation signature algorithm is not valid for the attestation type.");
+  } else if (attestation.attestationType === "aws-nitro-enclave" || attestation.signature.algorithm === "aws-nitro-attestation") {
     check(
       checks,
       "runtime_attestation_signature",
       false,
-      "AWS Nitro Enclave attestation validation is not implemented in this verifier; evidence fails closed."
+      "AWS Nitro Enclave attestation validation requires a supplied production verifier; bundled Nitro validation is not implemented, so evidence fails closed."
     );
   } else if (attestation.attestationType !== "local-dev-attestation" || attestation.signature.algorithm !== "hmac-sha256") {
     check(checks, "runtime_attestation_signature", false, "Only local-dev HMAC attestation verification is implemented.");
@@ -906,11 +1021,12 @@ function verifyRuntimeAttestationCli(attestation, policy, options = {}) {
       ...attestation,
       signature: { ...attestation.signature, value: "" }
     });
+    const signatureMatches = constantTimeStringEquals(attestation.signature.value, expected);
     check(
       checks,
       "runtime_attestation_signature",
-      attestation.signature.value === expected,
-      attestation.signature.value === expected
+      signatureMatches,
+      signatureMatches
         ? "Local-dev HMAC runtime attestation signature verifies."
         : "Local-dev HMAC runtime attestation signature mismatch."
     );
@@ -935,6 +1051,17 @@ function localReceiptProofTranscriptDigest(statement, transcriptWitnessDigest) {
     claims: statement.claims,
     transcriptWitnessDigest
   }))}`;
+}
+
+function isStrictBase64(value) {
+  return Boolean(value && value.length > 0 && value.length % 4 === 0 && base64Pattern.test(value));
+}
+
+function backendMetadataWitnessLeakage(metadata) {
+  if (!isRecord(metadata)) {
+    return [];
+  }
+  return Object.keys(metadata).filter((key) => devOnlyBackendMetadataKeys.has(key));
 }
 
 function validateReceiptProofShape(proof) {
@@ -1016,6 +1143,9 @@ function validateReceiptProofShape(proof) {
   if (proof.proof.transcriptDigest !== undefined && (typeof proof.proof.transcriptDigest !== "string" || !sha256DigestPattern.test(proof.proof.transcriptDigest))) {
     return { passed: false, detail: "Receipt proof transcriptDigest must be a sha256 digest when supplied." };
   }
+  if (proof.proof.proofBytesBase64 !== undefined && (typeof proof.proof.proofBytesBase64 !== "string" || proof.proof.proofBytesBase64.length === 0)) {
+    return { passed: false, detail: "Receipt proof proofBytesBase64 must be a non-empty string when supplied." };
+  }
   if (proof.proof.backendMetadata !== undefined && !isRecord(proof.proof.backendMetadata)) {
     return { passed: false, detail: "Receipt proof backendMetadata must be an object when supplied." };
   }
@@ -1059,11 +1189,29 @@ function verifyReceiptProofCli(proof) {
         : `Local transcript digest mismatch. Expected ${expectedTranscriptDigest ?? "unavailable"}; observed ${proof.proof.transcriptDigest ?? "missing"}.`
     );
   } else {
+    const proofBytesValid = isStrictBase64(proof.proof.proofBytesBase64);
+    check(
+      checks,
+      "receipt_proof_proof_bytes",
+      proofBytesValid,
+      proofBytesValid
+        ? "Proof bytes are present and strict base64 encoded for the reserved proof backend."
+        : `Proof system ${proof.proofSystem} requires non-empty strict base64 proof bytes.`
+    );
+    const leakedMetadataKeys = backendMetadataWitnessLeakage(proof.proof.backendMetadata);
+    check(
+      checks,
+      "receipt_proof_private_witness_sealed",
+      leakedMetadataKeys.length === 0,
+      leakedMetadataKeys.length === 0
+        ? "Reserved proof backend metadata does not expose local witness-only fields."
+        : `Reserved proof backend metadata leaks local witness-only fields: ${leakedMetadataKeys.join(", ")}.`
+    );
     check(
       checks,
       "receipt_proof_backend",
       false,
-      `Proof system ${proof.proofSystem} is a reserved interface and is not implemented in this verifier.`
+      `Proof system ${proof.proofSystem} is a reserved interface; bundled verification is not implemented, so evidence fails closed.`
     );
   }
   return { verdict: checks.every((entry) => entry.passed), checks };
