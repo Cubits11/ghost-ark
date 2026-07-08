@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/receipt-proof.json",
+  "title": "Ghost Ark receipt proof",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "proofSystem", "statement", "proof"],
+  "properties": {
+    "schemaVersion": { "const": "ghost.receipt_proof.v1" },
+    "proofSystem": {
+      "type": "string",
+      "enum": ["local-transcript", "risc0", "sp1", "halo2", "noir", "circom"]
+    },
+    "statement": { "$ref": "receipt-proof-statement.json" },
+    "proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transcriptDigest": { "$ref": "#/$defs/sha256Digest" },
+        "proofBytesBase64": { "type": "string", "minLength": 1 },
+        "backendMetadata": { "type": "object" }
+      }
+    }
+  },
+  "$defs": {
+    "sha256Digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/runtime-attestation.json",
+  "title": "Ghost Ark runtime attestation evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "attestationType",
+    "attestationId",
+    "subjectDigest",
+    "issuedAt",
+    "runtime",
+    "binding",
+    "signature"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "ghost.runtime_attestation.v1" },
+    "attestationType": {
+      "type": "string",
+      "enum": ["local-dev-attestation", "aws-nitro-enclave"]
+    },
+    "attestationId": { "type": "string", "minLength": 1 },
+    "subjectDigest": { "$ref": "#/$defs/sha256Digest" },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtimeId", "imageDigest", "codeDigest", "policyCompilerDigest"],
+      "properties": {
+        "runtimeId": { "type": "string", "minLength": 1 },
+        "imageDigest": { "$ref": "#/$defs/sha256Digest" },
+        "codeDigest": { "$ref": "#/$defs/sha256Digest" },
+        "policyCompilerDigest": { "$ref": "#/$defs/sha256Digest" }
+      }
+    },
+    "measurements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pcr0": { "type": "string", "minLength": 1 },
+        "pcr1": { "type": "string", "minLength": 1 },
+        "pcr2": { "type": "string", "minLength": 1 },
+        "pcr3": { "type": "string", "minLength": 1 },
+        "pcr4": { "type": "string", "minLength": 1 },
+        "pcr8": { "type": "string", "minLength": 1 }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "receiptHash": { "$ref": "#/$defs/sha256Digest" },
+        "checkpointDigest": { "$ref": "#/$defs/sha256Digest" },
+        "payloadDigest": { "$ref": "#/$defs/sha256Digest" }
+      },
+      "anyOf": [
+        { "required": ["receiptHash"] },
+        { "required": ["checkpointDigest"] },
+        { "required": ["payloadDigest"] }
+      ]
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "enum": ["hmac-sha256", "ecdsa-sha256", "rsa-sha256", "aws-nitro-attestation"]
+        },
+        "value": { "type": "string", "minLength": 1 },
+        "publicKeyPem": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "sha256Digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

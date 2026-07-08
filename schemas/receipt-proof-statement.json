@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/receipt-proof-statement.json",
+  "title": "Ghost Ark receipt proof public statement",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "proofSystem", "statementDigest", "publicInputs", "claims"],
+  "properties": {
+    "schemaVersion": { "const": "ghost.receipt_proof_statement.v1" },
+    "proofSystem": {
+      "type": "string",
+      "enum": ["local-transcript", "risc0", "sp1", "halo2", "noir", "circom"]
+    },
+    "statementDigest": { "$ref": "#/$defs/sha256Digest" },
+    "publicInputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantIdHash",
+        "chainHeadHash",
+        "epochId",
+        "checkpointDigest",
+        "merkleRoot",
+        "receiptCount",
+        "keyManifestDigest"
+      ],
+      "properties": {
+        "tenantIdHash": { "$ref": "#/$defs/sha256Digest" },
+        "chainHeadHash": { "$ref": "#/$defs/sha256Digest" },
+        "epochId": { "type": "string", "minLength": 1 },
+        "checkpointDigest": { "$ref": "#/$defs/sha256Digest" },
+        "merkleRoot": { "$ref": "#/$defs/sha256Digest" },
+        "receiptCount": { "type": "integer", "minimum": 1 },
+        "keyManifestDigest": { "$ref": "#/$defs/sha256Digest" }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receiptSignaturesValid",
+        "receiptChainLinksValid",
+        "tenantConstantAcrossChain",
+        "checkpointIncludesChainHead",
+        "keyManifestEpochsValid"
+      ],
+      "properties": {
+        "receiptSignaturesValid": { "const": true },
+        "receiptChainLinksValid": { "const": true },
+        "tenantConstantAcrossChain": { "const": true },
+        "checkpointIncludesChainHead": { "const": true },
+        "keyManifestEpochsValid": { "const": true }
+      }
+    }
+  },
+  "$defs": {
+    "sha256Digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

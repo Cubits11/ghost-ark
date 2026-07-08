@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/policy-verification-report.json",
+  "title": "Ghost Ark bounded policy verification report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "verdict",
+    "scope",
+    "policyDigest",
+    "boundaryDigest",
+    "counterexamples",
+    "warnings",
+    "nonClaims"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "ghost.policy_verification_report.v1" },
+    "verdict": { "type": "string", "enum": ["PASS", "FAIL"] },
+    "scope": { "const": "ghost-ark-tenant-sandbox-subset" },
+    "policyDigest": { "$ref": "#/$defs/sha256Digest" },
+    "boundaryDigest": { "$ref": "#/$defs/sha256Digest" },
+    "counterexamples": {
+      "type": "array",
+      "items": { "$ref": "policy-counterexample.json" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "nonClaims": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "sha256Digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}
