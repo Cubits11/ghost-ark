@@ -2,9 +2,31 @@
 
 Ghost Ark v50 is an AWS-native reference implementation for bounded governance receipts and deterministic enforcement primitives around LLM applications.
 
+Cryptographic receipts, not safety claims: Ghost Ark verifies what was recorded, signed, and bounded by policy. It does not prove that an AI output is true, safe, ethical, compliant, or production-ready.
+
 The existing AWS slice stores raw and curated evidence in S3, catalogs it through AWS-native metadata layers, enforces governed access, issues signed evidence receipts, records receipt state in a ledger, and exposes query, search, replay, and review workflows. The enforcement-runtime slice adds deterministic policy evaluation, tenant-scoped policy loading, tenant and taint-filtered retrieval context, Bedrock invocation adapters, memory-write gates, redacted logging, and decision receipt emission for governed LLM paths.
 
 Ghost Ark now includes a governed Bedrock invocation runtime spine with stronger local fail-closed, idempotency, retrieval-taint, vault-expiry, Bedrock-adapter, and AWS-validation evidence boundaries. AWS wiring exists for the invoke API route, DynamoDB policy and privacy-vault tables, decision receipt storage, KMS decision signing and verification support, Bedrock model allowlisting, scoped Bedrock IAM when an allowlist is supplied, a Secrets Manager HMAC digest secret, and operational alarms. Live AWS validation and server-side retrieval provider integration remain release blockers.
+
+## Local Offline Verification
+
+Verify a signed sample receipt locally with no AWS credentials:
+
+```bash
+npm ci
+npm run ghost-verify -- \
+  --receipt examples/sample-receipts/valid-receipt.json \
+  --key examples/sample-receipts/public-key.pem \
+  --tenant acme-lab
+```
+
+Expected result:
+
+```text
+VERDICT: PASS
+```
+
+Tampering with the receipt payload, tenant, digest, algorithm, or signature changes the verdict to `FAIL`. This verifier checks canonical receipt identity, canonical payload digest, tenant expectation, and RSA-PSS signature validity against the supplied public key.
 
 ## What Ghost Ark Is
 
@@ -46,7 +68,7 @@ Ghost Ark now includes a governed Bedrock invocation runtime spine with stronger
 
 ## Getting Started
 
-1. Install dependencies with `npm ci`.
+1. Run the local offline verifier above.
 2. Validate local code with `npm run validate`.
 3. Bootstrap a dev account from `infra/terraform/bootstrap`.
 4. Deploy application services from `infra/cdk`.
@@ -68,7 +90,8 @@ Ghost Ark is a cryptographic tracking substrate, not a magical tool that automat
 - Client-declared tenant, user, and session identifiers are rejected for receipt creation.
 - General structured logs redact prompt, completion, memory, raw body, and credential-like fields by default.
 - Service roles are centrally owned and passed only to intended AWS services.
-- KMS signing uses asymmetric keys with `SIGN_VERIFY` usage.
+- The default CDK stack creates an asymmetric KMS signing key with `SIGN_VERIFY` usage and grants signing permissions against the key ARN.
+- Receipt API handlers receive table grants scoped to their repository behavior. Receipt creation can `PutItem`; receipt reads can `GetItem`; claim attachment keeps `UpdateItem`; lineage writes remain append-only.
 - Governed invoke decision receipts can be verified locally for HMAC-dev signatures or with a KMS public-key verifier for `KMS_SIGN_RSASSA_PSS_SHA_256`.
 - Raw, curated, receipt, and export paths are separated by tenant namespace.
 - Governed invoke resolves tenant and user authority from JWT or authorizer context, rejects client-declared tenant/user/session authority, and fails closed on path/auth tenant mismatch.

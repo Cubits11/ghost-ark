@@ -98,12 +98,36 @@ export function compileTenantSandboxPolicy(input: TenantSandboxPolicyInput): Com
         }
       },
       {
-        Sid: "AllowTenantDynamoLedgerAccess",
+        Sid: "AllowTenantReceiptLedgerAccess",
+        Effect: "Allow",
+        Action: ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem"],
+        Resource: [
+          `${resourcePrefix}:dynamodb:${input.region}:${input.accountId}:table/ghost-ark-${input.stage}-receipts`
+        ],
+        Condition: {
+          "ForAllValues:StringEquals": {
+            "dynamodb:LeadingKeys": [principalSlug]
+          }
+        }
+      },
+      {
+        Sid: "AllowTenantClaimLedgerAccess",
         Effect: "Allow",
         Action: ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"],
         Resource: [
-          `${resourcePrefix}:dynamodb:${input.region}:${input.accountId}:table/ghost-ark-${input.stage}-receipts`,
           `${resourcePrefix}:dynamodb:${input.region}:${input.accountId}:table/ghost-ark-${input.stage}-claims`,
+        ],
+        Condition: {
+          "ForAllValues:StringEquals": {
+            "dynamodb:LeadingKeys": [principalSlug]
+          }
+        }
+      },
+      {
+        Sid: "AllowTenantLineageLedgerAccess",
+        Effect: "Allow",
+        Action: ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem"],
+        Resource: [
           `${resourcePrefix}:dynamodb:${input.region}:${input.accountId}:table/ghost-ark-${input.stage}-lineage`
         ],
         Condition: {

@@ -138,11 +138,11 @@ export class ApiStack extends Stack {
         })
       : undefined;
 
-    for (const fn of [createReceipt, getReceipt, listClaims]) {
-      ledger.receipts.grantReadWriteData(fn);
-      ledger.claims.grantReadWriteData(fn);
-      ledger.lineage.grantReadWriteData(fn);
-    }
+    ledger.receipts.grant(createReceipt, "dynamodb:PutItem");
+    ledger.receipts.grant(getReceipt, "dynamodb:GetItem");
+    ledger.claims.grant(createReceipt, "dynamodb:UpdateItem");
+    ledger.claims.grant(listClaims, "dynamodb:Query");
+    ledger.lineage.grant(createReceipt, "dynamodb:PutItem");
     policyTable.grantReadData(invokeGoverned);
     privacyVault.table.grantReadWriteData(invokeGoverned);
     decisionReceiptTable.grantReadWriteData(invokeGoverned);
