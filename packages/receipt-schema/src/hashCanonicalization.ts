@@ -4,6 +4,12 @@ import { ValidationError } from "../../shared/src/errors";
 export type CanonicalJsonPrimitive = string | number | boolean | null;
 export type CanonicalJson = CanonicalJsonPrimitive | CanonicalJson[] | { [key: string]: CanonicalJson };
 
+const undefinedValueMessage = "Canonical JSON cannot encode undefined values. Use explicit null or omit the key structurally.";
+
+function undefinedValueError(context: Record<string, unknown> = {}): ValidationError {
+  return new ValidationError(undefinedValueMessage, { type: "undefined_value_encountered", ...context });
+}
+
 function assertPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return false;
@@ -13,6 +19,9 @@ function assertPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 export function canonicalize(value: unknown): string {
+  if (value === undefined) {
+    throw undefinedValueError();
+  }
   if (value === null) {
     return "null";
   }
@@ -29,13 +38,26 @@ export function canonicalize(value: unknown): string {
     return Object.is(value, -0) ? "0" : JSON.stringify(value);
   }
   if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalize(item)).join(",")}]`;
+    const items = [];
+    for (let index = 0; index < value.length; index += 1) {
+      const item = value[index];
+      if (item === undefined) {
+        throw undefinedValueError({ index });
+      }
+      items.push(canonicalize(item));
+    }
+    return `[${items.join(",")}]`;
   }
   if (value instanceof Date) {
     return JSON.stringify(value.toISOString());
   }
   if (assertPlainObject(value)) {
-    const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== undefined);
+    const entries = Object.entries(value);
+    for (const [key, entryValue] of entries) {
+      if (entryValue === undefined) {
+        throw undefinedValueError({ key });
+      }
+    }
     entries.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
     return `{${entries.map(([key, entryValue]) => `${JSON.stringify(key)}:${canonicalize(entryValue)}`).join(",")}}`;
   }
