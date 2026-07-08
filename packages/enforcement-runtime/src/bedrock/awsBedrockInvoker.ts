@@ -7,17 +7,20 @@ export interface AwsBedrockInvokerOptions {
   client?: BedrockRuntimeClient;
   guardrailId?: string;
   guardrailVersion?: string;
+  allowGenericJsonAdapter?: boolean;
 }
 
 export class AwsBedrockInvoker implements ModelInvoker {
   private readonly client: BedrockRuntimeClient;
   private readonly guardrailId?: string;
   private readonly guardrailVersion?: string;
+  private readonly allowGenericJsonAdapter: boolean;
 
   constructor(options: AwsBedrockInvokerOptions = {}) {
     this.client = options.client ?? new BedrockRuntimeClient({});
     this.guardrailId = options.guardrailId;
     this.guardrailVersion = options.guardrailVersion;
+    this.allowGenericJsonAdapter = options.allowGenericJsonAdapter ?? false;
   }
 
   async invoke(input: ModelInvokeInput): Promise<ModelInvokeOutput> {
@@ -39,7 +42,8 @@ export class AwsBedrockInvoker implements ModelInvoker {
               modelId: input.modelId,
               prompt: input.prompt,
               temperature: input.temperature,
-              maxTokens: input.maxTokens
+              maxTokens: input.maxTokens,
+              allowGenericJson: this.allowGenericJsonAdapter
             })
           )
         )
@@ -47,7 +51,10 @@ export class AwsBedrockInvoker implements ModelInvoker {
     );
 
     const decoded = response.body ? JSON.parse(Buffer.from(response.body).toString("utf8")) : {};
-    const outputText = extractBedrockOutputText(decoded);
+    const outputText = extractBedrockOutputText(decoded, {
+      modelId: input.modelId,
+      allowGenericJson: this.allowGenericJsonAdapter
+    });
     return {
       outputText,
       rawOutputDigest: publicSha256Digest(outputText),

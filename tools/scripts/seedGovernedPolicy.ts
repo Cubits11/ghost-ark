@@ -46,6 +46,17 @@ export const defaultGovernedInvokeSeedPolicy: PolicySource = {
       }
     },
     {
+      id: "escalate-untrusted-retrieval-instruction",
+      description: "Escalate retrieved content that appears to contain instruction-hijacking text.",
+      phase: "pre_model",
+      decision: "ESCALATE",
+      riskScore: 0.9,
+      actionTaken: ["block_model_invocation", "quarantine_retrieval"],
+      match: {
+        riskTagsAny: ["retrieval_untrusted_instruction"]
+      }
+    },
+    {
       id: "redact-obvious-sensitive-output",
       description: "Redact obvious sensitive identifiers from model output.",
       phase: "post_model",

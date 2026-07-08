@@ -1,9 +1,15 @@
+import { createHash } from "crypto";
+import fs from "fs";
+import path from "path";
+
 export interface SmokeGovernedInvokeArgs {
   api: string;
   token: string;
   tenant: string;
   model: string;
   expectedMode?: string;
+  stage?: string;
+  jsonReport?: string;
 }
 
 interface SmokeCase {
@@ -13,7 +19,7 @@ interface SmokeCase {
   body: Record<string, unknown>;
 }
 
-interface SmokeCaseResult {
+export interface SmokeCaseResult {
   name: string;
   httpStatus: number;
   governedStatus?: string;
@@ -21,6 +27,37 @@ interface SmokeCaseResult {
   receiptId?: string;
   decisionSummary?: unknown;
   passed: boolean;
+}
+
+export interface SmokeDecisionPhaseReport {
+  name: string;
+  phase?: string;
+  decision?: string;
+  actionTaken: string[];
+  riskScore?: number;
+}
+
+export interface SmokeCaseReport {
+  name: string;
+  httpStatus: number;
+  governedStatus?: string;
+  receiptEmitted?: boolean;
+  receiptId?: string;
+  decisionPhases: SmokeDecisionPhaseReport[];
+  passed: boolean;
+}
+
+export interface SmokeGovernedInvokeReport {
+  schemaVersion: "ghost.governed_invoke.smoke_report.v1";
+  timestamp: string;
+  stage: string;
+  apiHostHash: string;
+  tenantHash: string;
+  modelId: string;
+  expectedMode?: string;
+  cases: SmokeCaseReport[];
+  passed: boolean;
+  nonClaim: string;
 }
 
 export function parseSmokeGovernedInvokeArgs(argv: string[]): SmokeGovernedInvokeArgs {
@@ -42,6 +79,12 @@ export function parseSmokeGovernedInvokeArgs(argv: string[]): SmokeGovernedInvok
       index += 1;
     } else if (arg === "--expected-mode") {
       args.expectedMode = next;
+      index += 1;
+    } else if (arg === "--stage") {
+      args.stage = next;
+      index += 1;
+    } else if (arg === "--json-report") {
+      args.jsonReport = next;
       index += 1;
     } else if (arg === "--help" || arg === "-h") {
       printUsage();
@@ -149,6 +192,78 @@ export async function runSmokeGovernedInvoke(args: SmokeGovernedInvokeArgs): Pro
   return results;
 }
 
+function sha256Label(value: string): string {
+  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
+}
+
+function apiHostHash(api: string): string {
+  try {
+    const parsed = new URL(api);
+    return sha256Label(`${parsed.protocol}//${parsed.host}`);
+  } catch {
+    return sha256Label(api);
+  }
+}
+
+function decisionPhasesFromSummary(summary: unknown): SmokeDecisionPhaseReport[] {
+  if (!summary || typeof summary !== "object") {
+    return [];
+  }
+
+  const phases: SmokeDecisionPhaseReport[] = [];
+  const summaryRecord = summary as Record<string, unknown>;
+  for (const name of ["preRetrieval", "preModel", "postModel", "memoryWrite"]) {
+    const value = summaryRecord[name];
+    if (!value || typeof value !== "object") {
+      continue;
+    }
+    const record = value as Record<string, unknown>;
+    phases.push({
+      name,
+      phase: typeof record.phase === "string" ? record.phase : undefined,
+      decision: typeof record.decision === "string" ? record.decision : undefined,
+      actionTaken: Array.isArray(record.actionTaken)
+        ? record.actionTaken.filter((action): action is string => typeof action === "string").sort()
+        : [],
+      riskScore: typeof record.riskScore === "number" ? record.riskScore : undefined
+    });
+  }
+  return phases;
+}
+
+export function buildSmokeGovernedInvokeReport(input: {
+  args: SmokeGovernedInvokeArgs;
+  results: SmokeCaseResult[];
+  timestamp?: string;
+}): SmokeGovernedInvokeReport {
+  return {
+    schemaVersion: "ghost.governed_invoke.smoke_report.v1",
+    timestamp: input.timestamp ?? new Date().toISOString(),
+    stage: input.args.stage ?? process.env.STAGE ?? "unknown",
+    apiHostHash: apiHostHash(input.args.api),
+    tenantHash: sha256Label(input.args.tenant),
+    modelId: input.args.model,
+    ...(input.args.expectedMode ? { expectedMode: input.args.expectedMode } : {}),
+    cases: input.results.map((result) => ({
+      name: result.name,
+      httpStatus: result.httpStatus,
+      governedStatus: result.governedStatus,
+      receiptEmitted: result.receiptEmitted,
+      receiptId: result.receiptId,
+      decisionPhases: decisionPhasesFromSummary(result.decisionSummary),
+      passed: result.passed
+    })),
+    passed: input.results.every((result) => result.passed),
+    nonClaim:
+      "This smoke report is sanitized validation evidence only. It does not prove AI safety, legal compliance, semantic correctness, production readiness, or enterprise readiness."
+  };
+}
+
+export function writeSmokeGovernedInvokeReport(filePath: string, report: SmokeGovernedInvokeReport): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+}
+
 function printUsage(): void {
   console.log(`Ghost Ark governed invoke live smoke
 
@@ -160,7 +275,9 @@ Options:
   --token          Cognito ID token or authorizer token. The token is never printed.
   --tenant         Tenant slug in the path.
   --model          Bedrock model id expected to be allowlisted.
+  --stage          Optional deployment stage included in sanitized JSON report.
   --expected-mode  Optional operator label printed in output.
+  --json-report    Optional path for a sanitized JSON report artifact.
 `);
 }
 
@@ -190,6 +307,10 @@ async function main(): Promise<void> {
   const results = await runSmokeGovernedInvoke(args);
   for (const result of results) {
     printResult(result);
+  }
+  if (args.jsonReport) {
+    writeSmokeGovernedInvokeReport(args.jsonReport, buildSmokeGovernedInvokeReport({ args, results }));
+    console.log(`jsonReport: ${args.jsonReport}`);
   }
   if (results.some((result) => !result.passed)) {
     process.exitCode = 1;

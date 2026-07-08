@@ -151,7 +151,8 @@ async function buildDependencies(env: NodeJS.ProcessEnv) {
       ? new FakeModelInvoker({ outputText: optionalEnv("GHOST_ARK_FAKE_MODEL_OUTPUT", "fake governed invoke output", env) })
       : new AwsBedrockInvoker({
           guardrailId: env.GHOST_ARK_BEDROCK_GUARDRAIL_ID,
-          guardrailVersion: env.GHOST_ARK_BEDROCK_GUARDRAIL_VERSION
+          guardrailVersion: env.GHOST_ARK_BEDROCK_GUARDRAIL_VERSION,
+          allowGenericJsonAdapter: parseBooleanEnv("GHOST_ARK_BEDROCK_ALLOW_GENERIC_JSON_ADAPTER", false, env)
         });
   const vaultStore =
     vaultMode === "in_memory" ? new InMemoryVaultStore() : new DynamoDbVaultStore({ tableName: requiredEnv("GHOST_ARK_PRIVACY_VAULT_TABLE", env) });

@@ -1,6 +1,6 @@
 # Governed Invoke Validation
 
-Status: AWS-RUNTIME-VALIDATION-CANDIDATE.
+Status: VERIFIED-RUNTIME-SPINE-v0.1-CANDIDATE.
 
 This runbook validates the governed invoke runtime path without production, enterprise, compliance, or AI-safety claims.
 
@@ -60,8 +60,17 @@ export API_URL="https://example.execute-api.us-east-1.amazonaws.com/dev"
 export ID_TOKEN="<cognito-id-token>"
 export TENANT="acme-lab"
 export MODEL_ID="anthropic.claude-3-5-sonnet-20240620-v1:0"
+export STAGE="dev"
+export REPORT_PATH="docs/validation/governed-invoke-${STAGE}-$(date -u +%Y%m%dT%H%M%SZ).json"
 
-npm run smoke:governed-invoke -- --api "$API_URL" --token "$ID_TOKEN" --tenant "$TENANT" --model "$MODEL_ID" --expected-mode aws-validation
+npm run smoke:governed-invoke -- \
+  --api "$API_URL" \
+  --token "$ID_TOKEN" \
+  --tenant "$TENANT" \
+  --model "$MODEL_ID" \
+  --stage "$STAGE" \
+  --expected-mode aws-validation \
+  --json-report "$REPORT_PATH"
 ```
 
 The smoke script sends:
@@ -72,6 +81,18 @@ The smoke script sends:
 - cross-tenant retrieval contamination attempt, expected fail-closed rejection.
 
 The script prints HTTP status, governed status, receipt emission status, receipt ID, and decision summary. It never prints the token.
+
+The JSON report is a sanitized artifact for review. It contains timestamp, stage, API host hash, tenant hash, model ID, case names, HTTP status, governed status, receipt emission state, receipt IDs, and decision-phase summaries. It must not contain the token, prompt text, model output text, raw tenant label, raw user ID, raw session ID, or secrets.
+
+Quick report checks:
+
+```bash
+jq '.schemaVersion, .stage, .apiHostHash, .tenantHash, .modelId, .passed' "$REPORT_PATH"
+jq '.cases[] | {name, httpStatus, governedStatus, receiptEmitted, receiptId, decisionPhases}' "$REPORT_PATH"
+
+! grep -F "$ID_TOKEN" "$REPORT_PATH"
+! grep -F "$TENANT" "$REPORT_PATH"
+```
 
 ## Expected Runtime Behavior
 
@@ -96,6 +117,49 @@ Decision receipts can be verified with:
 - KMS public-key verifier for `KMS_SIGN_RSASSA_PSS_SHA_256`.
 
 Verification checks schema, receipt id, algorithm, key id, digest, canonical payload, and RSA-PSS signature validity. This verifies receipt integrity only.
+
+After smoke, verify at least one emitted KMS decision receipt. The decision receipt table key uses the tenant HMAC digest, so compute it without printing the secret:
+
+```bash
+export DECISION_RECEIPT_TABLE="ghost-ark-${STAGE}-decision-receipts"
+export RECEIPT_HMAC_SECRET_ID="ghost-ark-${STAGE}-decision-receipt-hmac-secret"
+export RECEIPT_ID="$(node -e 'const fs=require("fs"); const r=JSON.parse(fs.readFileSync(process.env.REPORT_PATH,"utf8")); const c=r.cases.find((x)=>x.receiptEmitted && x.receiptId); if (!c) process.exit(1); console.log(c.receiptId);')"
+
+node -r ts-node/register <<'NODE'
+const crypto = require("crypto");
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb");
+const { SecretsManagerClient, GetSecretValueCommand } = require("@aws-sdk/client-secrets-manager");
+const { KmsDecisionReceiptVerifier } = require("./packages/enforcement-runtime/src/receipts/kmsVerifier");
+const { verifyDecisionReceipt } = require("./packages/enforcement-runtime/src/receipts/verifier");
+
+(async () => {
+  const secretResponse = await new SecretsManagerClient({}).send(
+    new GetSecretValueCommand({ SecretId: process.env.RECEIPT_HMAC_SECRET_ID })
+  );
+  const hmacSecret = secretResponse.SecretString ?? Buffer.from(secretResponse.SecretBinary ?? "").toString("utf8");
+  const tenantId = `hmac-sha256:${crypto.createHmac("sha256", hmacSecret).update(process.env.TENANT).digest("hex")}`;
+  const dynamodb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+  const response = await dynamodb.send(
+    new GetCommand({
+      TableName: process.env.DECISION_RECEIPT_TABLE,
+      Key: { tenantId, receiptId: process.env.RECEIPT_ID },
+      ConsistentRead: true
+    })
+  );
+  const receipt = response.Item && response.Item.receipt;
+  if (!receipt) {
+    throw new Error("Decision receipt not found");
+  }
+  const envelope = JSON.parse(Buffer.from(receipt.receipt_signature, "base64url").toString("utf8"));
+  const result = await verifyDecisionReceipt(receipt, new KmsDecisionReceiptVerifier({ keyId: envelope.keyId }));
+  console.log(JSON.stringify({ receiptId: receipt.receipt_id, verdict: result.verdict, checks: result.checks }, null, 2));
+  if (!result.verdict) {
+    process.exitCode = 1;
+  }
+})();
+NODE
+```
 
 ## Operational Checks
 

@@ -12,6 +12,7 @@ import {
   DynamoDbDecisionReceiptRepository,
   IntegrityCollisionError
 } from "../../../../packages/enforcement-runtime/src/receipts/repository";
+import { InMemoryDecisionReceiptRepository } from "../../../../packages/enforcement-runtime/src/receipts/inMemoryReceiptRepository";
 import { LocalDevHmacReceiptSigner, signDecisionReceipt } from "../../../../packages/enforcement-runtime/src/receipts/signer";
 import { SignedDecisionReceipt } from "../../../../packages/enforcement-runtime/src/receipts/schema";
 
@@ -189,5 +190,33 @@ describe("DynamoDbDecisionReceiptRepository", () => {
 
     expect(signCanonical).not.toHaveBeenCalled();
     expect(repository.put).not.toHaveBeenCalled();
+  });
+});
+
+describe("InMemoryDecisionReceiptRepository", () => {
+  it("returns an idempotent result for exact duplicate receipts", async () => {
+    const repository = new InMemoryDecisionReceiptRepository();
+    const receipt = signedReceipt();
+
+    await expect(repository.put(receipt)).resolves.toMatchObject({
+      status: "CREATED",
+      receipt
+    });
+    await expect(repository.put(receipt)).resolves.toMatchObject({
+      status: "IDEMPOTENT_EXISTING",
+      receipt
+    });
+    expect(repository.all()).toHaveLength(1);
+  });
+
+  it("fails closed when a duplicate receipt key has different canonical content", async () => {
+    const repository = new InMemoryDecisionReceiptRepository();
+    const receipt = signedReceipt();
+    await repository.put(receipt);
+
+    await expect(repository.put({ ...receipt, input_digest: publicSha256Digest("conflicting-input") })).rejects.toThrow(
+      IntegrityCollisionError
+    );
+    expect(repository.all()).toHaveLength(1);
   });
 });

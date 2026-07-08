@@ -57,6 +57,7 @@ export interface GovernedInvokeDependencies {
   retrievalOptions?: {
     rejectCallerSuppliedContexts?: boolean;
     requireProviderWhenEnabled?: boolean;
+    allowTaintedDigestOnly?: boolean;
   };
   metrics?: GovernedInvokeMetrics;
   metricDimensions?: {

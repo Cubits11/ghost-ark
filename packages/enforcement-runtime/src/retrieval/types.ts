@@ -6,7 +6,14 @@ export interface RetrievedContextCandidate {
   digest: string;
   text?: string;
   taint: RetrievalTaint[];
+  taintMetadata?: RetrievalTaintMetadata[];
   source?: string;
+}
+
+export interface RetrievalTaintMetadata {
+  taint: Extract<RetrievalTaint, "untrusted_instruction">;
+  indicator: string;
+  category: "instruction_hijack" | "secret_exfiltration" | "tenant_override";
 }
 
 export interface RetrievalProvider {
@@ -27,5 +34,6 @@ export interface RetrievalFilterInput {
 export interface RetrievalFilterResult {
   allowed: RetrievedContextForPolicy[];
   rejected: RetrievedContextCandidate[];
+  sanitized: RetrievedContextCandidate[];
   riskTags: string[];
 }

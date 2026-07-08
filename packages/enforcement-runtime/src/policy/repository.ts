@@ -37,6 +37,15 @@ export const DEFAULT_GOVERNED_INVOKE_POLICY: PolicySource = {
       match: { riskTagsAny: ["retrieval_cross_tenant"] }
     },
     {
+      id: "untrusted-retrieval-instruction",
+      description: "Escalate retrieved content that appears to contain instruction-hijacking text.",
+      phase: "pre_model",
+      decision: "ESCALATE",
+      riskScore: 0.9,
+      actionTaken: ["block_model_invocation", "quarantine_retrieval"],
+      match: { riskTagsAny: ["retrieval_untrusted_instruction"] }
+    },
+    {
       id: "post-model-pii-redaction",
       description: "Redact obvious private identifiers or credential-like material in model output.",
       phase: "post_model",
