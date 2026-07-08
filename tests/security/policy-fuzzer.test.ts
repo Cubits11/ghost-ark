@@ -72,4 +72,54 @@ describe("policy compiler adversarial namespace fuzzing", () => {
     expect(result.violations.map((violation) => violation.code)).toContain("allow_wildcard_action");
     expect(result.violations.map((violation) => violation.code)).toContain("receipt_ledger_mutation");
   });
+
+  it("rejects namespace bucket injection before ARN compilation", () => {
+    expect(() => compileTenantSandboxPolicy({ ...baseInput, rawBucket: "raw/tenants/tenant-b" })).toThrow(
+      /Invalid tenant namespace bucket name/u
+    );
+    expect(() => compileTenantSandboxPolicy({ ...baseInput, curatedBucket: "RawBucket" })).toThrow(
+      /Invalid tenant namespace bucket name/u
+    );
+  });
+
+  it("detects NotAction, NotResource, and wildcard destructive DynamoDB receipt grants", () => {
+    const policy = compileTenantSandboxPolicy(baseInput);
+    const namespace = compileTenantNamespace(baseInput);
+    const receiptArn = `arn:aws:dynamodb:${baseInput.region}:${baseInput.accountId}:table/ghost-ark-${baseInput.stage}-receipts`;
+    const tampered = {
+      ...policy.document,
+      Statement: [
+        ...policy.document.Statement,
+        {
+          Sid: "InjectedInverseAllow",
+          Effect: "Allow",
+          NotAction: "iam:*",
+          NotResource: receiptArn
+        },
+        {
+          Sid: "InjectedDeleteWildcard",
+          Effect: "Allow",
+          Action: ["dynamodb:Delete*"],
+          Resource: [receiptArn],
+          Condition: {
+            "ForAllValues:StringEquals": {
+              "dynamodb:LeadingKeys": ["${aws:PrincipalTag/slug}"]
+            }
+          }
+        }
+      ]
+    };
+
+    const result = verifyTenantSandboxPolicyInvariants({
+      document: tampered,
+      namespace,
+      accountId: baseInput.accountId,
+      region: baseInput.region
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.violations.map((violation) => violation.code)).toContain("allow_not_action_or_resource");
+    expect(result.violations.map((violation) => violation.code)).toContain("allow_wildcard_action");
+    expect(result.violations.map((violation) => violation.code)).toContain("receipt_ledger_mutation");
+  });
 });

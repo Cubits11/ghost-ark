@@ -62,8 +62,8 @@ function parseArgs(argv) {
     }
   }
 
-  if (!args.receipt && !args.verifyChain) {
-    throw new Error("Either --receipt or --verify-chain is required");
+  if (!args.receipt && !args.verifyChain && !args.inclusionProof) {
+    throw new Error("At least one of --receipt, --verify-chain, or --inclusion-proof is required");
   }
 
   return args;
@@ -113,6 +113,9 @@ function sha256Bytes(value) {
 function isRecord(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
+
+const sha256DigestPattern = /^sha256:[a-f0-9]{64}$/u;
+const identityDigestPattern = /^(sha256|hmac-sha256):[a-f0-9]{64}$/u;
 
 function readJsonFile(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -306,6 +309,31 @@ function signedDecisionReceiptHash(receipt) {
   return `sha256:${sha256Hex(canonicalize(receipt))}`;
 }
 
+function validateDecisionReceiptShape(receipt) {
+  if (!isRecord(receipt)) {
+    return "Receipt must be an object.";
+  }
+  if (receipt.schema_version !== "ghost.receipt.v1") {
+    return "Decision receipt must contain schema_version ghost.receipt.v1.";
+  }
+  if (typeof receipt.receipt_id !== "string" || !/^grct_[a-f0-9]{64}$/u.test(receipt.receipt_id)) {
+    return "Decision receipt has an invalid receipt_id.";
+  }
+  if (typeof receipt.tenant_id_hash !== "string" || !identityDigestPattern.test(receipt.tenant_id_hash)) {
+    return "Decision receipt has an invalid tenant_id_hash.";
+  }
+  if (typeof receipt.timestamp !== "string" || !Number.isFinite(Date.parse(receipt.timestamp))) {
+    return "Decision receipt has an invalid timestamp.";
+  }
+  if (receipt.prev_receipt_hash !== null && (typeof receipt.prev_receipt_hash !== "string" || !sha256DigestPattern.test(receipt.prev_receipt_hash))) {
+    return "Decision receipt has an invalid prev_receipt_hash.";
+  }
+  if (typeof receipt.receipt_signature !== "string" || receipt.receipt_signature.length === 0) {
+    return "Decision receipt has an empty receipt_signature.";
+  }
+  return null;
+}
+
 function verifyDecisionReceiptRecord(receipt, publicKeyPem, manifest) {
   const checks = [];
   if (!isRecord(receipt) || receipt.schema_version !== "ghost.receipt.v1") {
@@ -401,7 +429,33 @@ function verifyDecisionReceiptChain(receipts) {
     check(checks, "chain_schema", false, "Chain file must contain an array of decision receipts.");
     return { verdict: false, checks };
   }
+  if (receipts.length === 0) {
+    check(checks, "chain_schema", false, "Chain file must contain at least one decision receipt.");
+    return { verdict: false, checks };
+  }
+  const firstTenant = isRecord(receipts[0]) ? receipts[0].tenant_id_hash : undefined;
+  const seenHashes = new Set();
   receipts.forEach((receipt, index) => {
+    const shapeError = validateDecisionReceiptShape(receipt);
+    if (shapeError) {
+      check(checks, `chain_${index}`, false, shapeError);
+      return;
+    }
+    if (typeof firstTenant === "string" && receipt.tenant_id_hash !== firstTenant) {
+      check(
+        checks,
+        `chain_${index}`,
+        false,
+        `Tenant-chain break. Expected tenant ${firstTenant}; observed ${receipt.tenant_id_hash}.`
+      );
+      return;
+    }
+    const currentHash = signedDecisionReceiptHash(receipt);
+    if (seenHashes.has(currentHash)) {
+      check(checks, `chain_${index}`, false, `Duplicate signed receipt hash observed: ${currentHash}.`);
+      return;
+    }
+    seenHashes.add(currentHash);
     if (index === 0) {
       check(
         checks,
@@ -410,6 +464,21 @@ function verifyDecisionReceiptChain(receipts) {
         receipt.prev_receipt_hash === null
           ? "First receipt has no previous receipt hash."
           : "First receipt unexpectedly declares a previous receipt hash."
+      );
+      return;
+    }
+    const previous = receipts[index - 1];
+    const previousShapeError = validateDecisionReceiptShape(previous);
+    if (previousShapeError) {
+      check(checks, `chain_${index}`, false, "Cannot verify receipt chain continuity because the prior receipt is invalid.");
+      return;
+    }
+    if (Date.parse(receipt.timestamp) < Date.parse(previous.timestamp)) {
+      check(
+        checks,
+        `chain_${index}`,
+        false,
+        `Receipt timestamp ${receipt.timestamp} is earlier than prior receipt timestamp ${previous.timestamp}.`
       );
       return;
     }
@@ -439,6 +508,9 @@ function merkleParentHash(left, right) {
 }
 
 function verifyInclusionProof(proof, expectedRoot) {
+  if (!validateInclusionProofShape(proof, expectedRoot).passed) {
+    return false;
+  }
   let computed = leafHash(proof.leaf);
   if (computed !== proof.leafHash) {
     return false;
@@ -447,6 +519,36 @@ function verifyInclusionProof(proof, expectedRoot) {
     computed = step.position === "left" ? merkleParentHash(step.hash, computed) : merkleParentHash(computed, step.hash);
   }
   return computed === expectedRoot;
+}
+
+function validateInclusionProofShape(proof, expectedRoot) {
+  if (!isRecord(proof)) {
+    return { passed: false, detail: "Inclusion proof must be an object." };
+  }
+  if (!isRecord(proof.leaf)) {
+    return { passed: false, detail: "Inclusion proof leaf must be an object." };
+  }
+  if (typeof proof.leaf.tenantId !== "string" || !identityDigestPattern.test(proof.leaf.tenantId)) {
+    return { passed: false, detail: "Inclusion proof leaf tenantId must be a sha256 or hmac-sha256 digest." };
+  }
+  if (typeof proof.leaf.headHash !== "string" || !sha256DigestPattern.test(proof.leaf.headHash)) {
+    return { passed: false, detail: "Inclusion proof leaf headHash must be a sha256 digest." };
+  }
+  if (typeof proof.leafHash !== "string" || !sha256DigestPattern.test(proof.leafHash)) {
+    return { passed: false, detail: "Inclusion proof leafHash must be a sha256 digest." };
+  }
+  if (typeof expectedRoot !== "string" || !sha256DigestPattern.test(expectedRoot)) {
+    return { passed: false, detail: "Inclusion proof root must be a sha256 digest." };
+  }
+  if (!Array.isArray(proof.proof)) {
+    return { passed: false, detail: "Inclusion proof proof field must be an array." };
+  }
+  for (const [index, step] of proof.proof.entries()) {
+    if (!isRecord(step) || !["left", "right"].includes(step.position) || typeof step.hash !== "string" || !sha256DigestPattern.test(step.hash)) {
+      return { passed: false, detail: `Inclusion proof step ${index} is malformed.` };
+    }
+  }
+  return { passed: true, detail: "Inclusion proof shape is valid." };
 }
 
 function printResult(result) {
@@ -510,6 +612,8 @@ function main() {
     const proof = readJsonFile(args.inclusionProof);
     const checkpoint = args.checkpoint ? readJsonFile(args.checkpoint) : undefined;
     const expectedRoot = checkpoint?.merkleRoot ?? proof.root;
+    const proofShape = validateInclusionProofShape(proof, expectedRoot);
+    check(result.checks, "inclusion_proof_schema", proofShape.passed, proofShape.detail);
     const inclusionPassed = verifyInclusionProof(proof, expectedRoot);
     check(
       result.checks,
@@ -529,8 +633,17 @@ function main() {
           ? "Decision receipt hash matches the included chain-head leaf."
           : "Decision receipt hash does not match the included chain-head leaf."
       );
+      const receiptTenantMatches = record.tenant_id_hash === proof.leaf?.tenantId;
+      check(
+        result.checks,
+        "inclusion_receipt_tenant",
+        receiptTenantMatches,
+        receiptTenantMatches
+          ? "Decision receipt tenant hash matches the included chain-head leaf."
+          : "Decision receipt tenant hash does not match the included chain-head leaf."
+      );
     }
-    result.verdict = result.verdict && inclusionPassed && result.checks.every((entry) => entry.passed);
+    result.verdict = result.verdict && proofShape.passed && inclusionPassed && result.checks.every((entry) => entry.passed);
   }
 
   printResult(result);

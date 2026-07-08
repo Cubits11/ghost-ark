@@ -1,6 +1,7 @@
 import { ValidationError } from "../../shared/src/errors";
 
 export const tenantSlugPattern = /^[a-z][a-z0-9-]{1,47}$/u;
+const bucketNamePattern = /^(?!\d+\.\d+\.\d+\.\d+$)[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/u;
 
 export interface TenantNamespaceInput {
   stage: string;
@@ -61,6 +62,10 @@ export function compileTenantNamespace(input: TenantNamespaceInput): TenantNames
   if (!/^[a-z][a-z0-9-]{1,24}$/u.test(stage)) {
     throw new ValidationError("Invalid stage", { stage: input.stage });
   }
+  assertValidBucketName(input.rawBucket, "rawBucket");
+  assertValidBucketName(input.curatedBucket, "curatedBucket");
+  assertValidBucketName(input.exportBucket, "exportBucket");
+  assertValidBucketName(input.resultsBucket, "resultsBucket");
 
   return {
     stage,
@@ -90,4 +95,15 @@ export function compileTenantNamespace(input: TenantNamespaceInput): TenantNames
       indexAlias: `ghost-ark-${stage}-${tenantSlug}`
     }
   };
+}
+
+function assertValidBucketName(bucketName: string, field: keyof Pick<TenantNamespaceInput, "rawBucket" | "curatedBucket" | "exportBucket" | "resultsBucket">): void {
+  if (
+    !bucketNamePattern.test(bucketName) ||
+    bucketName.includes("..") ||
+    bucketName.includes(".-") ||
+    bucketName.includes("-.")
+  ) {
+    throw new ValidationError("Invalid tenant namespace bucket name", { field, bucketName });
+  }
 }

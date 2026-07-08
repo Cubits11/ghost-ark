@@ -19,6 +19,37 @@ export const keyManifestSchema = z.object({
   schemaVersion: z.literal(keyManifestSchemaVersion),
   generatedAt: z.string().datetime(),
   keys: z.array(keyManifestEntrySchema).min(1)
+}).superRefine((manifest, ctx) => {
+  const seen = new Set<string>();
+  for (const [index, entry] of manifest.keys.entries()) {
+    const identity = `${entry.keyId}:${entry.algorithm}`;
+    if (seen.has(identity)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["keys", index, "keyId"],
+        message: `Duplicate key manifest entry for ${identity}`
+      });
+    }
+    seen.add(identity);
+
+    const validFrom = Date.parse(entry.validFrom);
+    const validUntil = entry.validUntil ? Date.parse(entry.validUntil) : undefined;
+    const revokedAt = entry.revokedAt ? Date.parse(entry.revokedAt) : undefined;
+    if (validUntil !== undefined && validUntil <= validFrom) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["keys", index, "validUntil"],
+        message: "validUntil must be later than validFrom"
+      });
+    }
+    if (revokedAt !== undefined && revokedAt < validFrom) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["keys", index, "revokedAt"],
+        message: "revokedAt cannot be earlier than validFrom"
+      });
+    }
+  }
 });
 
 export type KeyManifestEntry = z.infer<typeof keyManifestEntrySchema>;
@@ -52,7 +83,18 @@ export function verifyKeyManifestEpoch(input: {
   algorithm: string;
   timestamp: string;
 }): KeyManifestCheck {
-  const entry = findManifestEntryForKey(input.manifest, input.keyId, input.algorithm);
+  let manifest: KeyManifest;
+  try {
+    manifest = validateKeyManifest(input.manifest);
+  } catch (error) {
+    return {
+      name: "key_manifest",
+      passed: false,
+      detail: `Key manifest is invalid: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+
+  const entry = findManifestEntryForKey(manifest, input.keyId, input.algorithm);
   if (!entry) {
     return {
       name: "key_manifest",

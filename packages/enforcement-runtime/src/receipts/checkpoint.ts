@@ -1,6 +1,6 @@
 import { canonicalSha256Hex, canonicalize, sha256Hex } from "../../../receipt-schema/src/hashCanonicalization";
 import type { DecisionReceiptAsyncSigner } from "./emission";
-import { DecisionReceiptChainHead } from "./repository";
+import { DecisionReceiptChainHead, DecisionReceiptRepository } from "./repository";
 
 export const epochCheckpointSchemaVersion = "ghost.receipt_checkpoint.v1" as const;
 
@@ -39,6 +39,10 @@ export interface SignedEpochCheckpoint extends UnsignedEpochCheckpoint {
 export interface EpochCheckpointVerificationResult {
   verdict: boolean;
   checks: Array<{ name: string; passed: boolean; detail: string }>;
+}
+
+export interface EpochCheckpointRepository {
+  put(checkpoint: SignedEpochCheckpoint): Promise<void>;
 }
 
 export interface EpochCheckpointCanonicalVerifier {
@@ -162,6 +166,28 @@ export async function signEpochCheckpoint(input: {
     signerKeyId: input.signer.keyId,
     signature
   };
+}
+
+export async function createSignedEpochCheckpoint(input: {
+  epochId: string;
+  createdAt: string;
+  receiptRepository: Pick<DecisionReceiptRepository, "listChainHeads">;
+  signer: DecisionReceiptAsyncSigner;
+  checkpointRepository?: EpochCheckpointRepository;
+}): Promise<SignedEpochCheckpoint> {
+  if (!input.receiptRepository.listChainHeads) {
+    throw new Error("Receipt repository does not support listing tenant chain heads");
+  }
+
+  const chainHeads = await input.receiptRepository.listChainHeads();
+  const checkpoint = await signEpochCheckpoint({
+    epochId: input.epochId,
+    createdAt: input.createdAt,
+    leaves: chainHeads,
+    signer: input.signer
+  });
+  await input.checkpointRepository?.put(checkpoint);
+  return checkpoint;
 }
 
 export async function verifyEpochCheckpoint(
