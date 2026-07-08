@@ -90,7 +90,7 @@ export function buildReceiptPayload(input: BuildReceiptPayloadInput): ReceiptPay
     lineageEventIds: [...(input.lineageEventIds ?? [])].sort(),
     claimIds: [...(input.claimIds ?? [])].sort(),
     governanceContext: input.governanceContext,
-    transform: input.transform
+    ...(input.transform !== undefined ? { transform: input.transform } : {})
   };
   const receiptId = receiptIdFromPayload(bodyWithoutId);
   const parsed = receiptPayloadSchema.safeParse({ receiptId, ...bodyWithoutId });
