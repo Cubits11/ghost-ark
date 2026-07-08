@@ -50,7 +50,7 @@ Signing claims:
 - A receipt digest was computed.
 - A receipt digest was signed by the configured KMS signing key.
 - The signature algorithm was recorded.
-- The KMS key identifier or alias was recorded.
+- The immutable KMS key ARN or key UUID was recorded. Mutable aliases are not accepted as receipt signing identity.
 - The signedAt timestamp was recorded.
 
 Persistence claims:

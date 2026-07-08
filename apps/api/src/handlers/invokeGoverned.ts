@@ -86,6 +86,39 @@ function parseBooleanEnv(name: string, fallback: boolean, env: NodeJS.ProcessEnv
   return value.toLowerCase() === "true";
 }
 
+function isTestRuntime(env: NodeJS.ProcessEnv): boolean {
+  return env.STAGE === "test" || env.NODE_ENV === "test" || env.VITEST === "true";
+}
+
+function receiptSignerMode(env: NodeJS.ProcessEnv): "kms" | "local" {
+  const signerMode = optionalEnv("GHOST_ARK_RECEIPT_SIGNER", "kms", env);
+  if (signerMode !== "kms" && signerMode !== "local") {
+    throw new ValidationError("Unsupported governed invoke receipt signer mode", {
+      name: "GHOST_ARK_RECEIPT_SIGNER",
+      signerMode
+    });
+  }
+  if (signerMode === "local" && !isTestRuntime(env)) {
+    throw new ValidationError("Local governed invoke receipt signing is only allowed in explicit test runtimes", {
+      name: "GHOST_ARK_RECEIPT_SIGNER"
+    });
+  }
+  return signerMode;
+}
+
+function localTestReceiptSigningSecret(env: NodeJS.ProcessEnv): string {
+  const configured = env.GHOST_ARK_LOCAL_RECEIPT_SIGNING_SECRET;
+  if (configured && configured.trim().length > 0) {
+    return configured;
+  }
+  if (isTestRuntime(env)) {
+    return "local-dev";
+  }
+  throw new ValidationError("Missing local test receipt signing secret", {
+    name: "GHOST_ARK_LOCAL_RECEIPT_SIGNING_SECRET"
+  });
+}
+
 export interface HmacSecretResolverOptions {
   readSecret?: (secretId: string) => Promise<string>;
 }
@@ -107,7 +140,7 @@ async function readSecretsManagerString(secretId: string): Promise<string> {
 
 export async function hmacSecretForMode(env: NodeJS.ProcessEnv, options: HmacSecretResolverOptions = {}): Promise<string> {
   const configured = env.GHOST_ARK_RECEIPT_HMAC_SECRET;
-  const signerMode = optionalEnv("GHOST_ARK_RECEIPT_SIGNER", "kms", env);
+  const signerMode = receiptSignerMode(env);
   if (configured && configured.trim().length > 0) {
     if (signerMode !== "local" && configured === DEFAULT_DECISION_RECEIPT_HMAC_SECRET) {
       throw new ValidationError("AWS/KMS governed invoke mode cannot use the local default decision receipt HMAC secret", {
@@ -133,7 +166,7 @@ async function buildDependencies(env: NodeJS.ProcessEnv) {
   const modelMode = optionalEnv("GHOST_ARK_MODEL_MODE", "bedrock", env);
   const policyMode = optionalEnv("GHOST_ARK_POLICY_REPOSITORY", "dynamodb", env);
   const vaultMode = optionalEnv("GHOST_ARK_VAULT", "dynamodb", env);
-  const signerMode = optionalEnv("GHOST_ARK_RECEIPT_SIGNER", "kms", env);
+  const signerMode = receiptSignerMode(env);
   const receiptRepositoryMode = optionalEnv("GHOST_ARK_DECISION_RECEIPT_REPOSITORY", "dynamodb", env);
   const allowDefaultPolicy = parseBooleanEnv("GHOST_ARK_ALLOW_DEFAULT_POLICY", policyMode === "in_memory", env);
   const modelAllowlist = parseModelAllowlist(env.GHOST_ARK_BEDROCK_MODEL_ALLOWLIST);
@@ -165,7 +198,7 @@ async function buildDependencies(env: NodeJS.ProcessEnv) {
       : new DynamoDbDecisionReceiptRepository({ tableName: requiredEnv("GHOST_ARK_DECISION_RECEIPT_TABLE", env) });
   const signer =
     signerMode === "local"
-      ? new LocalDevHmacReceiptSigner({ secret: optionalEnv("GHOST_ARK_LOCAL_RECEIPT_SIGNING_SECRET", "local-dev", env) })
+      ? new LocalDevHmacReceiptSigner({ secret: localTestReceiptSigningSecret(env) })
       : new KmsDecisionReceiptSigner({ keyId: requiredEnv("GHOST_ARK_DECISION_SIGNING_KEY_ID", env) });
 
   return {

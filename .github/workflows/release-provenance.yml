@@ -1,0 +1,47 @@
+name: release-provenance
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  provenance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+      - run: npm run build
+      - run: mkdir -p artifacts
+      - name: Generate release manifest
+        run: |
+          {
+            echo "ghost-ark release manifest"
+            echo "git_sha=${GITHUB_SHA}"
+            echo "ref=${GITHUB_REF}"
+            find package.json package-lock.json tsconfig.json dist -type f -print | sort | xargs shasum -a 256
+          } > artifacts/release-manifest.sha256
+      - uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: artifacts/sbom.spdx.json
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign release manifest
+        run: cosign sign-blob --yes --bundle artifacts/release-manifest.sigstore.json artifacts/release-manifest.sha256
+      - name: Sign SBOM
+        run: cosign sign-blob --yes --bundle artifacts/sbom.sigstore.json artifacts/sbom.spdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ghost-ark-provenance-${{ github.sha }}
+          path: artifacts/

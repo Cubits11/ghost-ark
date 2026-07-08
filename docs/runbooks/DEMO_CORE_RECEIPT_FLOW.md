@@ -258,6 +258,8 @@ Expected fields:
 Known validated signature fields:
 
 - signature.keyId: alias/ghost-ark-dev-receipt-signing
+
+Historical note: current hardening rejects mutable KMS aliases in receipt signing metadata. Fresh demo output must record an immutable KMS key ARN or key UUID.
 - signature.algorithm: RSASSA_PSS_SHA_256
 - signature.messageType: DIGEST
 

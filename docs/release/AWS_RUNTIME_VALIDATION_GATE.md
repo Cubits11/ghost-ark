@@ -25,7 +25,7 @@ This gate is not a production, enterprise, compliance, or AI-safety gate. It pro
 npm run validate
 npx cdk synth -c bedrockModelAllowlist=anthropic.claude-3-5-sonnet-20240620-v1:0
 npm run seed:governed-policy -- --table ghost-ark-dev-tenant-policies --tenant acme-lab --stage dev
-npm run smoke:governed-invoke -- --api "$API_URL" --token "$ID_TOKEN" --tenant acme-lab --model anthropic.claude-3-5-sonnet-20240620-v1:0 --stage dev --json-report docs/validation/governed-invoke-dev.json
+npm run smoke:governed-invoke -- --api "$API_URL" --token "$ID_TOKEN" --tenant acme-lab --model anthropic.claude-3-5-sonnet-20240620-v1:0 --stage dev --json-report evidence/live-aws-validation/dev/governed-invoke-dev.json
 ```
 
 ## Pass Conditions

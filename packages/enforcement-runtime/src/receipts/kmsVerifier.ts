@@ -2,13 +2,12 @@ import { GetPublicKeyCommand, KMSClient, VerifyCommand } from "@aws-sdk/client-k
 import { constants, createPublicKey, KeyObject, verify as verifySignature } from "crypto";
 import { sha256Bytes } from "../../../receipt-schema/src/hashCanonicalization";
 import {
+  assertImmutableKmsKeyId,
   immutableKmsKeyIdsMatch,
   isImmutableKmsKeyId,
-  isKmsAliasKeyId,
   KMS_DECISION_RECEIPT_ALGORITHM,
   KMS_DECISION_RECEIPT_MESSAGE_TYPE,
-  KMS_DECISION_RECEIPT_SIGNING_ALGORITHM,
-  resolveImmutableKmsKeyId
+  KMS_DECISION_RECEIPT_SIGNING_ALGORITHM
 } from "./kmsSigner";
 import { SignedDecisionReceipt } from "./schema";
 import { DecisionReceiptCanonicalVerifier, ParsedDecisionReceiptSignatureEnvelope } from "./verifier";
@@ -27,7 +26,7 @@ export interface KmsDecisionReceiptVerifierOptions {
 
 export class KmsDecisionReceiptVerifier implements DecisionReceiptCanonicalVerifier {
   readonly algorithm: SignedDecisionReceipt["signature_alg"] = KMS_DECISION_RECEIPT_ALGORITHM;
-  readonly keyId?: string;
+  readonly keyId: string;
   private readonly configuredKeyId: string;
   private readonly client?: KMSClient;
   private readonly publicKeyPem?: string;
@@ -36,8 +35,8 @@ export class KmsDecisionReceiptVerifier implements DecisionReceiptCanonicalVerif
   private cachedPublicKey?: KeyObject;
 
   constructor(options: KmsDecisionReceiptVerifierOptions) {
-    this.configuredKeyId = options.keyId;
-    this.keyId = isImmutableKmsKeyId(options.keyId) ? options.keyId : undefined;
+    this.configuredKeyId = assertImmutableKmsKeyId(options.keyId, "KMS decision receipt verifier keyId");
+    this.keyId = this.configuredKeyId;
     this.client = options.client;
     this.publicKeyPem = options.publicKeyPem;
     this.publicKeyDer = options.publicKeyDer;
@@ -55,7 +54,7 @@ export class KmsDecisionReceiptVerifier implements DecisionReceiptCanonicalVerif
     if (!keyId) {
       return false;
     }
-    if (this.keyId && !immutableKmsKeyIdsMatch(this.keyId, keyId)) {
+    if (!immutableKmsKeyIdsMatch(this.keyId, keyId)) {
       return false;
     }
 
@@ -89,32 +88,12 @@ export class KmsDecisionReceiptVerifier implements DecisionReceiptCanonicalVerif
     if (isImmutableKmsKeyId(receiptKeyId)) {
       return receiptKeyId;
     }
-    if (!isKmsAliasKeyId(receiptKeyId)) {
-      return undefined;
-    }
-
-    this.warnMutableAliasReceipt(receiptKeyId);
-    const client = this.client ?? new KMSClient({});
-    return resolveImmutableKmsKeyId(client, receiptKeyId);
-  }
-
-  private warnMutableAliasReceipt(receiptKeyId: string): void {
-    const fields = {
-      event: "kms_decision_receipt_mutable_alias_key_id",
+    this.logger?.warn("KMS decision receipt contains a non-immutable keyId; verification failed closed.", {
+      event: "kms_decision_receipt_non_immutable_key_id",
       configuredKeyId: this.configuredKeyId,
       receiptKeyId
-    };
-    if (this.logger) {
-      this.logger.warn("KMS decision receipt contains mutable alias keyId; resolving alias before verification.", fields);
-      return;
-    }
-    console.warn(
-      JSON.stringify({
-        level: "warn",
-        message: "KMS decision receipt contains mutable alias keyId; resolving alias before verification.",
-        ...fields
-      })
-    );
+    });
+    return undefined;
   }
 
   private async verifyWithConfiguredPublicKey(canonicalPayload: string, signature: string): Promise<boolean> {

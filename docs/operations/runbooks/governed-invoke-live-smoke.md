@@ -59,7 +59,7 @@ Export the returned ID token:
 ```bash
 export ID_TOKEN="<id-token>"
 export API_URL="https://<api-id>.execute-api.<region>.amazonaws.com/${STAGE}"
-export REPORT_PATH="docs/validation/governed-invoke-${STAGE}-$(date -u +%Y%m%dT%H%M%SZ).json"
+export REPORT_PATH="evidence/live-aws-validation/${STAGE}/governed-invoke-$(date -u +%Y%m%dT%H%M%SZ).json"
 ```
 
 ## 5. Run Smoke

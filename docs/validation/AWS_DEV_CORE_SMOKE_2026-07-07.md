@@ -73,6 +73,8 @@ The receipt included:
 - signature.messageType: DIGEST
 - signature.keyId: alias/ghost-ark-dev-receipt-signing
 
+Historical note: this July 7, 2026 smoke output predates immutable-key enforcement. Current receipt signers and verifiers reject mutable KMS aliases and require an immutable key ARN or key UUID.
+
 DynamoDB persistence evidence
 -----------------------------
 

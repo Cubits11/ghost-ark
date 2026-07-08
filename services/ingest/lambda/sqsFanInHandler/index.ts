@@ -2,6 +2,7 @@ import { SQSEvent } from "aws-lambda";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { requiredEnv } from "../../../../packages/shared/src/config";
 import { canonicalSha256Hex } from "../../../../packages/receipt-schema/src/hashCanonicalization";
+import { assertTrustedTenantSource } from "../../../../packages/enforcement-runtime/src/tenancy/trustedTenantSource";
 
 const s3 = new S3Client({});
 
@@ -13,14 +14,17 @@ export async function handler(event: SQSEvent): Promise<{ accepted: number; fail
   for (const record of event.Records) {
     try {
       const message = JSON.parse(record.body) as { tenantSlug?: string; payload?: unknown };
-      if (!message.tenantSlug) {
-        throw new Error("Message is missing tenantSlug");
-      }
+      const tenantSlug = assertTrustedTenantSource({
+        kind: "sqs",
+        declaredTenantSlug: message.tenantSlug,
+        sourceArn: record.eventSourceARN,
+        sourceName: record.eventSourceARN?.split(":").at(-1)
+      });
       const id = canonicalSha256Hex({ messageId: record.messageId, payload: message.payload });
       await s3.send(
         new PutObjectCommand({
           Bucket: bucket,
-          Key: `tenants/${message.tenantSlug}/curated/fan-in/${id}.json`,
+          Key: `tenants/${tenantSlug}/curated/fan-in/${id}.json`,
           ContentType: "application/json",
           Body: JSON.stringify({ acceptedAt: new Date().toISOString(), messageId: record.messageId, payload: message.payload })
         })

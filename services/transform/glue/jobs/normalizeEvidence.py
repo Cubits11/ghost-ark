@@ -4,6 +4,7 @@ from awsglue.job import Job
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
 from pyspark.sql import functions as F
+from trusted_tenant_source import assert_trusted_tenant_source
 
 
 ARGS = getResolvedOptions(
@@ -24,11 +25,17 @@ spark = glue_context.spark_session
 job = Job(glue_context)
 job.init(ARGS["JOB_NAME"], ARGS)
 
-tenant_slug = ARGS["TENANT_SLUG"]
 input_path = ARGS["INPUT_PATH"]
 output_path = ARGS["OUTPUT_PATH"].rstrip("/")
 source_kind = ARGS["SOURCE_KIND"]
 run_id = ARGS["RUN_ID"]
+tenant_slug = assert_trusted_tenant_source(
+    kind="glue",
+    declared_tenant_slug=ARGS["TENANT_SLUG"],
+    source_name=ARGS["JOB_NAME"],
+    input_path=input_path,
+    output_path=output_path,
+)
 
 source_df = spark.read.option("multiLine", "true").json(input_path)
 

@@ -1,6 +1,7 @@
 import { KMSClient, VerifyCommand, SigningAlgorithmSpec } from "@aws-sdk/client-kms";
 import { constants, createPublicKey, verify as verifySignature } from "crypto";
 import { ReceiptPayload, ReceiptSignature, validateReceiptPayload } from "../../../packages/receipt-schema/src/receipt";
+import { immutableKmsKeyIdsMatch, isImmutableKmsKeyId } from "../../../packages/enforcement-runtime/src/aws/kmsKeyIdentity";
 import { defaultSigningAlgorithm, digestPayloadForSigning } from "./signer";
 
 export interface KmsVerifierOptions {
@@ -18,6 +19,9 @@ export async function verifyReceiptSignature(
   if (digest.digestSha256 !== signature.digestSha256) {
     return false;
   }
+  if (!isImmutableKmsKeyId(signature.keyId)) {
+    return false;
+  }
 
   const client = options.client ?? new KMSClient({});
   const response = await client.send(
@@ -29,6 +33,15 @@ export async function verifyReceiptSignature(
       SigningAlgorithm: signature.algorithm as SigningAlgorithmSpec
     })
   );
+  if (typeof response.KeyId === "string" && !immutableKmsKeyIdsMatch(response.KeyId, signature.keyId)) {
+    return false;
+  }
+  if (
+    typeof response.SigningAlgorithm === "string" &&
+    response.SigningAlgorithm !== signature.algorithm
+  ) {
+    return false;
+  }
 
   return response.SignatureValid === true;
 }
@@ -42,6 +55,9 @@ export function verifyReceiptSignatureWithPublicKey(
   const digest = digestPayloadForSigning(validated);
 
   if (digest.digestSha256 !== signature.digestSha256) {
+    return false;
+  }
+  if (!isImmutableKmsKeyId(signature.keyId)) {
     return false;
   }
   if (signature.messageType !== "DIGEST" || signature.algorithm !== defaultSigningAlgorithm) {

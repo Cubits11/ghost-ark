@@ -50,7 +50,7 @@ The only acceptable target claim for this lane is:
 
 Required evidence:
 
-- Sanitized supervised smoke report using `ghost.live_supervised_aws_runtime_report.v1`, stored under `docs/validation/live-supervised-aws-runtime-${STAGE}-${UTC_TIMESTAMP}.json`.
+- Sanitized supervised smoke report using `ghost.live_supervised_aws_runtime_report.v1`, stored under `evidence/live-aws-validation/${STAGE}/live-supervised-aws-runtime-${UTC_TIMESTAMP}.json`.
 - KMS verification output recorded inside the supervised report, including verifier check names for schema, receipt id, algorithm, key id, digest, canonical payload, and signature.
 - CloudWatch log redaction evidence showing recent governed invoke Lambda logs were inspected without storing raw log events, tokens, prompts, outputs, tenant labels, users, sessions, secrets, or retrieval text.
 - CloudWatch metric/alarm evidence for the `GhostArk/GovernedInvoke` namespace and governed invoke alarms or alarm prefixes.
@@ -61,7 +61,7 @@ Required evidence:
 Prepared artifact:
 
 ```text
-docs/validation/live-supervised-aws-runtime-report.sample.json
+evidence/live-aws-validation/samples/live-supervised-aws-runtime-report.sample.json
 ```
 
 This report is bounded runtime validation evidence only. It does not prove AI safety, production readiness, enterprise readiness, legal compliance, semantic correctness, empirical truth, or model-output correctness.
@@ -71,15 +71,15 @@ This report is bounded runtime validation evidence only. It does not prove AI sa
 Store sanitized governed invoke smoke reports under:
 
 ```text
-docs/validation/governed-invoke-${STAGE}-${UTC_TIMESTAMP}.json
+evidence/live-aws-validation/${STAGE}/governed-invoke-${UTC_TIMESTAMP}.json
 ```
 
-Reports must not include bearer tokens, raw prompts, raw outputs, raw tenant slugs, raw user IDs, raw session IDs, secrets, passwords, or raw retrieval text. A safe fixture is provided at `docs/validation/governed-invoke-smoke-report.sample.json`.
+Reports must not include bearer tokens, raw prompts, raw outputs, raw tenant slugs, raw user IDs, raw session IDs, secrets, passwords, or raw retrieval text. A safe fixture is provided at `evidence/live-aws-validation/samples/governed-invoke-smoke-report.sample.json`.
 
 Store supervised live AWS runtime reports under:
 
 ```text
-docs/validation/live-supervised-aws-runtime-${STAGE}-${UTC_TIMESTAMP}.json
+evidence/live-aws-validation/${STAGE}/live-supervised-aws-runtime-${UTC_TIMESTAMP}.json
 ```
 
 Supervised reports must not include bearer tokens, raw prompts, raw outputs, raw tenant slugs, raw user IDs, raw session IDs, secrets, passwords, raw retrieval text, raw HMAC secret IDs, or raw KMS key IDs. They may include hashes, receipt IDs, check names, statuses, sanitized operator commands, and explicit non-claims.

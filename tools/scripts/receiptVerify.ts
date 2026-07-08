@@ -9,6 +9,7 @@ import {
   readKeyManifestFile,
   verifyKeyManifestEpoch
 } from "../../packages/enforcement-runtime/src/receipts/keyManifest";
+import { isImmutableKmsKeyId } from "../../packages/enforcement-runtime/src/aws/kmsKeyIdentity";
 
 export interface ReceiptVerificationCheck {
   name: string;
@@ -116,6 +117,12 @@ export async function verifyReceiptRecord(
     checks.push(fail("algorithm", `Unexpected signature algorithm ${signature.algorithm}.`));
   }
 
+  if (isImmutableKmsKeyId(signature.keyId)) {
+    checks.push(pass("keyId", "Signature keyId is an immutable KMS key ARN or key UUID."));
+  } else {
+    checks.push(fail("keyId", "Signature keyId must be an immutable KMS key ARN or key UUID; aliases are not accepted."));
+  }
+
   if (options.keyManifest) {
     const manifestCheck = verifyKeyManifestEpoch({
       manifest: options.keyManifest,
@@ -132,8 +139,9 @@ export async function verifyReceiptRecord(
 
   const digestPassed = checks.find((check) => check.name === "digest")?.passed === true;
   const schemaPassed = checks.find((check) => check.name === "schema")?.passed === true;
+  const keyIdPassed = checks.find((check) => check.name === "keyId")?.passed === true;
 
-  if (schemaPassed && digestPassed) {
+  if (schemaPassed && digestPassed && keyIdPassed) {
     try {
       const verifier = options.verifySignature ?? verifyReceiptSignature;
       const signatureValid = await verifier(payload, signature);
@@ -146,7 +154,7 @@ export async function verifyReceiptRecord(
       checks.push(fail("signature", error instanceof Error ? error.message : String(error)));
     }
   } else {
-    checks.push(fail("signature", "Signature verification skipped because schema or digest check failed."));
+    checks.push(fail("signature", "Signature verification skipped because schema, digest, or key identity check failed."));
   }
 
   const verdict = checks.every((check) => check.passed);
