@@ -113,6 +113,7 @@ describe("governed invoke scripts", () => {
       receiptId: "grct_abc",
       decisionPhases: [{ name: "preModel", phase: "pre_model", decision: "ALLOW", actionTaken: ["emit_receipt"], riskScore: 0 }]
     });
+    expect(report.nonClaim).toContain("empirical truth");
     expect(text).not.toContain("secret-token");
     expect(text).not.toContain("RAW_PROMPT_SECRET");
     expect(text).not.toContain("RAW_OUTPUT_SECRET");

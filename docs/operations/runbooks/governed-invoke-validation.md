@@ -1,26 +1,32 @@
 # Governed Invoke Validation
 
-Status: VERIFIED-RUNTIME-SPINE-v0.1-CANDIDATE.
+Status: ADVERSARIAL-RUNTIME-EVIDENCE-v0.2-CANDIDATE.
 
-This runbook validates the governed invoke runtime path without production, enterprise, compliance, or AI-safety claims.
+This runbook validates the bounded governed invoke runtime spine. It does not establish production readiness, enterprise readiness, legal or compliance certification, semantic correctness, empirical truth, or AI safety.
 
-## Local Gate
+## 1. Deploy/Synth Command
 
-Run the focused local slice:
-
-```bash
-npm test -- tests/unit/enforcement-runtime/runtime tests/unit/enforcement-runtime/retrieval tests/unit/enforcement-runtime/receipts tests/unit/enforcement-runtime/vault tests/integration/test_governedInvokeLifecycle.test.ts
-```
-
-Run the full local gate:
+Run local validation before synth:
 
 ```bash
+npm run lint
+npm test -- tests/unit/enforcement-runtime/runtime tests/unit/enforcement-runtime/retrieval tests/unit/enforcement-runtime/receipts tests/unit/enforcement-runtime/vault tests/unit/enforcement-runtime/bedrock tests/unit/tools tests/integration/test_governedInvokeLifecycle.test.ts
 npm run validate
 ```
 
-## AWS Configuration Gate
+Synthesize with an explicit Bedrock model allowlist:
 
-CDK synthesizes `POST /tenants/{tenantSlug}/invoke` with Cognito authorization. The invoke Lambda defaults to:
+```bash
+npx cdk synth -c bedrockModelAllowlist=anthropic.claude-3-5-sonnet-20240620-v1:0
+```
+
+Deploy only from a reviewed branch and account:
+
+```bash
+npx cdk deploy -c bedrockModelAllowlist=anthropic.claude-3-5-sonnet-20240620-v1:0
+```
+
+The invoke Lambda should run with:
 
 - `GHOST_ARK_MODEL_MODE=bedrock`
 - `GHOST_ARK_RECEIPT_SIGNER=kms`
@@ -33,27 +39,28 @@ CDK synthesizes `POST /tenants/{tenantSlug}/invoke` with Cognito authorization. 
 
 CDK creates `ghost-ark-{stage}-decision-receipt-hmac-secret` in Secrets Manager and passes only `GHOST_ARK_RECEIPT_HMAC_SECRET_ARN` to the Lambda. The plaintext HMAC digest secret must not be placed in CDK environment variables.
 
-Bedrock model IDs must be allowlisted:
+Bedrock IAM should use allowlisted foundation-model ARNs. Wildcard Bedrock IAM requires explicit `allowWildcardBedrockModels=true` and is a release blocker until reviewed.
 
-```bash
-npx cdk synth -c bedrockModelAllowlist=anthropic.claude-3-5-sonnet-20240620-v1:0
-```
-
-When the allowlist is present, Bedrock IAM uses foundation-model ARNs. Wildcard Bedrock IAM requires explicit `allowWildcardBedrockModels=true` and is a release blocker until reviewed.
-
-## Tenant Policy Seed
+## 2. Policy Seed Command
 
 Seed a minimal active policy before live invoke:
 
 ```bash
-npm run seed:governed-policy -- --table ghost-ark-dev-tenant-policies --tenant acme-lab --stage dev
+export STAGE="dev"
+export TENANT="acme-lab"
+export POLICY_TABLE="ghost-ark-${STAGE}-tenant-policies"
+
+npm run seed:governed-policy -- \
+  --table "$POLICY_TABLE" \
+  --tenant "$TENANT" \
+  --stage "$STAGE"
 ```
 
 AWS mode fails closed if no active tenant policy exists unless `GHOST_ARK_ALLOW_DEFAULT_POLICY=true` is explicitly configured.
 
-## Live Smoke
+## 3. Cognito User/Token Acquisition Placeholder
 
-After deploy and Cognito login:
+Acquire a temporary smoke user token through the deployed Cognito flow. Do not record the password or token in shell history, logs, docs, reports, screenshots, tickets, or chat.
 
 ```bash
 export API_URL="https://example.execute-api.us-east-1.amazonaws.com/dev"
@@ -61,6 +68,15 @@ export ID_TOKEN="<cognito-id-token>"
 export TENANT="acme-lab"
 export MODEL_ID="anthropic.claude-3-5-sonnet-20240620-v1:0"
 export STAGE="dev"
+```
+
+Delete the temporary smoke user after validation.
+
+## 4. Smoke Run With `--json-report`
+
+Write the sanitized JSON report under `docs/validation/`:
+
+```bash
 export REPORT_PATH="docs/validation/governed-invoke-${STAGE}-$(date -u +%Y%m%dT%H%M%SZ).json"
 
 npm run smoke:governed-invoke -- \
@@ -75,14 +91,14 @@ npm run smoke:governed-invoke -- \
 
 The smoke script sends:
 
-- benign invoke, expected `completed` plus receipt,
-- private-memory extraction attempt, expected `refused_pre_model` plus receipt,
-- body tenant override attempt, expected rejection,
+- benign invoke, expected `completed` plus receipt;
+- private-memory extraction attempt, expected `refused_pre_model` plus receipt;
+- body tenant override attempt, expected rejection;
 - cross-tenant retrieval contamination attempt, expected fail-closed rejection.
 
 The script prints HTTP status, governed status, receipt emission status, receipt ID, and decision summary. It never prints the token.
 
-The JSON report is a sanitized artifact for review. It contains timestamp, stage, API host hash, tenant hash, model ID, case names, HTTP status, governed status, receipt emission state, receipt IDs, and decision-phase summaries. It must not contain the token, prompt text, model output text, raw tenant label, raw user ID, raw session ID, or secrets.
+The JSON report is a sanitized artifact for review. It contains timestamp, stage, API host hash, tenant hash, model ID, case names, HTTP status, governed status, receipt emission state, receipt IDs, and decision-phase summaries. It must not contain the token, prompt text, model output text, raw tenant label, raw user ID, raw session ID, secrets, or raw retrieval content.
 
 Quick report checks:
 
@@ -92,28 +108,14 @@ jq '.cases[] | {name, httpStatus, governedStatus, receiptEmitted, receiptId, dec
 
 ! grep -F "$ID_TOKEN" "$REPORT_PATH"
 ! grep -F "$TENANT" "$REPORT_PATH"
+! grep -E 'prompt|output|token|secret|password|session|userId|tenantSlug' "$REPORT_PATH"
 ```
 
-## Expected Runtime Behavior
-
-- Missing verified tenant or user identity fails closed.
-- Path tenant and authenticated tenant mismatch fails closed.
-- Client-declared tenant, user, or session authority is rejected recursively.
-- AWS mode rejects caller-supplied retrieval contexts and requires a server-side provider when retrieval is enabled.
-- Cross-tenant retrieval candidates are rejected before prompt construction.
-- Untrusted instruction retrieval taint is represented as digest-only data.
-- Model IDs outside `GHOST_ARK_BEDROCK_MODEL_ALLOWLIST` fail closed before Bedrock invocation.
-- Optional Bedrock Guardrails are passed to Bedrock only when ID and version are configured; they do not replace Ghost Ark policy.
-- Receipt emission failure after model output returns `failed_closed`.
-- KAPPA memory is never persisted.
-- SESSION memory requires expiry and reads filter expired records immediately.
-- RESTRICTED memory requires explicit consent.
-
-## Receipt Verification
+## 5. KMS Decision Receipt Verification
 
 Decision receipts can be verified with:
 
-- local HMAC verifier for `LOCAL_HMAC_SHA256_DEV_ONLY`,
+- local HMAC verifier for `LOCAL_HMAC_SHA256_DEV_ONLY`;
 - KMS public-key verifier for `KMS_SIGN_RSASSA_PSS_SHA_256`.
 
 Verification checks schema, receipt id, algorithm, key id, digest, canonical payload, and RSA-PSS signature validity. This verifies receipt integrity only.
@@ -161,9 +163,25 @@ const { verifyDecisionReceipt } = require("./packages/enforcement-runtime/src/re
 NODE
 ```
 
-## Operational Checks
+## 6. CloudWatch Log Redaction Check
 
-Inspect CloudWatch alarms:
+Inspect recent logs for sanitized fields only. Do not paste raw log events into docs or reports.
+
+```bash
+export LOG_GROUP="/aws/lambda/ghost-ark-${STAGE}-invoke-governed"
+
+aws logs filter-log-events \
+  --log-group-name "$LOG_GROUP" \
+  --start-time "$(node -e 'console.log(Date.now() - 3600_000)')" \
+  --filter-pattern '"governed invoke"' \
+  --max-items 20
+```
+
+Confirm logs do not contain raw prompts, model outputs, bearer tokens, raw tenant labels, raw user IDs, raw session IDs, secrets, or memory contents. Metrics may include stage, status, and normalized model ID only.
+
+## 7. CloudWatch Alarm/Metric Check
+
+Inspect governed invoke alarms:
 
 - `GovernedInvokeFailedClosedAlarm`
 - `GovernedInvokeReceiptEmissionFailureAlarm`
@@ -172,8 +190,38 @@ Inspect CloudWatch alarms:
 - `InvokeGovernedLambdaErrorsAlarm`
 - `InvokeGovernedLambdaDurationHighAlarm`
 
-Metric namespace: `GhostArk/GovernedInvoke`. Metrics include stage, status, and normalized model ID only; they must not include tenant, user, prompt, output, or memory contents.
+Metric namespace: `GhostArk/GovernedInvoke`.
 
-## Non-Claims
+```bash
+aws cloudwatch list-metrics --namespace "GhostArk/GovernedInvoke"
+aws cloudwatch describe-alarms --alarm-name-prefix "GovernedInvoke"
+aws cloudwatch describe-alarms --alarm-name-prefix "InvokeGovernedLambda"
+```
 
-Decision receipts and successful smoke tests do not prove AI safety, legal compliance, clinical or emotional safety, semantic correctness, empirical truth, production readiness, or enterprise readiness.
+Confirm metric dimensions do not include tenant, user, prompt, output, session, memory, token, or secret values.
+
+## 8. IAM Access Analyzer Review
+
+Run or review IAM Access Analyzer findings for the deployed account and region:
+
+```bash
+aws accessanalyzer list-analyzers
+aws accessanalyzer list-findings --analyzer-arn "<analyzer-arn>"
+```
+
+Review any finding touching the governed invoke Lambda role, Bedrock permissions, KMS decision signing key, Secrets Manager HMAC secret, policy table, decision receipt table, and privacy vault table. Treat wildcard Bedrock model access as a blocker unless explicitly reviewed and documented.
+
+## 9. Explicit Non-Claims
+
+Allowed claim after local tests and prepared AWS validation path:
+
+> Ghost-Ark has stronger adversarial runtime evidence for local fail-closed behavior and a clearer live AWS validation path, without production-readiness or AI-safety claims.
+
+Forbidden claims:
+
+- The runtime is production ready.
+- The runtime is enterprise ready.
+- The runtime is AI safe.
+- The runtime is legally or compliance certified.
+- The runtime proves semantic correctness or empirical truth.
+- Decision receipts prove model output correctness.

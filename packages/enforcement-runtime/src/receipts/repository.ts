@@ -22,7 +22,7 @@ export class IntegrityCollisionError extends Error {
 }
 
 export interface DecisionReceiptRepository {
-  put(receipt: SignedDecisionReceipt): Promise<DecisionReceiptPersistenceResult | void>;
+  put(receipt: SignedDecisionReceipt): Promise<DecisionReceiptPersistenceResult>;
   get(input: { tenantId: string; receiptId: string }): Promise<SignedDecisionReceipt | null>;
   latestHashForSession?(input: { tenantId: string; userId: string; sessionId: string }): Promise<string | null>;
 }
