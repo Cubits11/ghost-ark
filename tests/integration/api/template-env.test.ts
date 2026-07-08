@@ -38,7 +38,7 @@ describe("API Lambda environment security settings", () => {
     const template = synthApiTemplate("prod");
     const environments = lambdaEnvironmentVariables(template);
 
-    expect(environments.length).toBe(4);
+    expect(environments.length).toBe(5);
 
     for (const variables of environments) {
       expect(variables.ALLOW_DEVELOPER_HEADERS).toBe("false");
@@ -49,7 +49,7 @@ describe("API Lambda environment security settings", () => {
     const template = synthApiTemplate("dev");
     const environments = lambdaEnvironmentVariables(template);
 
-    expect(environments.length).toBe(4);
+    expect(environments.length).toBe(5);
 
     for (const variables of environments) {
       expect(variables.ALLOW_DEVELOPER_HEADERS).toBe("false");
@@ -60,7 +60,7 @@ describe("API Lambda environment security settings", () => {
     const template = synthApiTemplate("dev");
     const environments = lambdaEnvironmentVariables(template);
 
-    expect(environments.length).toBe(4);
+    expect(environments.length).toBe(5);
 
     for (const variables of environments) {
       expect(variables.STAGE).toBe("dev");
@@ -73,6 +73,10 @@ describe("API Lambda environment security settings", () => {
       expect(variables.GHOST_ARK_POLICY_REPOSITORY).toBe("dynamodb");
       expect(variables.GHOST_ARK_VAULT).toBe("dynamodb");
       expect(variables.GHOST_ARK_DECISION_RECEIPT_REPOSITORY).toBe("dynamodb");
+      expect(variables.GHOST_ARK_RECEIPT_CHECKPOINT_TABLE).toBeDefined();
+      expect(variables.GHOST_ARK_CHECKPOINT_SIGNING_KEY_ID).toBeDefined();
+      expect(variables.GHOST_ARK_CHECKPOINT_PUBLISH_BUCKET).toBeDefined();
+      expect(variables.GHOST_ARK_CHECKPOINT_PUBLISH_PREFIX).toBe("receipt-checkpoints");
       expect(variables.OPENSEARCH_ENDPOINT).toBe("");
       expect(variables.OPENSEARCH_INDEX_PREFIX).toBe("ghost-ark-dev");
     }
