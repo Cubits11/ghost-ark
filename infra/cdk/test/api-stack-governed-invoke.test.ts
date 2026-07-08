@@ -36,6 +36,18 @@ describe("ApiStack governed invoke AWS reality gate", () => {
     });
   });
 
+  it("creates an asymmetric KMS signing key for receipt signatures", () => {
+    const template = synthApiTemplate();
+
+    template.hasResourceProperties("AWS::KMS::Key", {
+      KeySpec: "RSA_2048",
+      KeyUsage: "SIGN_VERIFY"
+    });
+    template.hasResourceProperties("AWS::KMS::Alias", {
+      AliasName: "alias/ghost-ark-dev-receipt-signing"
+    });
+  });
+
   it("does not put a plaintext HMAC secret into Lambda environment variables", () => {
     const template = synthApiTemplate();
     const json = template.toJSON();
@@ -55,20 +67,18 @@ describe("ApiStack governed invoke AWS reality gate", () => {
         Statement: Match.arrayWith([
           Match.objectLike({
             Action: Match.arrayWith(["bedrock:InvokeModel"]),
-            Resource: Match.arrayWith([
-              {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    { Ref: "AWS::Partition" },
-                    ":bedrock:",
-                    { Ref: "AWS::Region" },
-                    "::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
-                  ]
+            Resource: {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:",
+                  { Ref: "AWS::Partition" },
+                  ":bedrock:",
+                  { Ref: "AWS::Region" },
+                  "::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
                 ]
-              }
-            ])
+              ]
+            }
           })
         ])
       }
@@ -85,7 +95,7 @@ describe("ApiStack governed invoke AWS reality gate", () => {
         Statement: Match.arrayWith([
           Match.objectLike({
             Action: Match.arrayWith(["bedrock:InvokeModel"]),
-            Resource: Match.arrayWith(["*"])
+            Resource: "*"
           })
         ])
       }

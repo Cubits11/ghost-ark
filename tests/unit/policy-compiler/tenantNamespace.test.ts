@@ -37,4 +37,25 @@ describe("tenant namespace compiler", () => {
     expect(JSON.stringify(policy.document)).toContain("${aws:PrincipalTag/slug}");
     expect(policy.hash).toMatch(/^[a-f0-9]{64}$/u);
   });
+
+  it("keeps receipt ledger tenant permissions append-only", () => {
+    const policy = compileTenantSandboxPolicy({
+      stage: "dev",
+      tenantSlug: "acme-lab",
+      rawBucket: "raw",
+      curatedBucket: "curated",
+      exportBucket: "exports",
+      resultsBucket: "results",
+      region: "us-east-1",
+      accountId: "123456789012",
+      allowedRegions: ["us-east-1"],
+      tenantServiceRoleArn: "arn:aws:iam::123456789012:role/ghost-ark-dev-tenant-service-role"
+    });
+    const receiptStatement = policy.document.Statement.find((statement) => statement.Sid === "AllowTenantReceiptLedgerAccess");
+
+    expect(receiptStatement).toBeDefined();
+    expect(receiptStatement?.Action).toEqual(["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem"]);
+    expect(JSON.stringify(receiptStatement)).not.toContain("dynamodb:UpdateItem");
+    expect(JSON.stringify(receiptStatement)).toContain("dynamodb:LeadingKeys");
+  });
 });
