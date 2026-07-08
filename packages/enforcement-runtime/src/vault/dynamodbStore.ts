@@ -39,7 +39,7 @@ function recordId(input: MemoryWriteRequest): string {
   return `mem_${canonicalSha256Hex({
     tenantId: input.tenantId,
     userId: input.userId,
-    sessionId: input.sessionId,
+    ...(input.sessionId !== undefined ? { sessionId: input.sessionId } : {}),
     tier: input.tier,
     contentDigest: input.contentDigest
   })}`;
