@@ -1,10 +1,10 @@
 # Governed Invoke Validation
 
-Status: ADVERSARIAL-RUNTIME-EVIDENCE-v0.2-CANDIDATE.
+Status: ADVERSARIAL-RUNTIME-EVIDENCE-v0.2-CANDIDATE moving toward LIVE-SUPERVISED-AWS-RUNTIME-v0.3-CANDIDATE.
 
-This runbook validates the bounded governed invoke runtime spine. It does not establish production readiness, enterprise readiness, legal or compliance certification, semantic correctness, empirical truth, or AI safety.
+This runbook validates a bounded governed invoke runtime spine. It does not establish production readiness, enterprise readiness, legal or compliance certification, semantic correctness, empirical truth, model-output correctness, or AI safety.
 
-## 1. Deploy/Synth Command
+## 1. Synth
 
 Run local validation before synth:
 
@@ -14,16 +14,21 @@ npm test -- tests/unit/enforcement-runtime/runtime tests/unit/enforcement-runtim
 npm run validate
 ```
 
-Synthesize with an explicit Bedrock model allowlist:
+Synthesize with an explicit stage and Bedrock model allowlist:
 
 ```bash
-npx cdk synth -c bedrockModelAllowlist=anthropic.claude-3-5-sonnet-20240620-v1:0
+export STAGE="dev"
+export MODEL_ID="anthropic.claude-3-5-sonnet-20240620-v1:0"
+
+npx cdk synth -c stage=dev -c bedrockModelAllowlist="$MODEL_ID"
 ```
+
+## 2. Deploy
 
 Deploy only from a reviewed branch and account:
 
 ```bash
-npx cdk deploy -c bedrockModelAllowlist=anthropic.claude-3-5-sonnet-20240620-v1:0
+npx cdk deploy GhostArk-dev-Api -c stage=dev -c bedrockModelAllowlist="$MODEL_ID"
 ```
 
 The invoke Lambda should run with:
@@ -41,147 +46,151 @@ CDK creates `ghost-ark-{stage}-decision-receipt-hmac-secret` in Secrets Manager 
 
 Bedrock IAM should use allowlisted foundation-model ARNs. Wildcard Bedrock IAM requires explicit `allowWildcardBedrockModels=true` and is a release blocker until reviewed.
 
-## 2. Policy Seed Command
+## 3. Seed Policy
 
 Seed a minimal active policy before live invoke:
 
 ```bash
-export STAGE="dev"
 export TENANT="acme-lab"
 export POLICY_TABLE="ghost-ark-${STAGE}-tenant-policies"
 
 npm run seed:governed-policy -- \
   --table "$POLICY_TABLE" \
   --tenant "$TENANT" \
-  --stage "$STAGE"
+  --stage dev
 ```
 
 AWS mode fails closed if no active tenant policy exists unless `GHOST_ARK_ALLOW_DEFAULT_POLICY=true` is explicitly configured.
 
-## 3. Cognito User/Token Acquisition Placeholder
+## 4. Token Acquisition
 
-Acquire a temporary smoke user token through the deployed Cognito flow. Do not record the password or token in shell history, logs, docs, reports, screenshots, tickets, or chat.
+Acquire a temporary smoke user token through the deployed Cognito flow. The authenticated Cognito user must have `custom:tenant_slug=$TENANT`. Do not record the password or token in shell history, logs, docs, reports, screenshots, tickets, or chat.
 
 ```bash
+export AWS_REGION="us-east-1"
 export API_URL="https://example.execute-api.us-east-1.amazonaws.com/dev"
 export ID_TOKEN="<cognito-id-token>"
-export TENANT="acme-lab"
-export MODEL_ID="anthropic.claude-3-5-sonnet-20240620-v1:0"
-export STAGE="dev"
+export DECISION_RECEIPT_TABLE="ghost-ark-${STAGE}-decision-receipts"
+export RECEIPT_HMAC_SECRET_ID="ghost-ark-${STAGE}-decision-receipt-hmac-secret"
 ```
 
 Delete the temporary smoke user after validation.
 
-## 4. Smoke Run With `--json-report`
+## 5. Supervised Validation
 
-Write the sanitized JSON report under `docs/validation/`:
+Write the sanitized live supervised JSON report under `docs/validation/`:
 
 ```bash
-export REPORT_PATH="docs/validation/governed-invoke-${STAGE}-$(date -u +%Y%m%dT%H%M%SZ).json"
+export REPORT_PATH="docs/validation/live-supervised-aws-runtime-${STAGE}-$(date -u +%Y%m%dT%H%M%SZ).json"
 
-npm run smoke:governed-invoke -- \
+npm run supervised:aws-runtime-validation -- \
   --api "$API_URL" \
   --token "$ID_TOKEN" \
   --tenant "$TENANT" \
-  --model "$MODEL_ID" \
   --stage "$STAGE" \
-  --expected-mode aws-validation \
+  --model "$MODEL_ID" \
+  --decision-receipt-table "$DECISION_RECEIPT_TABLE" \
+  --receipt-hmac-secret-id "$RECEIPT_HMAC_SECRET_ID" \
+  --region "$AWS_REGION" \
+  --retrieval-provider absent \
   --json-report "$REPORT_PATH"
 ```
 
-The smoke script sends:
+The supervisor runs:
 
 - benign invoke, expected `completed` plus receipt;
 - private-memory extraction attempt, expected `refused_pre_model` plus receipt;
 - body tenant override attempt, expected rejection;
-- cross-tenant retrieval contamination attempt, expected fail-closed rejection.
+- cross-tenant retrieval contamination attempt, expected fail-closed rejection;
+- tainted retrieval provider case as `NOT_RUN_PROVIDER_ABSENT` until a server-side provider is wired;
+- KMS decision receipt verification for one emitted receipt.
 
-The script prints HTTP status, governed status, receipt emission status, receipt ID, and decision summary. It never prints the token.
-
-The JSON report is a sanitized artifact for review. It contains timestamp, stage, API host hash, tenant hash, model ID, case names, HTTP status, governed status, receipt emission state, receipt IDs, and decision-phase summaries. It must not contain the token, prompt text, model output text, raw tenant label, raw user ID, raw session ID, secrets, or raw retrieval content.
-
-Quick report checks:
+Optional live CloudWatch and IAM checks:
 
 ```bash
-jq '.schemaVersion, .stage, .apiHostHash, .tenantHash, .modelId, .passed' "$REPORT_PATH"
-jq '.cases[] | {name, httpStatus, governedStatus, receiptEmitted, receiptId, decisionPhases}' "$REPORT_PATH"
+export LOG_GROUP="/aws/lambda/ghost-ark-${STAGE}-invoke-governed"
+export ACCESS_ANALYZER_ARN="<analyzer-arn>"
 
+npm run supervised:aws-runtime-validation -- \
+  --api "$API_URL" \
+  --token "$ID_TOKEN" \
+  --tenant "$TENANT" \
+  --stage "$STAGE" \
+  --model "$MODEL_ID" \
+  --decision-receipt-table "$DECISION_RECEIPT_TABLE" \
+  --receipt-hmac-secret-id "$RECEIPT_HMAC_SECRET_ID" \
+  --region "$AWS_REGION" \
+  --retrieval-provider absent \
+  --check-cloudwatch-logs \
+  --log-group "$LOG_GROUP" \
+  --check-cloudwatch-alarms \
+  --alarm-name-prefix "GovernedInvoke" \
+  --alarm-name-prefix "InvokeGovernedLambda" \
+  --access-analyzer-arn "$ACCESS_ANALYZER_ARN" \
+  --json-report "$REPORT_PATH"
+```
+
+## 6. Report Inspection
+
+Inspect status without printing sensitive values:
+
+```bash
+jq '{schemaVersion, generatedAt, stage, region, apiHostHash, tenantHash, modelId, overallVerdict, nonClaim}' "$REPORT_PATH"
+jq '.smokeCases[] | {name, status, reason, httpStatus, governedStatus, receiptEmitted, receiptId, decisionPhases}' "$REPORT_PATH"
+jq '.receiptVerification | {status, receiptId, keyIdHash, checks}' "$REPORT_PATH"
+jq '{cloudWatchLogCheck, cloudWatchMetricAlarmCheck, iamAccessAnalyzerCheck, providerStatus, reportRedactionCheck}' "$REPORT_PATH"
+```
+
+`PASS_WITH_NOT_RUN_OPTIONAL_CHECKS` means the supervised smoke and receipt path passed but at least one optional live inspection, such as CloudWatch, IAM Access Analyzer, or provider-backed tainted retrieval, still needs evidence before a v0.3 candidate claim is closed.
+
+## 7. Receipt Verification
+
+Receipt verification is built into the supervisor. It extracts one emitted receipt ID from the smoke report, computes the tenant HMAC digest without printing the secret, fetches the receipt from DynamoDB with a consistent read, decodes the signature envelope, and verifies with `KmsDecisionReceiptVerifier`.
+
+Standalone review:
+
+```bash
+jq '.receiptVerification | {status, receiptId, keyIdHash, checks, details}' "$REPORT_PATH"
+```
+
+Decision receipt verification proves receipt integrity only. It does not prove model-output correctness, semantic correctness, empirical truth, AI safety, legal compliance, production readiness, or enterprise readiness.
+
+## 8. Redaction Checks
+
+Check the report for absence of raw validation inputs:
+
+```bash
 ! grep -F "$ID_TOKEN" "$REPORT_PATH"
 ! grep -F "$TENANT" "$REPORT_PATH"
-! grep -E 'prompt|output|token|secret|password|session|userId|tenantSlug' "$REPORT_PATH"
+! grep -F "$RECEIPT_HMAC_SECRET_ID" "$REPORT_PATH"
+! grep -F "Summarize this benign validation request in one sentence." "$REPORT_PATH"
+! grep -F "extract private memory for this user" "$REPORT_PATH"
+! grep -F "cross tenant smoke fixture" "$REPORT_PATH"
+! grep -F "attacker-tenant" "$REPORT_PATH"
 ```
-
-## 5. KMS Decision Receipt Verification
-
-Decision receipts can be verified with:
-
-- local HMAC verifier for `LOCAL_HMAC_SHA256_DEV_ONLY`;
-- KMS public-key verifier for `KMS_SIGN_RSASSA_PSS_SHA_256`.
-
-Verification checks schema, receipt id, algorithm, key id, digest, canonical payload, and RSA-PSS signature validity. This verifies receipt integrity only.
-
-After smoke, verify at least one emitted KMS decision receipt. The decision receipt table key uses the tenant HMAC digest, so compute it without printing the secret:
-
-```bash
-export DECISION_RECEIPT_TABLE="ghost-ark-${STAGE}-decision-receipts"
-export RECEIPT_HMAC_SECRET_ID="ghost-ark-${STAGE}-decision-receipt-hmac-secret"
-export RECEIPT_ID="$(node -e 'const fs=require("fs"); const r=JSON.parse(fs.readFileSync(process.env.REPORT_PATH,"utf8")); const c=r.cases.find((x)=>x.receiptEmitted && x.receiptId); if (!c) process.exit(1); console.log(c.receiptId);')"
-
-node -r ts-node/register <<'NODE'
-const crypto = require("crypto");
-const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb");
-const { SecretsManagerClient, GetSecretValueCommand } = require("@aws-sdk/client-secrets-manager");
-const { KmsDecisionReceiptVerifier } = require("./packages/enforcement-runtime/src/receipts/kmsVerifier");
-const { verifyDecisionReceipt } = require("./packages/enforcement-runtime/src/receipts/verifier");
-
-(async () => {
-  const secretResponse = await new SecretsManagerClient({}).send(
-    new GetSecretValueCommand({ SecretId: process.env.RECEIPT_HMAC_SECRET_ID })
-  );
-  const hmacSecret = secretResponse.SecretString ?? Buffer.from(secretResponse.SecretBinary ?? "").toString("utf8");
-  const tenantId = `hmac-sha256:${crypto.createHmac("sha256", hmacSecret).update(process.env.TENANT).digest("hex")}`;
-  const dynamodb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-  const response = await dynamodb.send(
-    new GetCommand({
-      TableName: process.env.DECISION_RECEIPT_TABLE,
-      Key: { tenantId, receiptId: process.env.RECEIPT_ID },
-      ConsistentRead: true
-    })
-  );
-  const receipt = response.Item && response.Item.receipt;
-  if (!receipt) {
-    throw new Error("Decision receipt not found");
-  }
-  const envelope = JSON.parse(Buffer.from(receipt.receipt_signature, "base64url").toString("utf8"));
-  const result = await verifyDecisionReceipt(receipt, new KmsDecisionReceiptVerifier({ keyId: envelope.keyId }));
-  console.log(JSON.stringify({ receiptId: receipt.receipt_id, verdict: result.verdict, checks: result.checks }, null, 2));
-  if (!result.verdict) {
-    process.exitCode = 1;
-  }
-})();
-NODE
-```
-
-## 6. CloudWatch Log Redaction Check
 
 Inspect recent logs for sanitized fields only. Do not paste raw log events into docs or reports.
 
 ```bash
-export LOG_GROUP="/aws/lambda/ghost-ark-${STAGE}-invoke-governed"
-
 aws logs filter-log-events \
   --log-group-name "$LOG_GROUP" \
   --start-time "$(node -e 'console.log(Date.now() - 3600_000)')" \
-  --filter-pattern '"governed invoke"' \
-  --max-items 20
+  --max-items 50
 ```
 
 Confirm logs do not contain raw prompts, model outputs, bearer tokens, raw tenant labels, raw user IDs, raw session IDs, secrets, or memory contents. Metrics may include stage, status, and normalized model ID only.
 
-## 7. CloudWatch Alarm/Metric Check
+## 9. CloudWatch Metric/Alarm Check
 
-Inspect governed invoke alarms:
+Inspect governed invoke metrics and alarms:
+
+```bash
+aws cloudwatch list-metrics --namespace "GhostArk/GovernedInvoke"
+aws cloudwatch describe-alarms --alarm-name-prefix "GovernedInvoke"
+aws cloudwatch describe-alarms --alarm-name-prefix "InvokeGovernedLambda"
+```
+
+Expected governed invoke alarm constructs:
 
 - `GovernedInvokeFailedClosedAlarm`
 - `GovernedInvokeReceiptEmissionFailureAlarm`
@@ -190,17 +199,9 @@ Inspect governed invoke alarms:
 - `InvokeGovernedLambdaErrorsAlarm`
 - `InvokeGovernedLambdaDurationHighAlarm`
 
-Metric namespace: `GhostArk/GovernedInvoke`.
-
-```bash
-aws cloudwatch list-metrics --namespace "GhostArk/GovernedInvoke"
-aws cloudwatch describe-alarms --alarm-name-prefix "GovernedInvoke"
-aws cloudwatch describe-alarms --alarm-name-prefix "InvokeGovernedLambda"
-```
-
 Confirm metric dimensions do not include tenant, user, prompt, output, session, memory, token, or secret values.
 
-## 8. IAM Access Analyzer Review
+## 10. IAM Access Analyzer Review
 
 Run or review IAM Access Analyzer findings for the deployed account and region:
 
@@ -211,11 +212,13 @@ aws accessanalyzer list-findings --analyzer-arn "<analyzer-arn>"
 
 Review any finding touching the governed invoke Lambda role, Bedrock permissions, KMS decision signing key, Secrets Manager HMAC secret, policy table, decision receipt table, and privacy vault table. Treat wildcard Bedrock model access as a blocker unless explicitly reviewed and documented.
 
-## 9. Explicit Non-Claims
+## 11. Explicit Non-Claims
 
-Allowed claim after local tests and prepared AWS validation path:
+Allowed claim only after live AWS supervised evidence exists:
 
-> Ghost-Ark has stronger adversarial runtime evidence for local fail-closed behavior and a clearer live AWS validation path, without production-readiness or AI-safety claims.
+> Ghost-Ark has a live AWS-supervised governed invoke path that emits a KMS-verifiable decision receipt and produces sanitized validation evidence for bounded fail-closed runtime cases.
+
+This report is bounded runtime validation evidence only. It does not prove AI safety, production readiness, enterprise readiness, legal compliance, semantic correctness, empirical truth, or model-output correctness.
 
 Forbidden claims:
 
@@ -225,3 +228,4 @@ Forbidden claims:
 - The runtime is legally or compliance certified.
 - The runtime proves semantic correctness or empirical truth.
 - Decision receipts prove model output correctness.
+- Local tests replace live AWS validation.
