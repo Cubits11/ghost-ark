@@ -30,6 +30,8 @@
     "ghost-verify": "node tools/ghost-verify.mjs",
     "receipt:verify": "ts-node tools/scripts/receiptVerify.ts",
     "receipt:checkpoint": "ts-node tools/scripts/checkpointReceipts.ts",
+    "receipt-proof:local": "ts-node tools/scripts/createLocalReceiptProof.ts",
+    "policy:counterexamples": "ts-node tools/scripts/verifyTenantPolicyCounterexamples.ts",
     "seed:governed-policy": "ts-node tools/scripts/seedGovernedPolicy.ts",
     "smoke:governed-invoke": "ts-node tools/scripts/smokeGovernedInvoke.ts",
     "supervised:aws-runtime-validation": "ts-node tools/scripts/supervisedAwsRuntimeValidation.ts"

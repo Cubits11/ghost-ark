@@ -47,6 +47,19 @@ Tampering with the receipt payload, tenant, digest, algorithm, or signature chan
 - Not an excuse to collapse tenant, cohort, or account boundaries.
 - Not clinical, therapeutic, emotional-safety, or legal-compliance software.
 - Not proof that a model output is semantically correct.
+- Not production enclave security, production zero-knowledge privacy, full AWS IAM formal verification, or deployment-safety certification.
+
+## Phase 5/6/7 Experimental Verification Layers
+
+Ghost-Ark includes experimental verification layers for:
+
+- runtime attestation binding
+- receipt proof statement verification
+- bounded tenant-policy counterexample search
+
+These layers are designed to fail closed and expose verifier boundaries. They do not constitute deployment-safety certification, full AWS IAM formal verification, production enclave security, or production zero-knowledge privacy.
+
+A PASS verdict means internal consistency under Ghost-Ark verifier rules for the supplied artifacts. It is not a safety certification, compliance certification, or proof of deployment correctness.
 
 ## Core Planes
 
@@ -106,6 +119,7 @@ Ghost Ark is a cryptographic tracking substrate, not a magical tool that automat
 ## Validation Lanes
 
 - Unit tests for canonicalization, schemas, policy compilers, and signing helpers.
+- Unit tests for runtime attestation binding, receipt proof statements, and bounded policy counterexample search.
 - Unit tests for deterministic LLM policy decisions, conflict precedence, memory suppression, consent, TTL filtering, decision receipt verification, hash-chain checks, tenant override rejection, and log redaction.
 - Unit and integration tests for governed invoke refusal, successful model invocation, post-model redaction, retrieval taint filtering, memory gates, receipt emission, and fail-closed receipt emission.
 - Integration checks for handlers, OpenSearch templates, and Step Functions definitions.

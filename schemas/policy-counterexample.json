@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/policy-counterexample.json",
+  "title": "Ghost Ark bounded policy counterexample",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "verifier", "found", "requestState", "violatedBoundary", "explanation"],
+  "properties": {
+    "schemaVersion": { "const": "ghost.policy_counterexample.v1" },
+    "verifier": { "const": "ghost.policy_counterexample_engine.v1" },
+    "found": { "const": true },
+    "requestState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "resource", "principalTags"],
+      "properties": {
+        "action": { "type": "string", "minLength": 1 },
+        "resource": { "type": "string", "minLength": 1 },
+        "principalTags": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["slug"],
+          "properties": {
+            "slug": { "type": "string", "minLength": 1 }
+          }
+        },
+        "conditionContext": { "type": "object" }
+      }
+    },
+    "violatedBoundary": { "type": "string", "minLength": 1 },
+    "explanation": { "type": "string", "minLength": 1 }
+  }
+}

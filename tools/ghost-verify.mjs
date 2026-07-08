@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { constants, createHash, createPublicKey, verify as verifySignature } from "crypto";
+import { constants, createHash, createHmac, createPublicKey, verify as verifySignature } from "crypto";
 import fs from "fs";
 
 const nonClaim =
@@ -11,6 +11,9 @@ function usage() {
 Usage:
   node tools/ghost-verify.mjs --receipt <receiptRecord.json> [--key <publicKey.pem>] [--tenant <tenantSlug>]
   node tools/ghost-verify.mjs --verify-chain <decisionReceipts.json>
+  node tools/ghost-verify.mjs --runtime-attestation <attestation.json> --attestation-policy <policy.json>
+  node tools/ghost-verify.mjs --attested-receipt-bundle <bundle.json> --attestation-policy <policy.json>
+  node tools/ghost-verify.mjs --receipt-proof <proof.json>
 
 Options:
   --receipt  Local Ghost Ark receipt record JSON file.
@@ -24,6 +27,18 @@ Options:
             Merkle inclusion proof JSON for a decision receipt chain head.
   --checkpoint
             Optional signed checkpoint JSON; when present, its merkleRoot is used as the proof root.
+  --runtime-attestation
+            Runtime attestation evidence JSON. Local-dev HMAC verification requires --attestation-secret or GHOST_ARK_LOCAL_ATTESTATION_SECRET.
+  --attestation-policy
+            Runtime attestation policy JSON.
+  --attestation-secret
+            Local-dev attestation HMAC secret for dev/test verification.
+  --attested-receipt-bundle
+            Sidecar bundle containing a decision receipt and runtime attestation.
+  --attested-checkpoint-bundle
+            Sidecar bundle containing an epoch checkpoint and runtime attestation.
+  --receipt-proof
+            Receipt proof JSON. Only local-transcript is implemented; other proof systems fail closed.
   --help     Show this help text.
 `);
 }
@@ -54,6 +69,24 @@ function parseArgs(argv) {
     } else if (arg === "--checkpoint") {
       args.checkpoint = next;
       index += 1;
+    } else if (arg === "--runtime-attestation") {
+      args.runtimeAttestation = next;
+      index += 1;
+    } else if (arg === "--attestation-policy") {
+      args.attestationPolicy = next;
+      index += 1;
+    } else if (arg === "--attestation-secret") {
+      args.attestationSecret = next;
+      index += 1;
+    } else if (arg === "--attested-receipt-bundle") {
+      args.attestedReceiptBundle = next;
+      index += 1;
+    } else if (arg === "--attested-checkpoint-bundle") {
+      args.attestedCheckpointBundle = next;
+      index += 1;
+    } else if (arg === "--receipt-proof") {
+      args.receiptProof = next;
+      index += 1;
     } else if (arg === "--help" || arg === "-h") {
       usage();
       process.exit(0);
@@ -62,8 +95,18 @@ function parseArgs(argv) {
     }
   }
 
-  if (!args.receipt && !args.verifyChain && !args.inclusionProof) {
-    throw new Error("At least one of --receipt, --verify-chain, or --inclusion-proof is required");
+  if (
+    !args.receipt &&
+    !args.verifyChain &&
+    !args.inclusionProof &&
+    !args.runtimeAttestation &&
+    !args.attestedReceiptBundle &&
+    !args.attestedCheckpointBundle &&
+    !args.receiptProof
+  ) {
+    throw new Error(
+      "At least one of --receipt, --verify-chain, --inclusion-proof, --runtime-attestation, --attested-receipt-bundle, --attested-checkpoint-bundle, or --receipt-proof is required"
+    );
   }
 
   return args;
@@ -551,6 +594,481 @@ function validateInclusionProofShape(proof, expectedRoot) {
   return { passed: true, detail: "Inclusion proof shape is valid." };
 }
 
+function exactKeys(value, allowedKeys) {
+  return Object.keys(value).filter((key) => !allowedKeys.includes(key));
+}
+
+function validateRuntimeAttestationShape(attestation) {
+  if (!isRecord(attestation)) {
+    return { passed: false, detail: "Runtime attestation must be an object." };
+  }
+  const unknown = exactKeys(attestation, [
+    "schemaVersion",
+    "attestationType",
+    "attestationId",
+    "subjectDigest",
+    "issuedAt",
+    "runtime",
+    "measurements",
+    "binding",
+    "signature"
+  ]);
+  if (unknown.length > 0) {
+    return { passed: false, detail: `Runtime attestation contains unknown fields: ${unknown.join(", ")}.` };
+  }
+  if (attestation.schemaVersion !== "ghost.runtime_attestation.v1") {
+    return { passed: false, detail: "Runtime attestation schemaVersion must be ghost.runtime_attestation.v1." };
+  }
+  if (!["local-dev-attestation", "aws-nitro-enclave"].includes(attestation.attestationType)) {
+    return { passed: false, detail: `Unsupported attestation type ${attestation.attestationType ?? "missing"}.` };
+  }
+  if (typeof attestation.attestationId !== "string" || attestation.attestationId.length === 0) {
+    return { passed: false, detail: "Runtime attestation attestationId must be a non-empty string." };
+  }
+  if (typeof attestation.subjectDigest !== "string" || !sha256DigestPattern.test(attestation.subjectDigest)) {
+    return { passed: false, detail: "Runtime attestation subjectDigest must be a sha256 digest." };
+  }
+  if (typeof attestation.issuedAt !== "string" || !Number.isFinite(Date.parse(attestation.issuedAt))) {
+    return { passed: false, detail: "Runtime attestation issuedAt must be a valid date-time." };
+  }
+  if (!isRecord(attestation.runtime)) {
+    return { passed: false, detail: "Runtime attestation runtime must be an object." };
+  }
+  const runtimeUnknown = exactKeys(attestation.runtime, ["runtimeId", "imageDigest", "codeDigest", "policyCompilerDigest"]);
+  if (runtimeUnknown.length > 0) {
+    return { passed: false, detail: `Runtime identity contains unknown fields: ${runtimeUnknown.join(", ")}.` };
+  }
+  if (typeof attestation.runtime.runtimeId !== "string" || attestation.runtime.runtimeId.length === 0) {
+    return { passed: false, detail: "Runtime identity runtimeId must be non-empty." };
+  }
+  for (const field of ["imageDigest", "codeDigest", "policyCompilerDigest"]) {
+    if (typeof attestation.runtime[field] !== "string" || !sha256DigestPattern.test(attestation.runtime[field])) {
+      return { passed: false, detail: `Runtime identity ${field} must be a sha256 digest.` };
+    }
+  }
+  if (attestation.measurements !== undefined) {
+    if (!isRecord(attestation.measurements)) {
+      return { passed: false, detail: "Runtime attestation measurements must be an object when supplied." };
+    }
+    const measurementUnknown = exactKeys(attestation.measurements, ["pcr0", "pcr1", "pcr2", "pcr3", "pcr4", "pcr8"]);
+    if (measurementUnknown.length > 0) {
+      return { passed: false, detail: `Runtime measurements contain unknown fields: ${measurementUnknown.join(", ")}.` };
+    }
+    for (const [key, value] of Object.entries(attestation.measurements)) {
+      if (typeof value !== "string" || value.length === 0) {
+        return { passed: false, detail: `Runtime measurement ${key} must be a non-empty string.` };
+      }
+    }
+  }
+  if (!isRecord(attestation.binding)) {
+    return { passed: false, detail: "Runtime attestation binding must be an object." };
+  }
+  const bindingUnknown = exactKeys(attestation.binding, ["receiptHash", "checkpointDigest", "payloadDigest"]);
+  if (bindingUnknown.length > 0) {
+    return { passed: false, detail: `Runtime binding contains unknown fields: ${bindingUnknown.join(", ")}.` };
+  }
+  if (!attestation.binding.receiptHash && !attestation.binding.checkpointDigest && !attestation.binding.payloadDigest) {
+    return { passed: false, detail: "Runtime attestation binding must include at least one digest." };
+  }
+  for (const field of ["receiptHash", "checkpointDigest", "payloadDigest"]) {
+    if (attestation.binding[field] !== undefined && (typeof attestation.binding[field] !== "string" || !sha256DigestPattern.test(attestation.binding[field]))) {
+      return { passed: false, detail: `Runtime binding ${field} must be a sha256 digest.` };
+    }
+  }
+  if (!isRecord(attestation.signature)) {
+    return { passed: false, detail: "Runtime attestation signature must be an object." };
+  }
+  const signatureUnknown = exactKeys(attestation.signature, ["algorithm", "value", "publicKeyPem"]);
+  if (signatureUnknown.length > 0) {
+    return { passed: false, detail: `Runtime signature contains unknown fields: ${signatureUnknown.join(", ")}.` };
+  }
+  if (!["hmac-sha256", "ecdsa-sha256", "rsa-sha256", "aws-nitro-attestation"].includes(attestation.signature.algorithm)) {
+    return { passed: false, detail: `Unsupported runtime attestation signature algorithm ${attestation.signature.algorithm ?? "missing"}.` };
+  }
+  if (typeof attestation.signature.value !== "string" || attestation.signature.value.length === 0) {
+    return { passed: false, detail: "Runtime attestation signature value must be non-empty." };
+  }
+  if (attestation.signature.publicKeyPem !== undefined && typeof attestation.signature.publicKeyPem !== "string") {
+    return { passed: false, detail: "Runtime attestation publicKeyPem must be a string when supplied." };
+  }
+  return { passed: true, detail: "Runtime attestation shape is valid." };
+}
+
+function validateRuntimeAttestationPolicyShape(policy) {
+  if (!isRecord(policy)) {
+    return { passed: false, detail: "Runtime attestation policy must be an object." };
+  }
+  const unknown = exactKeys(policy, [
+    "schemaVersion",
+    "allowedTypes",
+    "requiredRuntimeIds",
+    "allowedImageDigests",
+    "allowedCodeDigests",
+    "allowedPolicyCompilerDigests",
+    "maxClockSkewMs",
+    "requireBindingToReceipt",
+    "requireBindingToCheckpoint",
+    "requireBindingToPayload"
+  ]);
+  if (unknown.length > 0) {
+    return { passed: false, detail: `Runtime attestation policy contains unknown fields: ${unknown.join(", ")}.` };
+  }
+  if (policy.schemaVersion !== "ghost.runtime_attestation_policy.v1") {
+    return { passed: false, detail: "Runtime attestation policy schemaVersion must be ghost.runtime_attestation_policy.v1." };
+  }
+  if (!Array.isArray(policy.allowedTypes) || policy.allowedTypes.length === 0) {
+    return { passed: false, detail: "Runtime attestation policy allowedTypes must be a non-empty array." };
+  }
+  if (!policy.allowedTypes.every((type) => ["local-dev-attestation", "aws-nitro-enclave"].includes(type))) {
+    return { passed: false, detail: "Runtime attestation policy allowedTypes contains an unsupported type." };
+  }
+  for (const field of ["allowedImageDigests", "allowedCodeDigests", "allowedPolicyCompilerDigests"]) {
+    if (policy[field] !== undefined && (!Array.isArray(policy[field]) || !policy[field].every((digest) => typeof digest === "string" && sha256DigestPattern.test(digest)))) {
+      return { passed: false, detail: `Runtime attestation policy ${field} must contain sha256 digests.` };
+    }
+  }
+  if (policy.requiredRuntimeIds !== undefined && (!Array.isArray(policy.requiredRuntimeIds) || !policy.requiredRuntimeIds.every((item) => typeof item === "string" && item.length > 0))) {
+    return { passed: false, detail: "Runtime attestation policy requiredRuntimeIds must contain non-empty strings." };
+  }
+  if (policy.maxClockSkewMs !== undefined && (!Number.isInteger(policy.maxClockSkewMs) || policy.maxClockSkewMs < 0)) {
+    return { passed: false, detail: "Runtime attestation policy maxClockSkewMs must be a non-negative integer." };
+  }
+  return { passed: true, detail: "Runtime attestation policy shape is valid." };
+}
+
+function runtimeAttestationSubjectDigest(attestation) {
+  return `sha256:${sha256Hex(canonicalize({
+    schemaVersion: "ghost.runtime_attestation.subject.v1",
+    attestationType: attestation.attestationType,
+    issuedAt: attestation.issuedAt,
+    runtime: attestation.runtime,
+    binding: attestation.binding,
+    measurements: attestation.measurements ?? {}
+  }))}`;
+}
+
+function localRuntimeAttestationSignaturePayloadDigest(attestation) {
+  return `sha256:${sha256Hex(canonicalize({
+    schemaVersion: "ghost.local_runtime_attestation.signature_payload.v1",
+    attestationType: attestation.attestationType,
+    subjectDigest: attestation.subjectDigest,
+    issuedAt: attestation.issuedAt,
+    runtime: attestation.runtime,
+    binding: attestation.binding,
+    measurements: attestation.measurements ?? {}
+  }))}`;
+}
+
+function localRuntimeAttestationSignature(secret, attestation) {
+  const payloadDigest = localRuntimeAttestationSignaturePayloadDigest(attestation);
+  return `hmac-sha256:${createHmac("sha256", secret).update(payloadDigest).digest("hex")}`;
+}
+
+function listAllows(list, observed) {
+  return list === undefined || list.includes(observed);
+}
+
+function verifyRuntimeAttestationCli(attestation, policy, options = {}) {
+  const checks = [];
+  const attestationShape = validateRuntimeAttestationShape(attestation);
+  check(checks, "runtime_attestation_schema", attestationShape.passed, attestationShape.detail);
+  const policyShape = validateRuntimeAttestationPolicyShape(policy);
+  check(checks, "runtime_attestation_policy", policyShape.passed, policyShape.detail);
+  if (!attestationShape.passed || !policyShape.passed) {
+    return { verdict: false, checks };
+  }
+
+  check(
+    checks,
+    "runtime_attestation_type",
+    policy.allowedTypes.includes(attestation.attestationType),
+    policy.allowedTypes.includes(attestation.attestationType)
+      ? `Attestation type ${attestation.attestationType} is allowed.`
+      : `Attestation type ${attestation.attestationType} is not allowed.`
+  );
+  const expectedSubjectDigest = runtimeAttestationSubjectDigest(attestation);
+  check(
+    checks,
+    "runtime_attestation_subject_digest",
+    attestation.subjectDigest === expectedSubjectDigest,
+    attestation.subjectDigest === expectedSubjectDigest
+      ? "Subject digest matches the domain-separated canonical attestation subject."
+      : `Subject digest mismatch. Expected ${expectedSubjectDigest}; observed ${attestation.subjectDigest}.`
+  );
+  check(
+    checks,
+    "runtime_attestation_runtime_id",
+    listAllows(policy.requiredRuntimeIds, attestation.runtime.runtimeId),
+    listAllows(policy.requiredRuntimeIds, attestation.runtime.runtimeId)
+      ? `Runtime id ${attestation.runtime.runtimeId} is allowed.`
+      : `Runtime id ${attestation.runtime.runtimeId} is not allowed.`
+  );
+  check(
+    checks,
+    "runtime_attestation_image_digest",
+    listAllows(policy.allowedImageDigests, attestation.runtime.imageDigest),
+    listAllows(policy.allowedImageDigests, attestation.runtime.imageDigest)
+      ? "Runtime image digest is allowed."
+      : `Runtime image digest ${attestation.runtime.imageDigest} is not allowed.`
+  );
+  check(
+    checks,
+    "runtime_attestation_code_digest",
+    listAllows(policy.allowedCodeDigests, attestation.runtime.codeDigest),
+    listAllows(policy.allowedCodeDigests, attestation.runtime.codeDigest)
+      ? "Runtime code digest is allowed."
+      : `Runtime code digest ${attestation.runtime.codeDigest} is not allowed.`
+  );
+  check(
+    checks,
+    "runtime_attestation_policy_compiler_digest",
+    listAllows(policy.allowedPolicyCompilerDigests, attestation.runtime.policyCompilerDigest),
+    listAllows(policy.allowedPolicyCompilerDigests, attestation.runtime.policyCompilerDigest)
+      ? "Runtime policy compiler digest is allowed."
+      : `Runtime policy compiler digest ${attestation.runtime.policyCompilerDigest} is not allowed.`
+  );
+  if (policy.maxClockSkewMs !== undefined) {
+    const delta = Math.abs(Date.now() - Date.parse(attestation.issuedAt));
+    check(
+      checks,
+      "runtime_attestation_clock_skew",
+      delta <= policy.maxClockSkewMs,
+      delta <= policy.maxClockSkewMs
+        ? `Attestation issuedAt is within maxClockSkewMs ${policy.maxClockSkewMs}.`
+        : `Attestation issuedAt ${attestation.issuedAt} is outside maxClockSkewMs ${policy.maxClockSkewMs}.`
+    );
+  }
+  const expectedReceiptHash = options.expectedReceiptHash;
+  const expectedCheckpointDigest = options.expectedCheckpointDigest;
+  const expectedPayloadDigest = options.expectedPayloadDigest;
+  check(
+    checks,
+    "runtime_attestation_receipt_binding",
+    !policy.requireBindingToReceipt && expectedReceiptHash === undefined
+      ? true
+      : Boolean(attestation.binding.receiptHash) && (!expectedReceiptHash || attestation.binding.receiptHash === expectedReceiptHash),
+    attestation.binding.receiptHash
+      ? expectedReceiptHash && attestation.binding.receiptHash !== expectedReceiptHash
+        ? `Receipt binding mismatch. Expected ${expectedReceiptHash}; observed ${attestation.binding.receiptHash}.`
+        : "Receipt binding is present and matches when expected."
+      : policy.requireBindingToReceipt || expectedReceiptHash
+        ? "Receipt binding is required but missing."
+        : "Receipt binding was not required."
+  );
+  check(
+    checks,
+    "runtime_attestation_checkpoint_binding",
+    !policy.requireBindingToCheckpoint && expectedCheckpointDigest === undefined
+      ? true
+      : Boolean(attestation.binding.checkpointDigest) &&
+          (!expectedCheckpointDigest || attestation.binding.checkpointDigest === expectedCheckpointDigest),
+    attestation.binding.checkpointDigest
+      ? expectedCheckpointDigest && attestation.binding.checkpointDigest !== expectedCheckpointDigest
+        ? `Checkpoint binding mismatch. Expected ${expectedCheckpointDigest}; observed ${attestation.binding.checkpointDigest}.`
+        : "Checkpoint binding is present and matches when expected."
+      : policy.requireBindingToCheckpoint || expectedCheckpointDigest
+        ? "Checkpoint binding is required but missing."
+        : "Checkpoint binding was not required."
+  );
+  check(
+    checks,
+    "runtime_attestation_payload_binding",
+    !policy.requireBindingToPayload && expectedPayloadDigest === undefined
+      ? true
+      : Boolean(attestation.binding.payloadDigest) && (!expectedPayloadDigest || attestation.binding.payloadDigest === expectedPayloadDigest),
+    attestation.binding.payloadDigest
+      ? expectedPayloadDigest && attestation.binding.payloadDigest !== expectedPayloadDigest
+        ? `Payload binding mismatch. Expected ${expectedPayloadDigest}; observed ${attestation.binding.payloadDigest}.`
+        : "Payload binding is present and matches when expected."
+      : policy.requireBindingToPayload || expectedPayloadDigest
+        ? "Payload binding is required but missing."
+        : "Payload binding was not required."
+  );
+
+  if (attestation.attestationType === "aws-nitro-enclave" || attestation.signature.algorithm === "aws-nitro-attestation") {
+    check(
+      checks,
+      "runtime_attestation_signature",
+      false,
+      "AWS Nitro Enclave attestation validation is not implemented in this verifier; evidence fails closed."
+    );
+  } else if (attestation.attestationType !== "local-dev-attestation" || attestation.signature.algorithm !== "hmac-sha256") {
+    check(checks, "runtime_attestation_signature", false, "Only local-dev HMAC attestation verification is implemented.");
+  } else if (!options.attestationSecret) {
+    check(
+      checks,
+      "runtime_attestation_signature",
+      false,
+      "Local-dev attestation verification requires --attestation-secret or GHOST_ARK_LOCAL_ATTESTATION_SECRET."
+    );
+  } else {
+    const expected = localRuntimeAttestationSignature(options.attestationSecret, {
+      ...attestation,
+      signature: { ...attestation.signature, value: "" }
+    });
+    check(
+      checks,
+      "runtime_attestation_signature",
+      attestation.signature.value === expected,
+      attestation.signature.value === expected
+        ? "Local-dev HMAC runtime attestation signature verifies."
+        : "Local-dev HMAC runtime attestation signature mismatch."
+    );
+  }
+
+  return { verdict: checks.every((entry) => entry.passed), checks };
+}
+
+function receiptProofStatementDigest(statement) {
+  return `sha256:${sha256Hex(canonicalize({
+    schemaVersion: "ghost.receipt_proof_statement.digest.v1",
+    proofSystem: statement.proofSystem,
+    publicInputs: statement.publicInputs,
+    claims: statement.claims
+  }))}`;
+}
+
+function localReceiptProofTranscriptDigest(statement, transcriptWitnessDigest) {
+  return `sha256:${sha256Hex(canonicalize({
+    schemaVersion: "ghost.local_receipt_proof_transcript.v1",
+    publicInputs: statement.publicInputs,
+    claims: statement.claims,
+    transcriptWitnessDigest
+  }))}`;
+}
+
+function validateReceiptProofShape(proof) {
+  if (!isRecord(proof)) {
+    return { passed: false, detail: "Receipt proof must be an object." };
+  }
+  const unknown = exactKeys(proof, ["schemaVersion", "proofSystem", "statement", "proof"]);
+  if (unknown.length > 0) {
+    return { passed: false, detail: `Receipt proof contains unknown fields: ${unknown.join(", ")}.` };
+  }
+  if (proof.schemaVersion !== "ghost.receipt_proof.v1") {
+    return { passed: false, detail: "Receipt proof schemaVersion must be ghost.receipt_proof.v1." };
+  }
+  if (!["local-transcript", "risc0", "sp1", "halo2", "noir", "circom"].includes(proof.proofSystem)) {
+    return { passed: false, detail: `Unsupported proof system ${proof.proofSystem ?? "missing"}.` };
+  }
+  if (!isRecord(proof.statement) || !isRecord(proof.proof)) {
+    return { passed: false, detail: "Receipt proof must contain statement and proof objects." };
+  }
+  const statement = proof.statement;
+  const statementUnknown = exactKeys(statement, ["schemaVersion", "proofSystem", "statementDigest", "publicInputs", "claims"]);
+  if (statementUnknown.length > 0) {
+    return { passed: false, detail: `Receipt proof statement contains unknown fields: ${statementUnknown.join(", ")}.` };
+  }
+  if (statement.schemaVersion !== "ghost.receipt_proof_statement.v1") {
+    return { passed: false, detail: "Receipt proof statement schemaVersion must be ghost.receipt_proof_statement.v1." };
+  }
+  if (statement.proofSystem !== proof.proofSystem) {
+    return { passed: false, detail: "Receipt proof statement proofSystem must match the proof proofSystem." };
+  }
+  if (typeof statement.statementDigest !== "string" || !sha256DigestPattern.test(statement.statementDigest)) {
+    return { passed: false, detail: "Receipt proof statementDigest must be a sha256 digest." };
+  }
+  if (!isRecord(statement.publicInputs)) {
+    return { passed: false, detail: "Receipt proof publicInputs must be an object." };
+  }
+  const publicInputUnknown = exactKeys(statement.publicInputs, [
+    "tenantIdHash",
+    "chainHeadHash",
+    "epochId",
+    "checkpointDigest",
+    "merkleRoot",
+    "receiptCount",
+    "keyManifestDigest"
+  ]);
+  if (publicInputUnknown.length > 0) {
+    return { passed: false, detail: `Receipt proof publicInputs contains unknown fields: ${publicInputUnknown.join(", ")}.` };
+  }
+  for (const field of ["tenantIdHash", "chainHeadHash", "checkpointDigest", "merkleRoot", "keyManifestDigest"]) {
+    if (typeof statement.publicInputs[field] !== "string" || !sha256DigestPattern.test(statement.publicInputs[field])) {
+      return { passed: false, detail: `Receipt proof publicInputs.${field} must be a sha256 digest.` };
+    }
+  }
+  if (typeof statement.publicInputs.epochId !== "string" || statement.publicInputs.epochId.length === 0) {
+    return { passed: false, detail: "Receipt proof publicInputs.epochId must be non-empty." };
+  }
+  if (!Number.isInteger(statement.publicInputs.receiptCount) || statement.publicInputs.receiptCount < 1) {
+    return { passed: false, detail: "Receipt proof publicInputs.receiptCount must be a positive integer." };
+  }
+  const claims = statement.claims;
+  if (!isRecord(claims)) {
+    return { passed: false, detail: "Receipt proof claims must be an object." };
+  }
+  const requiredClaims = [
+    "receiptSignaturesValid",
+    "receiptChainLinksValid",
+    "tenantConstantAcrossChain",
+    "checkpointIncludesChainHead",
+    "keyManifestEpochsValid"
+  ];
+  const claimUnknown = exactKeys(claims, requiredClaims);
+  if (claimUnknown.length > 0 || !requiredClaims.every((claim) => claims[claim] === true)) {
+    return { passed: false, detail: "Receipt proof claims must contain only the required true claims." };
+  }
+  const proofUnknown = exactKeys(proof.proof, ["transcriptDigest", "proofBytesBase64", "backendMetadata"]);
+  if (proofUnknown.length > 0) {
+    return { passed: false, detail: `Receipt proof payload contains unknown fields: ${proofUnknown.join(", ")}.` };
+  }
+  if (proof.proof.transcriptDigest !== undefined && (typeof proof.proof.transcriptDigest !== "string" || !sha256DigestPattern.test(proof.proof.transcriptDigest))) {
+    return { passed: false, detail: "Receipt proof transcriptDigest must be a sha256 digest when supplied." };
+  }
+  if (proof.proof.backendMetadata !== undefined && !isRecord(proof.proof.backendMetadata)) {
+    return { passed: false, detail: "Receipt proof backendMetadata must be an object when supplied." };
+  }
+  return { passed: true, detail: "Receipt proof shape is valid." };
+}
+
+function verifyReceiptProofCli(proof) {
+  const checks = [];
+  const shape = validateReceiptProofShape(proof);
+  check(checks, "receipt_proof_schema", shape.passed, shape.detail);
+  if (!shape.passed) {
+    return { verdict: false, checks };
+  }
+  const expectedStatementDigest = receiptProofStatementDigest(proof.statement);
+  check(
+    checks,
+    "receipt_proof_statement_digest",
+    proof.statement.statementDigest === expectedStatementDigest,
+    proof.statement.statementDigest === expectedStatementDigest
+      ? "Statement digest matches public inputs and claims."
+      : `Statement digest mismatch. Expected ${expectedStatementDigest}; observed ${proof.statement.statementDigest}.`
+  );
+  if (proof.proofSystem === "local-transcript") {
+    const transcriptWitnessDigest = proof.proof.backendMetadata?.transcriptWitnessDigest;
+    const witnessDigestValid = typeof transcriptWitnessDigest === "string" && sha256DigestPattern.test(transcriptWitnessDigest);
+    check(
+      checks,
+      "receipt_proof_local_witness_digest",
+      witnessDigestValid,
+      witnessDigestValid
+        ? "Local transcript witness digest is present in dev-only backend metadata."
+        : "Local transcript witness digest is missing or malformed."
+    );
+    const expectedTranscriptDigest = witnessDigestValid ? localReceiptProofTranscriptDigest(proof.statement, transcriptWitnessDigest) : undefined;
+    check(
+      checks,
+      "receipt_proof_local_transcript_digest",
+      Boolean(expectedTranscriptDigest && proof.proof.transcriptDigest === expectedTranscriptDigest),
+      expectedTranscriptDigest && proof.proof.transcriptDigest === expectedTranscriptDigest
+        ? "Local transcript digest matches the deterministic dev-only transcript."
+        : `Local transcript digest mismatch. Expected ${expectedTranscriptDigest ?? "unavailable"}; observed ${proof.proof.transcriptDigest ?? "missing"}.`
+    );
+  } else {
+    check(
+      checks,
+      "receipt_proof_backend",
+      false,
+      `Proof system ${proof.proofSystem} is a reserved interface and is not implemented in this verifier.`
+    );
+  }
+  return { verdict: checks.every((entry) => entry.passed), checks };
+}
+
 function printResult(result) {
   console.log("");
   console.log("GHOST ARK OFFLINE RECEIPT VERIFICATION");
@@ -575,6 +1093,8 @@ function printResult(result) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const manifest = args.keyManifest ? readJsonFile(args.keyManifest) : undefined;
+  const attestationPolicy = args.attestationPolicy ? readJsonFile(args.attestationPolicy) : undefined;
+  const attestationSecret = args.attestationSecret ?? process.env.GHOST_ARK_LOCAL_ATTESTATION_SECRET;
   const checks = [];
   let result = { verdict: true, checks };
   let record;
@@ -644,6 +1164,95 @@ function main() {
       );
     }
     result.verdict = result.verdict && proofShape.passed && inclusionPassed && result.checks.every((entry) => entry.passed);
+  }
+
+  if (args.runtimeAttestation) {
+    if (!attestationPolicy) {
+      throw new Error("--attestation-policy is required with --runtime-attestation");
+    }
+    const attestationResult = verifyRuntimeAttestationCli(readJsonFile(args.runtimeAttestation), attestationPolicy, {
+      attestationSecret
+    });
+    result = {
+      verdict: result.verdict && attestationResult.verdict,
+      checks: [...result.checks, ...attestationResult.checks]
+    };
+  }
+
+  if (args.attestedReceiptBundle) {
+    if (!attestationPolicy) {
+      throw new Error("--attestation-policy is required with --attested-receipt-bundle");
+    }
+    const bundle = readJsonFile(args.attestedReceiptBundle);
+    const bundleIsValid = isRecord(bundle) && bundle.schemaVersion === "ghost.attested_receipt_bundle.v1" && isRecord(bundle.receipt) && isRecord(bundle.attestation);
+    check(
+      result.checks,
+      "attested_receipt_bundle_schema",
+      bundleIsValid,
+      bundleIsValid
+        ? "Attested receipt bundle contains a receipt and runtime attestation."
+        : "Attested receipt bundle must use schemaVersion ghost.attested_receipt_bundle.v1 and contain receipt and attestation objects."
+    );
+    if (bundleIsValid) {
+      const expectedReceiptHash =
+        bundle.receipt.schema_version === "ghost.receipt.v1"
+          ? signedDecisionReceiptHash(bundle.receipt)
+          : `sha256:${sha256Hex(canonicalize(bundle.receipt))}`;
+      const attestationResult = verifyRuntimeAttestationCli(bundle.attestation, attestationPolicy, {
+        expectedReceiptHash,
+        attestationSecret
+      });
+      result = {
+        verdict: result.verdict && attestationResult.verdict,
+        checks: [...result.checks, ...attestationResult.checks]
+      };
+    } else {
+      result.verdict = false;
+    }
+  }
+
+  if (args.attestedCheckpointBundle) {
+    if (!attestationPolicy) {
+      throw new Error("--attestation-policy is required with --attested-checkpoint-bundle");
+    }
+    const bundle = readJsonFile(args.attestedCheckpointBundle);
+    const bundleIsValid =
+      isRecord(bundle) &&
+      bundle.schemaVersion === "ghost.attested_checkpoint_bundle.v1" &&
+      isRecord(bundle.checkpoint) &&
+      isRecord(bundle.attestation);
+    check(
+      result.checks,
+      "attested_checkpoint_bundle_schema",
+      bundleIsValid,
+      bundleIsValid
+        ? "Attested checkpoint bundle contains a checkpoint and runtime attestation."
+        : "Attested checkpoint bundle must use schemaVersion ghost.attested_checkpoint_bundle.v1 and contain checkpoint and attestation objects."
+    );
+    if (bundleIsValid) {
+      const expectedCheckpointDigest = `sha256:${sha256Hex(canonicalize({
+        schemaVersion: "ghost.attested_checkpoint_bundle.checkpoint_digest.v1",
+        checkpoint: bundle.checkpoint
+      }))}`;
+      const attestationResult = verifyRuntimeAttestationCli(bundle.attestation, attestationPolicy, {
+        expectedCheckpointDigest,
+        attestationSecret
+      });
+      result = {
+        verdict: result.verdict && attestationResult.verdict,
+        checks: [...result.checks, ...attestationResult.checks]
+      };
+    } else {
+      result.verdict = false;
+    }
+  }
+
+  if (args.receiptProof) {
+    const proofResult = verifyReceiptProofCli(readJsonFile(args.receiptProof));
+    result = {
+      verdict: result.verdict && proofResult.verdict,
+      checks: [...result.checks, ...proofResult.checks]
+    };
   }
 
   printResult(result);
