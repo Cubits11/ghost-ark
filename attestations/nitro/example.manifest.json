@@ -1,0 +1,28 @@
+{
+  "schema_version": "ghostark.research.nitro_attestation_manifest.v1",
+  "enclave_image": {
+    "name": "ghost-ark-governed-runtime-dev.eif",
+    "image_sha384": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "build_command": "nitro-cli build-enclave --docker-uri ghost-ark-governed-runtime:dev --output-file ghost-ark-governed-runtime-dev.eif"
+  },
+  "measurements": {
+    "pcr0": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "pcr1": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "pcr2": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "pcr8": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "kms_conditions": {
+    "required_condition_keys": [
+      "kms:RecipientAttestation:ImageSha384",
+      "kms:RecipientAttestation:PCR0",
+      "kms:RecipientAttestation:PCR1",
+      "kms:RecipientAttestation:PCR2",
+      "kms:RecipientAttestation:PCR8"
+    ]
+  },
+  "non_claims": [
+    "This example manifest does not prove production enclave execution.",
+    "This example manifest does not prove model safety.",
+    "This example manifest does not prove formal policy correctness."
+  ]
+}
