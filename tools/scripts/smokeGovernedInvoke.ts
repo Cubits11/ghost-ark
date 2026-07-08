@@ -255,7 +255,7 @@ export function buildSmokeGovernedInvokeReport(input: {
     })),
     passed: input.results.every((result) => result.passed),
     nonClaim:
-      "This smoke report is sanitized validation evidence only. It does not prove AI safety, legal compliance, semantic correctness, production readiness, or enterprise readiness."
+      "This smoke report is sanitized validation evidence only. It does not prove AI safety, legal compliance, semantic correctness, empirical truth, production readiness, or enterprise readiness."
   };
 }
 

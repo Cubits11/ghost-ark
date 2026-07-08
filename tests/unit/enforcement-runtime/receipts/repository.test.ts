@@ -191,6 +191,52 @@ describe("DynamoDbDecisionReceiptRepository", () => {
     expect(signCanonical).not.toHaveBeenCalled();
     expect(repository.put).not.toHaveBeenCalled();
   });
+
+  it("emitter_returns_idempotent_existing_receipt_from_persistence_race", async () => {
+    const existingReceipt = signedReceipt();
+    const signCanonical = vi.fn(() => "new-signature");
+    const repository: DecisionReceiptRepository = {
+      put: vi.fn(async () => ({
+        status: "IDEMPOTENT_EXISTING" as const,
+        receipt: existingReceipt,
+        persistedAt: "2026-07-07T12:00:01.000Z"
+      })),
+      get: vi.fn(async () => null)
+    };
+    const emitter = new DefaultDecisionReceiptEmitter({
+      signer: { keyId: "local-dev-hmac", algorithm: signer.algorithm, signCanonical },
+      repository,
+      hmacSecret: "identity-secret"
+    });
+
+    await expect(
+      emitter.emit({
+        identity: {
+          tenantId: "tenant-a",
+          userId: "user-a",
+          role: "user",
+          sessionId: "session-a",
+          requestId: "request-a",
+          source: "jwt"
+        },
+        modelId: "anthropic.claude-test",
+        policyVersion: "organization:test@1",
+        policyHash: "a".repeat(64),
+        inputDigest: publicSha256Digest("input-a"),
+        retrievedContextDigests: [publicSha256Digest("context-a")],
+        preDecision: decision("pre_model", "ALLOW"),
+        postDecision: decision("post_model", "REDACT"),
+        memoryWritten: false,
+        consentState: "not_required",
+        latencyMs: 3,
+        timestamp: "2026-07-07T12:00:00.000Z"
+      })
+    ).resolves.toEqual(existingReceipt);
+
+    expect(signCanonical).toHaveBeenCalledTimes(1);
+    expect(repository.get).toHaveBeenCalledTimes(1);
+    expect(repository.put).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("InMemoryDecisionReceiptRepository", () => {

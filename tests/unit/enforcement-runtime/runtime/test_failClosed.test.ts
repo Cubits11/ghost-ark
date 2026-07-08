@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { AwsBedrockInvoker } from "../../../../packages/enforcement-runtime/src/bedrock/awsBedrockInvoker";
 import { FakeModelInvoker } from "../../../../packages/enforcement-runtime/src/bedrock/fakeInvoker";
 import { PolicyRepository } from "../../../../packages/enforcement-runtime/src/policy/repository";
 import { InMemoryPolicyRepository } from "../../../../packages/enforcement-runtime/src/policy/inMemoryPolicyRepository";
@@ -28,7 +29,15 @@ function request(overrides: Partial<GovernedInvokeRequest> = {}): GovernedInvoke
   };
 }
 
-function deps(options: { policyRepository?: PolicyRepository; receiptEmitter?: DecisionReceiptEmitter; fake?: FakeModelInvoker } = {}) {
+function deps(
+  options: {
+    policyRepository?: PolicyRepository;
+    receiptEmitter?: DecisionReceiptEmitter;
+    fake?: FakeModelInvoker;
+    modelInvoker?: GovernedInvokeDependencies["modelInvoker"];
+    modelAllowlist?: string[];
+  } = {}
+) {
   const fake = options.fake ?? new FakeModelInvoker({ outputText: "ok" });
   const receipts = new InMemoryDecisionReceiptRepository();
   const receiptEmitter =
@@ -40,10 +49,11 @@ function deps(options: { policyRepository?: PolicyRepository; receiptEmitter?: D
     });
   return {
     policyRepository: options.policyRepository ?? new InMemoryPolicyRepository(),
-    modelInvoker: fake,
+    modelInvoker: options.modelInvoker ?? fake,
     vaultStore: new InMemoryVaultStore(),
     receiptEmitter,
     identityDigestSecret: "identity-secret",
+    modelAllowlist: options.modelAllowlist,
     fake,
     receipts
   } satisfies GovernedInvokeDependencies & { fake: FakeModelInvoker; receipts: InMemoryDecisionReceiptRepository };
@@ -144,5 +154,21 @@ describe("governedInvoke fail-closed behavior", () => {
     expect(result.responseText).toBeUndefined();
     expect(result.errors.join(" ")).toMatch(/Unsupported Bedrock model family/u);
     expect(result.receipt.attempted).toBe(true);
+  });
+
+  it("fails closed when an allowlisted model uses an unsupported Bedrock adapter family", async () => {
+    const unsupportedModelId = "meta.llama3-8b-instruct-v1:0";
+    const send = vi.fn(async () => ({ body: Buffer.from(JSON.stringify({ outputText: "should not run" })) }));
+    const runtime = deps({
+      modelInvoker: new AwsBedrockInvoker({ client: { send } as never }),
+      modelAllowlist: [unsupportedModelId]
+    });
+    const result = await governedInvoke(runtime, request({ model: { modelId: unsupportedModelId } }));
+
+    expect(result.status).toBe("failed_closed");
+    expect(result.responseText).toBeUndefined();
+    expect(result.errors.join(" ")).toMatch(/Unsupported Bedrock model family/u);
+    expect(result.receipt.attempted).toBe(true);
+    expect(send).not.toHaveBeenCalled();
   });
 });
