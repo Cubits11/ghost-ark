@@ -49,7 +49,7 @@ function buildRecord(): ReceiptRecord {
   return {
     payload,
     signature: {
-      keyId: "alias/test",
+      keyId: "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001",
       algorithm: "RSASSA_PSS_SHA_256",
       messageType: "DIGEST",
       digestSha256: receiptDigest(payload),
@@ -147,6 +147,7 @@ describe("receipt verification", () => {
       ["digest", true],
       ["messageType", true],
       ["algorithm", true],
+      ["keyId", true],
       ["signature", true]
     ]);
   });
@@ -173,7 +174,7 @@ describe("receipt verification", () => {
         generatedAt: "2026-07-08T00:00:00.000Z",
         keys: [
           {
-            keyId: "alias/test",
+            keyId: "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001",
             algorithm: "RSASSA_PSS_SHA_256",
             validFrom: "2026-07-06T00:00:00.000Z",
             validUntil: "2026-07-08T00:00:00.000Z",
@@ -186,6 +187,20 @@ describe("receipt verification", () => {
 
     expect(result.verdict).toBe(true);
     expect(result.checks.find((check) => check.name === "key_manifest")).toMatchObject({ passed: true });
+  });
+
+  it("fails closed when signing metadata uses a mutable alias key id", async () => {
+    const record = buildRecord();
+    record.signature.keyId = "alias/test";
+
+    const result = await verifyReceiptRecord(record, {
+      expectedTenantSlug: "acme-lab",
+      verifySignature: async () => true
+    });
+
+    expect(result.verdict).toBe(false);
+    expect(result.checks.find((check) => check.name === "keyId")).toMatchObject({ passed: false });
+    expect(result.checks.find((check) => check.name === "signature")).toMatchObject({ passed: false });
   });
 
   it("fails when the expected tenant does not match the receipt tenant", async () => {

@@ -3,6 +3,7 @@ import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s
 import { requiredEnv } from "../../../../packages/shared/src/config";
 import { evidenceObjectId } from "../../../../packages/receipt-schema/src/hashCanonicalization";
 import { buildLineageEvent } from "../../../../packages/lineage-model/src/events";
+import { assertTrustedTenantSource } from "../../../../packages/enforcement-runtime/src/tenancy/trustedTenantSource";
 
 const s3 = new S3Client({});
 
@@ -21,7 +22,13 @@ export async function handler(event: S3Event): Promise<{ processed: number }> {
   for (const record of event.Records) {
     const bucket = record.s3.bucket.name;
     const key = decodeURIComponent(record.s3.object.key.replace(/\+/gu, " "));
-    const tenantSlug = tenantFromKey(key);
+    const tenantSlug = assertTrustedTenantSource({
+      kind: "s3",
+      declaredTenantSlug: tenantFromKey(key),
+      sourceArn: record.s3.bucket.arn,
+      sourceName: bucket,
+      key
+    });
     const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
     const objectUri = `s3://${bucket}/${key}`;
     const evidence = {

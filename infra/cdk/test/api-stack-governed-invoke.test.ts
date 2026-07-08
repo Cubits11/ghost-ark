@@ -38,6 +38,26 @@ describe("ApiStack governed invoke AWS reality gate", () => {
     });
   });
 
+  it("publishes receipt checkpoints to an Object Lock S3 transparency bucket on a schedule", () => {
+    const template = synthApiTemplate();
+
+    template.hasResourceProperties("AWS::S3::Bucket", {
+      VersioningConfiguration: { Status: "Enabled" },
+      ObjectLockEnabled: true
+    });
+    template.hasResourceProperties("AWS::Events::Rule", {
+      ScheduleExpression: "rate(1 hour)"
+    });
+    template.hasResourceProperties("AWS::Lambda::Function", {
+      Environment: {
+        Variables: Match.objectLike({
+          GHOST_ARK_CHECKPOINT_PUBLISH_PREFIX: "receipt-checkpoints",
+          GHOST_ARK_CHECKPOINT_OBJECT_LOCK_MODE: "GOVERNANCE"
+        })
+      }
+    });
+  });
+
   it("creates an asymmetric KMS signing key for receipt signatures", () => {
     const template = synthApiTemplate();
 
