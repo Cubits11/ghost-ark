@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/research/nitro-attestation-manifest.schema.json",
+  "title": "Ghost-Ark Nitro Attestation Manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "enclave_image",
+    "measurements",
+    "kms_conditions",
+    "non_claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "ghostark.research.nitro_attestation_manifest.v1"
+    },
+    "enclave_image": {
+      "type": "object",
+      "required": ["name", "image_sha384", "build_command"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "image_sha384": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{96}$"
+        },
+        "build_command": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "measurements": {
+      "type": "object",
+      "required": ["pcr0", "pcr1", "pcr2"],
+      "properties": {
+        "pcr0": { "type": "string", "pattern": "^[a-fA-F0-9]{96}$" },
+        "pcr1": { "type": "string", "pattern": "^[a-fA-F0-9]{96}$" },
+        "pcr2": { "type": "string", "pattern": "^[a-fA-F0-9]{96}$" },
+        "pcr8": { "type": "string", "pattern": "^[a-fA-F0-9]{96}$" }
+      },
+      "additionalProperties": false
+    },
+    "kms_conditions": {
+      "type": "object",
+      "required": ["required_condition_keys"],
+      "properties": {
+        "required_condition_keys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "kms:RecipientAttestation:ImageSha384",
+              "kms:RecipientAttestation:PCR0",
+              "kms:RecipientAttestation:PCR1",
+              "kms:RecipientAttestation:PCR2",
+              "kms:RecipientAttestation:PCR8"
+            ]
+          },
+          "minItems": 4,
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "non_claims": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "additionalProperties": false
+}

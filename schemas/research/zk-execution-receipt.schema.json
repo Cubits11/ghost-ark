@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/research/zk-execution-receipt.schema.json",
+  "title": "Ghost-Ark zk Execution Receipt",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "zkvm",
+    "guest_image_id",
+    "public_journal",
+    "proof_reference",
+    "verification_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "ghostark.research.zk_execution_receipt.v1"
+    },
+    "zkvm": {
+      "type": "string",
+      "enum": ["risc0", "sp1", "mock"]
+    },
+    "guest_image_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "public_journal": {
+      "type": "object",
+      "required": [
+        "policy_hash",
+        "decision_hash",
+        "prompt_commitment",
+        "output_commitment"
+      ],
+      "properties": {
+        "policy_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "decision_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "prompt_commitment": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "output_commitment": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "proof_reference": {
+      "type": "object",
+      "required": ["type", "uri", "sha256"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["local_file", "s3_object", "artifact_registry", "inline_mock"]
+        },
+        "uri": { "type": "string", "minLength": 1 },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": ["unverified", "mock_verified", "cryptographically_verified", "failed"]
+    }
+  },
+  "additionalProperties": false
+}
