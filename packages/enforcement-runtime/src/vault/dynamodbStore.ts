@@ -179,6 +179,8 @@ export class DynamoDbVaultStore implements VaultStore {
   }
 
   async get(request: VaultIdentity & { id: string; now?: string }): Promise<MemoryRecord> {
+    // DynamoDB GetItem is a direct key lookup and does not support FilterExpression,
+    // so expiry and tombstone constraints are enforced immediately after fetch.
     const response = await this.client.send(
       new GetCommand({
         TableName: this.tableName,

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "ghost.governed_invoke.smoke_report.v1",
+  "timestamp": "2026-07-07T12:00:00.000Z",
+  "stage": "dev",
+  "apiHostHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "tenantHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "modelId": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "expectedMode": "aws-validation",
+  "cases": [
+    {
+      "name": "benign",
+      "httpStatus": 200,
+      "governedStatus": "completed",
+      "receiptEmitted": true,
+      "receiptId": "grct_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "decisionPhases": [
+        {
+          "name": "preModel",
+          "phase": "pre_model",
+          "decision": "ALLOW",
+          "actionTaken": [],
+          "riskScore": 0
+        },
+        {
+          "name": "postModel",
+          "phase": "post_model",
+          "decision": "ALLOW",
+          "actionTaken": [],
+          "riskScore": 0
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "private-memory-refusal",
+      "httpStatus": 200,
+      "governedStatus": "refused_pre_model",
+      "receiptEmitted": true,
+      "receiptId": "grct_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "decisionPhases": [
+        {
+          "name": "preModel",
+          "phase": "pre_model",
+          "decision": "REFUSE",
+          "actionTaken": [
+            "block_model_invocation"
+          ],
+          "riskScore": 0.95
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "nonClaim": "This smoke report is sanitized validation evidence only. It does not prove AI safety, legal compliance, semantic correctness, empirical truth, production readiness, or enterprise readiness."
+}

@@ -5,7 +5,7 @@ import {
   privateHmacDigest,
   publicSha256Digest
 } from "./canonical";
-import { DecisionReceiptRepository, IntegrityCollisionError } from "./repository";
+import { DecisionReceiptPersistenceResult, DecisionReceiptRepository, IntegrityCollisionError } from "./repository";
 import { SignedDecisionReceipt, validateSignedDecisionReceipt } from "./schema";
 import { VerifiedIdentityContext } from "../identity/context";
 import { ConsentState, PolicyDecision } from "../policy/decisions";
@@ -118,8 +118,22 @@ export class DefaultDecisionReceiptEmitter implements DecisionReceiptEmitter {
       ).toString("base64url")
     });
 
-    const persistenceResult = await this.repository?.put(signed);
-    return persistenceResult?.receipt ?? signed;
+    if (!this.repository) {
+      return signed;
+    }
+
+    const persistenceResult = await this.repository.put(signed);
+    return receiptFromPersistenceResult(persistenceResult);
+  }
+}
+
+function receiptFromPersistenceResult(result: DecisionReceiptPersistenceResult): SignedDecisionReceipt {
+  switch (result.status) {
+    case "CREATED":
+    case "IDEMPOTENT_EXISTING":
+      return result.receipt;
+    default:
+      throw new Error(`Unsupported decision receipt persistence status: ${String(result.status)}`);
   }
 }
 
