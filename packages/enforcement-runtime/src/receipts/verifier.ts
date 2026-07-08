@@ -1,4 +1,5 @@
 import { canonicalUnsignedDecisionReceipt, decisionReceiptDigest, receiptIdFromUnsignedDecisionReceipt, unsignedReceiptForSigning } from "./canonical";
+import { KeyManifest, verifyKeyManifestEpoch } from "./keyManifest";
 import { SignedDecisionReceipt, validateSignedDecisionReceipt } from "./schema";
 
 export interface DecisionReceiptVerificationCheck {
@@ -29,6 +30,10 @@ export interface DecisionReceiptCanonicalVerifier {
   ): boolean | Promise<boolean>;
 }
 
+export interface VerifyDecisionReceiptOptions {
+  keyManifest?: KeyManifest;
+}
+
 function check(name: string, passed: boolean, detail: string): DecisionReceiptVerificationCheck {
   return { name, passed, detail };
 }
@@ -43,7 +48,8 @@ export function parseDecisionReceiptSignatureEnvelope(signatureEnvelope: string)
 
 export async function verifyDecisionReceipt(
   value: unknown,
-  verifier: DecisionReceiptCanonicalVerifier
+  verifier: DecisionReceiptCanonicalVerifier,
+  options: VerifyDecisionReceiptOptions = {}
 ): Promise<DecisionReceiptVerificationResult> {
   const checks: DecisionReceiptVerificationCheck[] = [];
   let receipt: SignedDecisionReceipt;
@@ -97,6 +103,17 @@ export async function verifyDecisionReceipt(
           : `Signature keyId ${embeddedKeyId} is present.`
     )
   );
+
+  if (options.keyManifest) {
+    checks.push(
+      verifyKeyManifestEpoch({
+        manifest: options.keyManifest,
+        keyId: embeddedKeyId,
+        algorithm: receipt.signature_alg,
+        timestamp: receipt.timestamp
+      })
+    );
+  }
 
   const recomputedDigest = decisionReceiptDigest(receipt);
   checks.push(

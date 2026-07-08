@@ -7,6 +7,13 @@ import { describe, expect, it } from "vitest";
 import { buildReceiptPayload, ReceiptRecord, receiptDigest } from "../../../packages/receipt-schema/src/receipt";
 import { verifyReceiptRecord } from "../../../tools/scripts/receiptVerify";
 import { verifyReceiptSignatureWithPublicKey } from "../../../services/signing/kms/verifier";
+import {
+  buildUnsignedDecisionReceipt,
+  privateHmacDigest,
+  publicSha256Digest,
+  signedDecisionReceiptHash
+} from "../../../packages/enforcement-runtime/src/receipts/canonical";
+import { LocalDevHmacReceiptSigner, signDecisionReceipt } from "../../../packages/enforcement-runtime/src/receipts/signer";
 
 const now = "2026-07-07T00:00:00.000Z";
 
@@ -94,6 +101,35 @@ function writeFixture(record: ReceiptRecord, publicKeyPem: string): { receiptPat
   return { receiptPath, publicKeyPath };
 }
 
+function decisionReceipt(prev_receipt_hash: string | null, request_id: string) {
+  const signer = new LocalDevHmacReceiptSigner({ secret: "chain-secret" });
+  return signDecisionReceipt(
+    buildUnsignedDecisionReceipt({
+      request_id,
+      tenant_id_hash: privateHmacDigest("secret", "tenant-a"),
+      user_id_hash: privateHmacDigest("secret", "user-a"),
+      session_id_hash: privateHmacDigest("secret", "session-a"),
+      timestamp: "2026-07-07T12:00:00.000Z",
+      model_id: "anthropic.claude-test",
+      policy_version: "organization:org@1",
+      policy_hash: "b".repeat(64),
+      input_digest: publicSha256Digest(request_id),
+      retrieved_context_digests: [],
+      decision_pre: "ALLOW",
+      decision_post: "ALLOW",
+      action_taken: ["emit_receipt"],
+      risk_score: 0,
+      consent_state: "not_required",
+      memory_written: false,
+      latency_ms: 1,
+      cost_estimate_usd: 0,
+      prev_receipt_hash,
+      signature_alg: signer.algorithm
+    }),
+    signer
+  );
+}
+
 describe("receipt verification", () => {
   it("passes for a valid receipt record when signature verifier accepts it", async () => {
     const record = buildRecord();
@@ -125,6 +161,30 @@ describe("receipt verification", () => {
 
     expect(result.verdict).toBe(true);
     expect(result.checks.find((check) => check.name === "signature")?.passed).toBe(true);
+  });
+
+  it("enforces a key manifest for legacy receipt records", async () => {
+    const record = buildRecord();
+    const result = await verifyReceiptRecord(record, {
+      expectedTenantSlug: "acme-lab",
+      keyManifest: {
+        schemaVersion: "ghost.key_manifest.v1",
+        generatedAt: "2026-07-08T00:00:00.000Z",
+        keys: [
+          {
+            keyId: "alias/test",
+            algorithm: "RSASSA_PSS_SHA_256",
+            validFrom: "2026-07-06T00:00:00.000Z",
+            validUntil: "2026-07-08T00:00:00.000Z",
+            status: "DEPRECATED"
+          }
+        ]
+      },
+      verifySignature: async () => true
+    });
+
+    expect(result.verdict).toBe(true);
+    expect(result.checks.find((check) => check.name === "key_manifest")).toMatchObject({ passed: true });
   });
 
   it("fails when the expected tenant does not match the receipt tenant", async () => {
@@ -257,5 +317,22 @@ describe("receipt verification", () => {
     expect(result.status).toBe(1);
     expect(result.stdout).toContain("VERDICT: FAIL");
     expect(result.stdout).toContain("FAIL receipt_id");
+  });
+
+  it("runs the standalone chain verifier for decision receipts", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "ghost-ark-chain-"));
+    const first = decisionReceipt(null, "request-a");
+    const second = decisionReceipt(signedDecisionReceiptHash(first), "request-b");
+    const chainPath = path.join(dir, "chain.json");
+    writeFileSync(chainPath, JSON.stringify([first, second], null, 2));
+
+    const result = spawnSync(process.execPath, ["tools/ghost-verify.mjs", "--verify-chain", chainPath], {
+      cwd: process.cwd(),
+      encoding: "utf8"
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("PASS chain_1");
+    expect(result.stdout).toContain("VERDICT: PASS");
   });
 });

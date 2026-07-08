@@ -1,8 +1,9 @@
-import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { describe, expect, it, vi } from "vitest";
 import { PolicyDecision } from "../../../../packages/enforcement-runtime/src/policy/decisions";
 import {
   buildUnsignedDecisionReceipt,
+  decisionReceiptRequestDigest,
   privateHmacDigest,
   publicSha256Digest
 } from "../../../../packages/enforcement-runtime/src/receipts/canonical";
@@ -16,7 +17,7 @@ import { InMemoryDecisionReceiptRepository } from "../../../../packages/enforcem
 import { LocalDevHmacReceiptSigner, signDecisionReceipt } from "../../../../packages/enforcement-runtime/src/receipts/signer";
 import { SignedDecisionReceipt } from "../../../../packages/enforcement-runtime/src/receipts/schema";
 
-type CommandWithInput = PutCommand | GetCommand;
+type CommandWithInput = TransactWriteCommand | GetCommand;
 type MockDocumentClient = {
   send: ReturnType<typeof vi.fn>;
 };
@@ -92,25 +93,61 @@ describe("DynamoDbDecisionReceiptRepository", () => {
     });
 
     expect(client.send).toHaveBeenCalledTimes(1);
-    const putCommand = client.send.mock.calls[0][0];
-    expect(putCommand).toBeInstanceOf(PutCommand);
-    expect(putCommand.input).toMatchObject({
-      TableName: "receipts",
-      ConditionExpression: "attribute_not_exists(tenantId) AND attribute_not_exists(receiptId)",
-      Item: {
-        tenantId: receipt.tenant_id_hash,
-        receiptId: receipt.receipt_id,
-        receipt,
-        persistedAt: receipt.timestamp
-      }
+    const transactCommand = client.send.mock.calls[0][0];
+    expect(transactCommand).toBeInstanceOf(TransactWriteCommand);
+    expect(transactCommand.input).toMatchObject({
+      TransactItems: [
+        {
+          Put: {
+            TableName: "receipts",
+            ConditionExpression: "attribute_not_exists(tenantId) AND attribute_not_exists(receiptId)",
+            Item: {
+              tenantId: receipt.tenant_id_hash,
+              receiptId: receipt.receipt_id,
+              receipt,
+              persistedAt: receipt.timestamp
+            }
+          }
+        },
+        {
+          Put: {
+            TableName: "receipts",
+            Item: {
+              tenantId: receipt.tenant_id_hash,
+              receiptId: "__request__#request-a",
+              requestDigest: decisionReceiptRequestDigest(receipt),
+              targetReceiptId: receipt.receipt_id
+            }
+          }
+        },
+        {
+          Put: {
+            TableName: "receipts",
+            Item: {
+              tenantId: receipt.tenant_id_hash,
+              receiptId: "__chain_head__"
+            }
+          }
+        }
+      ]
     });
   });
 
   it("idempotent_replay_returns_existing", async () => {
     const receipt = signedReceipt();
     const client = mockClient(async (command) => {
-      if (command instanceof PutCommand) {
+      if (command instanceof TransactWriteCommand) {
         throw conditionalCheckFailed();
+      }
+      const key = command.input.Key as { receiptId?: string };
+      if (key.receiptId === "__request__#request-a") {
+        return {
+          Item: {
+            targetReceiptId: receipt.receipt_id,
+            requestDigest: decisionReceiptRequestDigest(receipt),
+            persistedAt: "2026-07-07T12:00:01.000Z"
+          }
+        };
       }
       return { Item: { receipt, persistedAt: "2026-07-07T12:00:01.000Z" } };
     });
@@ -122,8 +159,8 @@ describe("DynamoDbDecisionReceiptRepository", () => {
       persistedAt: "2026-07-07T12:00:01.000Z"
     });
 
-    expect(client.send).toHaveBeenCalledTimes(2);
-    const getCommand = client.send.mock.calls[1][0];
+    expect(client.send).toHaveBeenCalledTimes(3);
+    const getCommand = client.send.mock.calls[2][0];
     expect(getCommand).toBeInstanceOf(GetCommand);
     expect(getCommand.input).toMatchObject({
       TableName: "receipts",
@@ -138,9 +175,14 @@ describe("DynamoDbDecisionReceiptRepository", () => {
       ...receipt,
       input_digest: publicSha256Digest("tampered-input")
     };
+    let getCalls = 0;
     const client = mockClient(async (command) => {
-      if (command instanceof PutCommand) {
+      if (command instanceof TransactWriteCommand) {
         throw conditionalCheckFailed();
+      }
+      getCalls += 1;
+      if (getCalls === 1) {
+        return {};
       }
       return { Item: { receipt: storedReceipt } };
     });

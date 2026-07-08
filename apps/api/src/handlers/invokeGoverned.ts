@@ -25,6 +25,7 @@ import { LocalDevHmacReceiptSigner } from "../../../../packages/enforcement-runt
 import { KmsDecisionReceiptSigner } from "../../../../packages/enforcement-runtime/src/receipts/kmsSigner";
 import { governedInvoke } from "../../../../packages/enforcement-runtime/src/runtime/governedInvoke";
 import { EmfGovernedInvokeMetrics } from "../../../../packages/enforcement-runtime/src/runtime/metrics";
+import { DynamoDbExecutionNonceStore } from "../../../../packages/enforcement-runtime/src/runtime/nonceStore";
 
 const logger = createLogger({ handler: "invokeGoverned" });
 
@@ -60,7 +61,9 @@ const invokeBodySchema = z.object({
       expiresAt: z.string().datetime().optional()
     })
     .optional(),
-  consentState: z.enum(["granted", "denied", "missing", "not_required"]).optional()
+  consentState: z.enum(["granted", "denied", "missing", "not_required"]).optional(),
+  executionNonce: z.string().min(8).max(256).optional(),
+  idempotencyKey: z.string().min(8).max(256).optional()
 });
 
 type InvokeBody = z.infer<typeof invokeBodySchema>;
@@ -178,7 +181,10 @@ async function buildDependencies(env: NodeJS.ProcessEnv) {
       requireProviderWhenEnabled: parseBooleanEnv("GHOST_ARK_REQUIRE_RETRIEVAL_PROVIDER", modelMode !== "fake", env)
     },
     metrics: new EmfGovernedInvokeMetrics(),
-    metricDimensions: { stage: optionalEnv("STAGE", "dev", env) }
+    metricDimensions: { stage: optionalEnv("STAGE", "dev", env) },
+    executionNonceStore: env.GHOST_ARK_EXECUTION_NONCE_TABLE
+      ? new DynamoDbExecutionNonceStore({ tableName: env.GHOST_ARK_EXECUTION_NONCE_TABLE })
+      : undefined
   };
 }
 
@@ -208,7 +214,8 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
       input: body.input,
       retrieval: body.retrieval,
       memoryWrite: body.memoryWrite,
-      consentState: body.consentState ?? "missing"
+      consentState: body.consentState ?? "missing",
+      executionNonce: body.executionNonce ?? body.idempotencyKey
     });
 
     return jsonResponse(result.status === "failed_closed" ? 403 : 200, result);

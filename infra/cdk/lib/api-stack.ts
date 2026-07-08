@@ -41,6 +41,11 @@ export class ApiStack extends Stack {
     const lake = new S3EvidenceLake(this, "EvidenceLake", { stage: props.stage, project });
     const searchEnabled = Boolean(props.opensearchEndpoint && props.opensearchDomainArn);
     const signing = new KmsSigning(this, "Signing", { stage: props.stage, project });
+    const checkpointSigning = new KmsSigning(this, "CheckpointSigning", {
+      stage: props.stage,
+      project,
+      aliasName: `alias/${project}-${props.stage}-receipt-epoch-signing`
+    });
     const ledger = new DynamoDbLedger(this, "Ledger", { stage: props.stage });
     const privacyVault = new PrivacyVault(this, "PrivacyVault", { stage: props.stage });
     const bedrockModelAllowlist = props.bedrockModelAllowlist ?? [];
@@ -57,6 +62,21 @@ export class ApiStack extends Stack {
       tableName: `ghost-ark-${props.stage}-decision-receipts`,
       partitionKey: { name: "tenantId", type: AttributeType.STRING },
       sortKey: { name: "receiptId", type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+      removalPolicy
+    });
+    const executionNonceTable = new Table(this, "ExecutionNonceTable", {
+      tableName: `ghost-ark-${props.stage}-execution-nonces`,
+      partitionKey: { name: "reservationKey", type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      timeToLiveAttribute: "expiresAtEpoch",
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+      removalPolicy
+    });
+    const receiptCheckpointTable = new Table(this, "ReceiptCheckpointTable", {
+      tableName: `ghost-ark-${props.stage}-receipt-checkpoints`,
+      partitionKey: { name: "epochId", type: AttributeType.STRING },
       billingMode: BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy
@@ -86,7 +106,10 @@ export class ApiStack extends Stack {
       GHOST_ARK_POLICY_TABLE: policyTable.tableName,
       GHOST_ARK_PRIVACY_VAULT_TABLE: privacyVault.table.tableName,
       GHOST_ARK_DECISION_RECEIPT_TABLE: decisionReceiptTable.tableName,
+      GHOST_ARK_EXECUTION_NONCE_TABLE: executionNonceTable.tableName,
+      GHOST_ARK_RECEIPT_CHECKPOINT_TABLE: receiptCheckpointTable.tableName,
       GHOST_ARK_DECISION_SIGNING_KEY_ID: signing.keyId,
+      GHOST_ARK_CHECKPOINT_SIGNING_KEY_ID: checkpointSigning.keyId,
       GHOST_ARK_RECEIPT_HMAC_SECRET_ARN: decisionReceiptHmacSecret.secretArn,
       GHOST_ARK_ALLOW_DEFAULT_POLICY: "false",
       GHOST_ARK_BEDROCK_MODEL_ALLOWLIST: bedrockModelAllowlist.join(","),
@@ -145,7 +168,18 @@ export class ApiStack extends Stack {
     ledger.lineage.grant(createReceipt, "dynamodb:PutItem");
     policyTable.grantReadData(invokeGoverned);
     privacyVault.table.grantReadWriteData(invokeGoverned);
-    decisionReceiptTable.grantReadWriteData(invokeGoverned);
+    invokeGoverned.addToRolePolicy(
+      new PolicyStatement({
+        actions: ["dynamodb:GetItem", "dynamodb:TransactWriteItems"],
+        resources: [decisionReceiptTable.tableArn]
+      })
+    );
+    invokeGoverned.addToRolePolicy(
+      new PolicyStatement({
+        actions: ["dynamodb:GetItem", "dynamodb:PutItem"],
+        resources: [executionNonceTable.tableArn]
+      })
+    );
     decisionReceiptHmacSecret.grantRead(invokeGoverned);
     signing.grantSign(createReceipt);
     signing.grantSign(invokeGoverned);

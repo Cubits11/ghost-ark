@@ -42,6 +42,12 @@ export interface TenantNamespace {
 }
 
 export function normalizeTenantSlug(input: string): string {
+  if (/(\.\.|[*/\\{}[\]"'`$]|%2e|%2f)/iu.test(input)) {
+    throw new ValidationError("Invalid tenant slug", {
+      input,
+      reason: "tenant slug contains traversal, wildcard, or JSON-policy metacharacters"
+    });
+  }
   const normalized = input.trim().toLowerCase().replace(/[^a-z0-9-]+/gu, "-").replace(/-{2,}/gu, "-").replace(/^-|-$/gu, "");
   if (!tenantSlugPattern.test(normalized)) {
     throw new ValidationError("Invalid tenant slug", { input, normalized, pattern: tenantSlugPattern.source });

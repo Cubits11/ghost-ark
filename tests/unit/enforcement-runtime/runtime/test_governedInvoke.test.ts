@@ -7,6 +7,7 @@ import { InMemoryDecisionReceiptRepository } from "../../../../packages/enforcem
 import { LocalDevHmacReceiptSigner } from "../../../../packages/enforcement-runtime/src/receipts/signer";
 import { governedInvoke } from "../../../../packages/enforcement-runtime/src/runtime/governedInvoke";
 import { GovernedInvokeDependencies, GovernedInvokeRequest } from "../../../../packages/enforcement-runtime/src/runtime/lifecycle";
+import { InMemoryExecutionNonceStore } from "../../../../packages/enforcement-runtime/src/runtime/nonceStore";
 import { InMemoryVaultStore } from "../../../../packages/enforcement-runtime/src/vault/store";
 
 const basePolicy: PolicySource = {
@@ -217,5 +218,20 @@ describe("governedInvoke runtime lifecycle", () => {
 
     expect(result.memory.written).toBe(false);
     expect(result.memory.reason).toMatch(/KAPPA memory/u);
+  });
+
+  it("blocks replayed execution nonces before a second model invocation", async () => {
+    const runtime = {
+      ...deps(new FakeModelInvoker({ outputText: "summary ready" })),
+      executionNonceStore: new InMemoryExecutionNonceStore()
+    };
+
+    const first = await governedInvoke(runtime, request({ executionNonce: "nonce-2026-07-08-a" }));
+    const second = await governedInvoke(runtime, request({ executionNonce: "nonce-2026-07-08-a" }));
+
+    expect(first.status).toBe("completed");
+    expect(second.status).toBe("failed_closed");
+    expect(second.errors.join(" ")).toMatch(/execution nonce replay/u);
+    expect(runtime.fake.calls).toHaveLength(1);
   });
 });
