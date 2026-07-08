@@ -5,6 +5,9 @@
   "license": "MIT",
   "description": "AWS-native evidence lakehouse and cryptographic receipt-control platform.",
   "type": "commonjs",
+  "bin": {
+    "ghost-verify": "tools/ghost-verify.mjs"
+  },
   "workspaces": [
     "apps/api",
     "apps/console",
@@ -24,6 +27,7 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "validate": "npm run lint && npm test && npm run docs:check",
+    "ghost-verify": "node tools/ghost-verify.mjs",
     "receipt:verify": "ts-node tools/scripts/receiptVerify.ts",
     "seed:governed-policy": "ts-node tools/scripts/seedGovernedPolicy.ts",
     "smoke:governed-invoke": "ts-node tools/scripts/smokeGovernedInvoke.ts",

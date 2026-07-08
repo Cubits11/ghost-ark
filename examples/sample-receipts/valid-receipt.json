@@ -1,0 +1,43 @@
+{
+  "payload": {
+    "receiptId": "rct_292264b449c853481a45c4df9ceff87641f53cf0fc982dc013987f9ab696ba15",
+    "schemaVersion": "ghost-ark.receipt.v1",
+    "tenantSlug": "acme-lab",
+    "issuedAt": "2026-07-07T00:00:00.000Z",
+    "subject": {
+      "kind": "dataset-version",
+      "id": "sample-dataset-v1",
+      "uri": "s3://ghost-ark-sample/tenants/acme-lab/evidence/sample.json"
+    },
+    "evidenceObjects": [
+      "s3://ghost-ark-sample/tenants/acme-lab/evidence/sample.json"
+    ],
+    "lineageEventIds": [],
+    "claimIds": [],
+    "governanceContext": {
+      "lakeFormationTags": {
+        "tenant_slug": "acme-lab",
+        "classification": "internal",
+        "evidence_role": "sample"
+      },
+      "columnRestrictions": [],
+      "policyCompilerVersion": "50.0.0"
+    },
+    "transform": {
+      "runId": "sample-offline-verification",
+      "jobName": "sample-receipt",
+      "parameters": {}
+    }
+  },
+  "signature": {
+    "keyId": "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001",
+    "algorithm": "RSASSA_PSS_SHA_256",
+    "messageType": "DIGEST",
+    "digestSha256": "bb271d9d12f9aedb49d3bfa7a924d06628543f8b415bf0d8bbfe980781fd9bf0",
+    "signatureBase64": "CD+4skP/l3IpKdK9PVsaBLVn98tgaKPL/XgXazGoROEX7Q1xDRUc1d1e2X92LwQ90i2oK7iPv41+s8cfMHXp3Tzx9R58jSYHkiKZQXFnCPaKN5V8m+l9bxb/Dp1/Szzc0Ow3SGCqcYKcLm41j0TDYquMgVjfMswdqGObwsJ9G4Zr2AJApSUY1Wjs2kfxOXhyXNFVml4BnW3/wJOk+unbN55c8iEXqNgFuDQGyjw+tA8CfEq0hV6cBCR6YMxAl95EsR24iCJL0qjaNJFg5KOU/XF3QywtUxf1FlGzLYQh/U/cdpnYjF49d5CCEraEK2+rAlnCULBhhIIY3kv/hBCXsQ==",
+    "signedAt": "2026-07-07T00:00:00.000Z"
+  },
+  "status": "issued",
+  "createdAt": "2026-07-07T00:00:00.000Z",
+  "updatedAt": "2026-07-07T00:00:00.000Z"
+}

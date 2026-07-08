@@ -2,7 +2,7 @@ import fs from "fs";
 import { ReceiptPayload, ReceiptRecord, ReceiptSignature, receiptDigest, validateReceiptRecord } from "../../packages/receipt-schema/src/receipt";
 import { receiptIdFromPayload } from "../../packages/receipt-schema/src/hashCanonicalization";
 import { ReceiptRepository } from "../../services/ledger/dynamodb/data/receiptRepository";
-import { verifyReceiptSignature } from "../../services/signing/kms/verifier";
+import { verifyReceiptSignature, verifyReceiptSignatureWithPublicKey } from "../../services/signing/kms/verifier";
 
 export interface ReceiptVerificationCheck {
   name: string;
@@ -148,6 +148,7 @@ interface CliArgs {
   receipt?: string;
   table?: string;
   file?: string;
+  publicKey?: string;
   stage: string;
 }
 
@@ -169,6 +170,9 @@ function parseArgs(argv: string[]): CliArgs {
       index += 1;
     } else if (arg === "--file") {
       args.file = next;
+      index += 1;
+    } else if (arg === "--public-key") {
+      args.publicKey = next;
       index += 1;
     } else if (arg === "--stage") {
       args.stage = next;
@@ -195,12 +199,16 @@ Usage:
 
   npm run receipt:verify -- --tenant <tenantSlug> --file <receiptRecord.json>
 
+  npm run receipt:verify -- --tenant <tenantSlug> --file <receiptRecord.json> --public-key <publicKey.pem>
+
 Options:
 
   --tenant   Expected tenant slug.
   --receipt  Receipt id to fetch from DynamoDB.
   --table    DynamoDB receipt table. Defaults to RECEIPT_LEDGER_TABLE or ghost-ark-<stage>-receipts.
   --file     Local JSON receipt record file.
+  --public-key
+             PEM public key for fully local signature verification. When omitted, verification uses AWS KMS Verify.
   --stage    Stage used for default table name. Defaults to STAGE or dev.
 
 Non-claim:
@@ -255,7 +263,13 @@ function printResult(result: ReceiptVerificationResult): void {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const record = await loadRecord(args);
-  const result = await verifyReceiptRecord(record, { expectedTenantSlug: args.tenant });
+  const publicKeyPem = args.publicKey ? fs.readFileSync(args.publicKey, "utf8") : undefined;
+  const result = await verifyReceiptRecord(record, {
+    expectedTenantSlug: args.tenant,
+    verifySignature: publicKeyPem
+      ? async (payload, signature) => verifyReceiptSignatureWithPublicKey(payload, signature, publicKeyPem)
+      : undefined
+  });
   printResult(result);
 
   if (!result.verdict) {

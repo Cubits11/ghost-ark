@@ -102,7 +102,26 @@ data "aws_iam_policy_document" "tenant_sandbox" {
   }
 
   statement {
-    sid    = "AllowTenantLedgerRows"
+    sid    = "AllowTenantReceiptLedgerRows"
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:Query",
+      "dynamodb:PutItem"
+    ]
+    resources = [
+      "arn:aws:dynamodb:${var.aws_region}:${var.account_id}:table/${local.name_prefix}-receipts"
+    ]
+
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "dynamodb:LeadingKeys"
+      values   = ["$${aws:PrincipalTag/slug}"]
+    }
+  }
+
+  statement {
+    sid    = "AllowTenantClaimLedgerRows"
     effect = "Allow"
     actions = [
       "dynamodb:GetItem",
@@ -111,8 +130,25 @@ data "aws_iam_policy_document" "tenant_sandbox" {
       "dynamodb:UpdateItem"
     ]
     resources = [
-      "arn:aws:dynamodb:${var.aws_region}:${var.account_id}:table/${local.name_prefix}-receipts",
       "arn:aws:dynamodb:${var.aws_region}:${var.account_id}:table/${local.name_prefix}-claims",
+    ]
+
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "dynamodb:LeadingKeys"
+      values   = ["$${aws:PrincipalTag/slug}"]
+    }
+  }
+
+  statement {
+    sid    = "AllowTenantLineageLedgerRows"
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:Query",
+      "dynamodb:PutItem"
+    ]
+    resources = [
       "arn:aws:dynamodb:${var.aws_region}:${var.account_id}:table/${local.name_prefix}-lineage"
     ]
 
