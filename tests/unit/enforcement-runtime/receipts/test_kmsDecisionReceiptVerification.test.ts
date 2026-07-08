@@ -276,8 +276,8 @@ describe("KMS decision receipt verification", () => {
     const result = await verifyDecisionReceipt(historicalAliasReceipt, verifier);
 
     expect(result.verdict).toBe(false);
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0].event).toBe("kms_decision_receipt_non_immutable_key_id");
+    expect(warnings).toHaveLength(0);
+    expect(result.checks.find((check) => check.name === "key_id")).toMatchObject({ passed: false });
     expect(kms.commands.filter((command) => command.name === "VerifyCommand")).toHaveLength(0);
   });
 
