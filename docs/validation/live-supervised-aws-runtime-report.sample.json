@@ -1,0 +1,231 @@
+{
+  "schemaVersion": "ghost.live_supervised_aws_runtime_report.v1",
+  "generatedAt": "2026-07-07T12:30:00.000Z",
+  "stage": "dev",
+  "region": "us-east-1",
+  "apiHostHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "tenantHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "modelId": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "commitSha": "cccccccccccccccccccccccccccccccccccccccc",
+  "configurationValidation": {
+    "status": "PASS",
+    "details": {
+      "requiredPresent": {
+        "apiUrl": true,
+        "cognitoToken": true,
+        "tenantSlug": true,
+        "stage": true,
+        "modelId": true,
+        "decisionReceiptTable": true,
+        "receiptHmacSecretId": true,
+        "region": true
+      },
+      "missing": [],
+      "apiHostHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "tenantHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "decisionReceiptTableHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "receiptHmacSecretIdHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "region": "us-east-1"
+    }
+  },
+  "smokeCases": [
+    {
+      "name": "benign",
+      "status": "PASS",
+      "httpStatus": 200,
+      "governedStatus": "completed",
+      "receiptEmitted": true,
+      "receiptId": "grct_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "decisionPhases": [
+        {
+          "name": "preModel",
+          "phase": "pre_model",
+          "decision": "ALLOW",
+          "actionTaken": [],
+          "riskScore": 0
+        },
+        {
+          "name": "postModel",
+          "phase": "post_model",
+          "decision": "ALLOW",
+          "actionTaken": [],
+          "riskScore": 0
+        }
+      ],
+      "details": {
+        "expectedRuntimeCase": true
+      }
+    },
+    {
+      "name": "private-memory-refusal",
+      "status": "PASS",
+      "httpStatus": 200,
+      "governedStatus": "refused_pre_model",
+      "receiptEmitted": true,
+      "receiptId": "grct_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "decisionPhases": [
+        {
+          "name": "preModel",
+          "phase": "pre_model",
+          "decision": "REFUSE",
+          "actionTaken": [
+            "block_model_invocation"
+          ],
+          "riskScore": 0.95
+        }
+      ],
+      "details": {
+        "expectedRuntimeCase": true
+      }
+    },
+    {
+      "name": "body-tenant-override",
+      "status": "PASS",
+      "httpStatus": 400,
+      "receiptEmitted": false,
+      "decisionPhases": [],
+      "details": {
+        "expectedRuntimeCase": true
+      }
+    },
+    {
+      "name": "cross-tenant-retrieval",
+      "status": "PASS",
+      "httpStatus": 403,
+      "governedStatus": "failed_closed",
+      "receiptEmitted": true,
+      "receiptId": "grct_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "decisionPhases": [
+        {
+          "name": "preModel",
+          "phase": "pre_model",
+          "decision": "REFUSE",
+          "actionTaken": [
+            "block_model_invocation",
+            "quarantine_retrieval"
+          ],
+          "riskScore": 1
+        }
+      ],
+      "details": {
+        "expectedRuntimeCase": true
+      }
+    },
+    {
+      "name": "tainted-retrieval-provider",
+      "status": "NOT_RUN",
+      "reason": "NOT_RUN_PROVIDER_ABSENT",
+      "decisionPhases": [],
+      "details": {
+        "provider": "none",
+        "reason": "NOT_RUN_PROVIDER_ABSENT"
+      }
+    }
+  ],
+  "receiptVerification": {
+    "status": "PASS",
+    "receiptId": "grct_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "keyIdHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "checks": [
+      {
+        "name": "schema",
+        "passed": true
+      },
+      {
+        "name": "receipt_id",
+        "passed": true
+      },
+      {
+        "name": "algorithm",
+        "passed": true
+      },
+      {
+        "name": "key_id",
+        "passed": true
+      },
+      {
+        "name": "digest",
+        "passed": true
+      },
+      {
+        "name": "canonical_payload",
+        "passed": true
+      },
+      {
+        "name": "signature",
+        "passed": true
+      }
+    ],
+    "details": {
+      "verifier": "KmsDecisionReceiptVerifier",
+      "algorithm": "KMS_SIGN_RSASSA_PSS_SHA_256",
+      "tenantDigestHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  },
+  "cloudWatchLogCheck": {
+    "status": "NOT_RUN",
+    "details": {
+      "reason": "Sample fixture only. No live log group was queried.",
+      "operatorCommand": "aws logs filter-log-events --log-group-name \"$LOG_GROUP\" --start-time \"$(node -e 'console.log(Date.now() - 3600_000)')\" --max-items 50"
+    }
+  },
+  "cloudWatchMetricAlarmCheck": {
+    "status": "NOT_RUN",
+    "details": {
+      "reason": "Sample fixture only. No live CloudWatch metric or alarm query was executed.",
+      "operatorCommands": [
+        "aws cloudwatch list-metrics --namespace \"GhostArk/GovernedInvoke\"",
+        "aws cloudwatch describe-alarms --alarm-name-prefix \"GovernedInvoke\"",
+        "aws cloudwatch describe-alarms --alarm-name-prefix \"InvokeGovernedLambda\""
+      ]
+    }
+  },
+  "iamAccessAnalyzerCheck": {
+    "status": "NOT_RUN",
+    "details": {
+      "reason": "Sample fixture only. No live IAM Access Analyzer query was executed.",
+      "operatorCommands": [
+        "aws accessanalyzer list-analyzers",
+        "aws accessanalyzer list-findings --analyzer-arn \"$ACCESS_ANALYZER_ARN\""
+      ]
+    }
+  },
+  "providerStatus": {
+    "provider": "none",
+    "status": "NOT_RUN",
+    "taintedRetrievalCase": {
+      "status": "NOT_RUN",
+      "reason": "NOT_RUN_PROVIDER_ABSENT"
+    },
+    "details": {
+      "serverSideProviderDeclared": false,
+      "reason": "No production OpenSearch/SigV4 or other server-side retrieval provider is wired for this validation lane."
+    }
+  },
+  "reportRedactionCheck": {
+    "status": "PASS",
+    "details": {
+      "forbiddenLabelsChecked": [
+        "benignPrompt",
+        "crossTenantRetrievalText",
+        "privateMemoryPrompt",
+        "tenant",
+        "tenantOverrideFixture",
+        "token"
+      ],
+      "forbiddenLabelsFound": []
+    }
+  },
+  "overallVerdict": "PASS_WITH_NOT_RUN_OPTIONAL_CHECKS",
+  "nonClaim": "This report is bounded runtime validation evidence only. It does not prove AI safety, production readiness, enterprise readiness, legal compliance, semantic correctness, empirical truth, or model-output correctness.",
+  "forbiddenClaimsReminder": [
+    "Do not claim production readiness.",
+    "Do not claim enterprise readiness.",
+    "Do not claim legal or compliance certification.",
+    "Do not claim AI safety.",
+    "Do not claim semantic correctness.",
+    "Do not claim empirical truth.",
+    "Do not claim model-output correctness.",
+    "Do not claim local tests replace live AWS validation."
+  ]
+}
