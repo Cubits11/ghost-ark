@@ -5,7 +5,7 @@ import {
   privateHmacDigest,
   publicSha256Digest
 } from "./canonical";
-import { DecisionReceiptRepository } from "./repository";
+import { DecisionReceiptRepository, IntegrityCollisionError } from "./repository";
 import { SignedDecisionReceipt, validateSignedDecisionReceipt } from "./schema";
 import { VerifiedIdentityContext } from "../identity/context";
 import { ConsentState, PolicyDecision } from "../policy/decisions";
@@ -82,6 +82,24 @@ export class DefaultDecisionReceiptEmitter implements DecisionReceiptEmitter {
       signature_alg: this.signer.algorithm
     });
 
+    const existingReceipt = await this.repository?.get({
+      tenantId: unsigned.tenant_id_hash,
+      receiptId: unsigned.receipt_id
+    });
+    if (existingReceipt) {
+      const incomingDigest = decisionReceiptDigest(unsigned);
+      const storedDigest = decisionReceiptDigest(existingReceipt);
+      if (incomingDigest !== storedDigest) {
+        throw new IntegrityCollisionError("Receipt replay lookup found mismatched canonical digests", {
+          tenantId: unsigned.tenant_id_hash,
+          receiptId: unsigned.receipt_id,
+          incomingDigest,
+          storedDigest
+        });
+      }
+      return existingReceipt;
+    }
+
     const canonicalPayload = canonicalUnsignedDecisionReceipt(unsigned);
     const signature = await this.signer.signCanonical(canonicalPayload);
     const signatureKeyId = this.signer.keyId;
@@ -100,8 +118,8 @@ export class DefaultDecisionReceiptEmitter implements DecisionReceiptEmitter {
       ).toString("base64url")
     });
 
-    await this.repository?.put(signed);
-    return signed;
+    const persistenceResult = await this.repository?.put(signed);
+    return persistenceResult?.receipt ?? signed;
   }
 }
 
