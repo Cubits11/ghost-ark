@@ -1,4 +1,5 @@
 import { canonicalUnsignedDecisionReceipt, decisionReceiptDigest, receiptIdFromUnsignedDecisionReceipt, unsignedReceiptForSigning } from "./canonical";
+import { immutableKmsKeyIdsMatch, isImmutableKmsKeyId } from "../aws/kmsKeyIdentity";
 import { KeyManifest, verifyKeyManifestEpoch } from "./keyManifest";
 import { SignedDecisionReceipt, validateSignedDecisionReceipt } from "./schema";
 
@@ -91,14 +92,22 @@ export async function verifyDecisionReceipt(
   const embeddedDigest = typeof signatureEnvelope.digestSha256 === "string" ? signatureEnvelope.digestSha256 : "";
   const embeddedSignature = typeof signatureEnvelope.signature === "string" ? signatureEnvelope.signature : "";
   const expectedKeyId = verifier.keyId;
+  const requiresImmutableKmsKeyId = receipt.signature_alg === "KMS_SIGN_RSASSA_PSS_SHA_256";
+  const keyIdPassed =
+    requiresImmutableKmsKeyId
+      ? isImmutableKmsKeyId(embeddedKeyId) && (!expectedKeyId || immutableKmsKeyIdsMatch(embeddedKeyId, expectedKeyId))
+      : Boolean(embeddedKeyId) && (!expectedKeyId || embeddedKeyId === expectedKeyId);
 
   checks.push(
     check(
       "key_id",
-      Boolean(embeddedKeyId) && (!expectedKeyId || embeddedKeyId === expectedKeyId),
+      keyIdPassed,
       !embeddedKeyId
         ? "Signature envelope does not contain a keyId."
-        : expectedKeyId && embeddedKeyId !== expectedKeyId
+        : requiresImmutableKmsKeyId && !isImmutableKmsKeyId(embeddedKeyId)
+          ? "Signature keyId must be an immutable KMS key ARN or key UUID."
+        : expectedKeyId &&
+            (requiresImmutableKmsKeyId ? !immutableKmsKeyIdsMatch(embeddedKeyId, expectedKeyId) : embeddedKeyId !== expectedKeyId)
           ? `Signature keyId mismatch. Expected ${expectedKeyId}; observed ${embeddedKeyId}.`
           : `Signature keyId ${embeddedKeyId} is present.`
     )
@@ -140,6 +149,8 @@ export async function verifyDecisionReceipt(
     checks.push(check("signature", false, "Signature envelope does not contain a signature."));
   } else if (receipt.signature_alg !== verifier.algorithm) {
     checks.push(check("signature", false, "Signature verification skipped because algorithm check failed."));
+  } else if (!keyIdPassed) {
+    checks.push(check("signature", false, "Signature verification skipped because key identity check failed."));
   } else {
     let signaturePassed = false;
     let detail = "Signature verification over canonical unsigned envelope completed.";

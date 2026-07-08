@@ -328,10 +328,13 @@ describe("live validation docs", () => {
     const repoRoot = path.resolve(__dirname, "../../..");
     const index = fs.readFileSync(path.join(repoRoot, "docs/validation/ADVERSARIAL_RUNTIME_EVIDENCE_INDEX.md"), "utf8");
     const runbook = fs.readFileSync(path.join(repoRoot, "docs/operations/runbooks/governed-invoke-validation.md"), "utf8");
-    const sample = fs.readFileSync(path.join(repoRoot, "docs/validation/live-supervised-aws-runtime-report.sample.json"), "utf8");
+    const sample = fs.readFileSync(
+      path.join(repoRoot, "evidence/live-aws-validation/samples/live-supervised-aws-runtime-report.sample.json"),
+      "utf8"
+    );
 
     expect(index).toContain("Path to LIVE-SUPERVISED-AWS-RUNTIME-v0.3-CANDIDATE");
-    expect(index).toContain("docs/validation/live-supervised-aws-runtime-report.sample.json");
+    expect(index).toContain("evidence/live-aws-validation/samples/live-supervised-aws-runtime-report.sample.json");
     expect(runbook).toContain("npm run supervised:aws-runtime-validation");
     expect(sample).toContain(LIVE_SUPERVISED_AWS_RUNTIME_NON_CLAIM);
   });

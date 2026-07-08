@@ -78,10 +78,10 @@ Delete the temporary smoke user after validation.
 
 ## 5. Supervised Validation
 
-Write the sanitized live supervised JSON report under `docs/validation/`:
+Write the sanitized live supervised JSON report under `evidence/live-aws-validation/`:
 
 ```bash
-export REPORT_PATH="docs/validation/live-supervised-aws-runtime-${STAGE}-$(date -u +%Y%m%dT%H%M%SZ).json"
+export REPORT_PATH="evidence/live-aws-validation/${STAGE}/live-supervised-aws-runtime-$(date -u +%Y%m%dT%H%M%SZ).json"
 
 npm run supervised:aws-runtime-validation -- \
   --api "$API_URL" \

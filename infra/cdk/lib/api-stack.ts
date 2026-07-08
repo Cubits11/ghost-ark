@@ -5,9 +5,12 @@ import { Alarm, ComparisonOperator, Metric } from "aws-cdk-lib/aws-cloudwatch";
 import { StringAttribute, UserPool } from "aws-cdk-lib/aws-cognito";
 import { AttributeType, BillingMode, Table } from "aws-cdk-lib/aws-dynamodb";
 import { ISecurityGroup, IVpc } from "aws-cdk-lib/aws-ec2";
+import { Rule, Schedule } from "aws-cdk-lib/aws-events";
+import { LambdaFunction } from "aws-cdk-lib/aws-events-targets";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction, NodejsFunctionProps } from "aws-cdk-lib/aws-lambda-nodejs";
-import { PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { AnyPrincipal, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { BlockPublicAccess, Bucket, BucketEncryption, ObjectLockRetention } from "aws-cdk-lib/aws-s3";
 import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 import { DynamoDbLedger } from "../modules/dynamodb-ledger";
@@ -35,6 +38,8 @@ function handlerEntry(relativePath: string): string {
 }
 
 export class ApiStack extends Stack {
+  readonly createReceiptFunctionArn: string;
+
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
     const project = props.project ?? "ghost-ark";
@@ -81,6 +86,22 @@ export class ApiStack extends Stack {
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy
     });
+    const checkpointTransparencyBucket = new Bucket(this, "ReceiptCheckpointTransparencyBucket", {
+      encryption: BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      versioned: true,
+      objectLockEnabled: true,
+      objectLockDefaultRetention: ObjectLockRetention.governance(Duration.days(365)),
+      blockPublicAccess: BlockPublicAccess.BLOCK_ACLS_ONLY,
+      removalPolicy
+    });
+    checkpointTransparencyBucket.addToResourcePolicy(
+      new PolicyStatement({
+        principals: [new AnyPrincipal()],
+        actions: ["s3:GetObject"],
+        resources: [checkpointTransparencyBucket.arnForObjects("receipt-checkpoints/*")]
+      })
+    );
     const decisionReceiptHmacSecret = new Secret(this, "DecisionReceiptHmacSecret", {
       secretName: `ghost-ark-${props.stage}-decision-receipt-hmac-secret`,
       generateSecretString: {
@@ -110,6 +131,10 @@ export class ApiStack extends Stack {
       GHOST_ARK_RECEIPT_CHECKPOINT_TABLE: receiptCheckpointTable.tableName,
       GHOST_ARK_DECISION_SIGNING_KEY_ID: signing.keyId,
       GHOST_ARK_CHECKPOINT_SIGNING_KEY_ID: checkpointSigning.keyId,
+      GHOST_ARK_CHECKPOINT_PUBLISH_BUCKET: checkpointTransparencyBucket.bucketName,
+      GHOST_ARK_CHECKPOINT_PUBLISH_PREFIX: "receipt-checkpoints",
+      GHOST_ARK_CHECKPOINT_OBJECT_LOCK_MODE: "GOVERNANCE",
+      GHOST_ARK_CHECKPOINT_OBJECT_LOCK_DAYS: "365",
       GHOST_ARK_RECEIPT_HMAC_SECRET_ARN: decisionReceiptHmacSecret.secretArn,
       GHOST_ARK_ALLOW_DEFAULT_POLICY: "false",
       GHOST_ARK_BEDROCK_MODEL_ALLOWLIST: bedrockModelAllowlist.join(","),
@@ -133,6 +158,7 @@ export class ApiStack extends Stack {
       handler: "handler",
       environment
     });
+    this.createReceiptFunctionArn = createReceipt.functionArn;
     const getReceipt = new NodejsFunction(this, "GetReceiptHandler", {
       runtime: Runtime.NODEJS_22_X,
       entry: handlerEntry("apps/api/src/handlers/getReceipt.ts"),
@@ -160,6 +186,12 @@ export class ApiStack extends Stack {
           ...searchVpcConfig
         })
       : undefined;
+    const publishReceiptCheckpoint = new NodejsFunction(this, "PublishReceiptCheckpointHandler", {
+      runtime: Runtime.NODEJS_22_X,
+      entry: handlerEntry("services/ledger/lambda/publishReceiptCheckpoint/index.ts"),
+      handler: "handler",
+      environment
+    });
 
     ledger.receipts.grant(createReceipt, "dynamodb:PutItem");
     ledger.receipts.grant(getReceipt, "dynamodb:GetItem");
@@ -183,6 +215,10 @@ export class ApiStack extends Stack {
     decisionReceiptHmacSecret.grantRead(invokeGoverned);
     signing.grantSign(createReceipt);
     signing.grantSign(invokeGoverned);
+    decisionReceiptTable.grantReadData(publishReceiptCheckpoint);
+    receiptCheckpointTable.grantWriteData(publishReceiptCheckpoint);
+    checkpointSigning.grantSign(publishReceiptCheckpoint);
+    checkpointTransparencyBucket.grantPut(publishReceiptCheckpoint, "receipt-checkpoints/*");
     if (bedrockModelAllowlist.length > 0 || props.allowWildcardBedrockModels === true) {
       invokeGoverned.addToRolePolicy(
         new PolicyStatement({
@@ -202,6 +238,10 @@ export class ApiStack extends Stack {
         })
       );
     }
+    new Rule(this, "ReceiptCheckpointPublicationSchedule", {
+      schedule: Schedule.rate(Duration.hours(1)),
+      targets: [new LambdaFunction(publishReceiptCheckpoint)]
+    });
 
     const userPool = new UserPool(this, "ReceiptUserPool", {
       userPoolName: `${project}-${props.stage}-receipt-users`,
@@ -313,5 +353,6 @@ export class ApiStack extends Stack {
 
     new CfnOutput(this, "ReceiptUserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "ReceiptUserPoolClientId", { value: userPoolClient.userPoolClientId });
+    new CfnOutput(this, "ReceiptCheckpointTransparencyBucketName", { value: checkpointTransparencyBucket.bucketName });
   }
 }

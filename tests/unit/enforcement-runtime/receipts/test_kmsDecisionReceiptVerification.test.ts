@@ -234,36 +234,30 @@ class FakeKmsClient {
 }
 
 describe("KMS decision receipt verification", () => {
-  it("resolves_alias_to_arn", async () => {
+  it("signs with an immutable key arn and records the KMS-attested key arn", async () => {
     const kms = new FakeKmsClient();
-    kms.setAlias("alias/test-key", KEY_A_ARN);
-    const signer = new KmsDecisionReceiptSigner({ keyId: "alias/test-key", client: kms as unknown as KMSClient });
+    const signer = new KmsDecisionReceiptSigner({ keyId: KEY_A_ARN, client: kms as unknown as KMSClient });
     const receipt = await emitKmsReceipt(signer);
     const envelope = decodeSignatureEnvelope(receipt);
 
     expect(envelope.keyId).toBe(KEY_A_ARN);
-    expect(JSON.stringify(receipt)).not.toContain("alias/test-key");
-    expect(kms.commands.find((command) => command.name === "DescribeKeyCommand")?.input.KeyId).toBe("alias/test-key");
+    expect(kms.commands.find((command) => command.name === "DescribeKeyCommand")).toBeUndefined();
     expect(kms.commands.find((command) => command.name === "SignCommand")?.input.KeyId).toBe(KEY_A_ARN);
   });
 
-  it("simulated_alias_rotation", async () => {
+  it("rejects mutable alias signer and verifier key ids", () => {
     const kms = new FakeKmsClient();
-    kms.setAlias("alias/active-key", KEY_A_ARN);
-    const signer = new KmsDecisionReceiptSigner({ keyId: "alias/active-key", client: kms as unknown as KMSClient });
-    const receipt = await emitKmsReceipt(signer);
 
-    kms.setAlias("alias/active-key", KEY_B_ARN);
-    const verifier = new KmsDecisionReceiptVerifier({ keyId: "alias/active-key", client: kms as unknown as KMSClient });
-    const result = await verifyDecisionReceipt(receipt, verifier);
-
-    expect(result.verdict).toBe(true);
-    expect(kms.commands.filter((command) => command.name === "VerifyCommand").at(-1)?.input.KeyId).toBe(KEY_A_ARN);
+    expect(() => new KmsDecisionReceiptSigner({ keyId: "alias/active-key", client: kms as unknown as KMSClient })).toThrow(
+      /immutable KMS key/u
+    );
+    expect(() => new KmsDecisionReceiptVerifier({ keyId: "alias/active-key", client: kms as unknown as KMSClient })).toThrow(
+      /immutable KMS key/u
+    );
   });
 
-  it("warns and resolves historical alias receipt key ids", async () => {
+  it("rejects historical alias receipt key ids", async () => {
     const kms = new FakeKmsClient();
-    kms.setAlias("alias/active-key", KEY_A_ARN);
     const signer = new KmsDecisionReceiptSigner({ keyId: KEY_A_ARN, client: kms as unknown as KMSClient });
     const receipt = await emitKmsReceipt(signer);
     const envelope = decodeSignatureEnvelope(receipt);
@@ -273,7 +267,7 @@ describe("KMS decision receipt verification", () => {
     };
     const warnings: Record<string, unknown>[] = [];
     const verifier = new KmsDecisionReceiptVerifier({
-      keyId: "alias/active-key",
+      keyId: KEY_A_ARN,
       client: kms as unknown as KMSClient,
       logger: {
         warn: (_message, fields) => warnings.push(fields ?? {})
@@ -281,19 +275,17 @@ describe("KMS decision receipt verification", () => {
     });
     const result = await verifyDecisionReceipt(historicalAliasReceipt, verifier);
 
-    expect(result.verdict).toBe(true);
+    expect(result.verdict).toBe(false);
     expect(warnings).toHaveLength(1);
-    expect(warnings[0].event).toBe("kms_decision_receipt_mutable_alias_key_id");
-    expect(kms.commands.filter((command) => command.name === "DescribeKeyCommand").at(-1)?.input.KeyId).toBe("alias/active-key");
-    expect(kms.commands.filter((command) => command.name === "VerifyCommand").at(-1)?.input.KeyId).toBe(KEY_A_ARN);
+    expect(warnings[0].event).toBe("kms_decision_receipt_non_immutable_key_id");
+    expect(kms.commands.filter((command) => command.name === "VerifyCommand")).toHaveLength(0);
   });
 
   it("rejections", async () => {
     const kms = new FakeKmsClient();
-    kms.setAlias("alias/active-key", KEY_A_ARN);
-    const signer = new KmsDecisionReceiptSigner({ keyId: "alias/active-key", client: kms as unknown as KMSClient });
+    const signer = new KmsDecisionReceiptSigner({ keyId: KEY_A_ARN, client: kms as unknown as KMSClient });
     const receipt = await emitKmsReceipt(signer);
-    const verifier = new KmsDecisionReceiptVerifier({ keyId: "alias/active-key", client: kms as unknown as KMSClient });
+    const verifier = new KmsDecisionReceiptVerifier({ keyId: KEY_A_ARN, client: kms as unknown as KMSClient });
 
     const tamperedPayload = {
       ...receipt,

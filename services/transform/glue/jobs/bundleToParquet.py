@@ -13,6 +13,7 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
+from trusted_tenant_source import assert_trusted_tenant_source
 
 
 ARGS = getResolvedOptions(
@@ -49,10 +50,16 @@ schema = StructType(
     ]
 )
 
-tenant_slug = ARGS["TENANT_SLUG"]
 dataset_name = ARGS["DATASET_NAME"]
 run_id = ARGS["RUN_ID"]
 output_path = ARGS["OUTPUT_PATH"].rstrip("/")
+tenant_slug = assert_trusted_tenant_source(
+    kind="glue",
+    declared_tenant_slug=ARGS["TENANT_SLUG"],
+    source_name=ARGS["JOB_NAME"],
+    input_path=ARGS["INPUT_PATH"],
+    output_path=output_path,
+)
 
 raw_df = spark.read.schema(schema).json(ARGS["INPUT_PATH"])
 

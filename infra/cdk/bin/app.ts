@@ -24,6 +24,16 @@ const allowWildcardBedrockModels =
   app.node.tryGetContext("allowWildcardBedrockModels") === "true" ||
   process.env.GHOST_ARK_ALLOW_WILDCARD_BEDROCK_MODELS === "true";
 
+function contextList(name: string, envName: string): string[] {
+  const value = app.node.tryGetContext(name) ?? process.env[envName] ?? "";
+  return Array.isArray(value)
+    ? value.map(String).map((entry) => entry.trim()).filter(Boolean)
+    : String(value)
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+}
+
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
   region: process.env.CDK_DEFAULT_REGION ?? process.env.AWS_REGION ?? "us-east-1"
@@ -45,6 +55,18 @@ if (enableSearch) {
   apiProps.searchVpc = search.vpc;
 }
 
-new ApiStack(app, `GhostArk-${stage}-Api`, apiProps);
-new OrchestrationStack(app, `GhostArk-${stage}-Orchestration`, { stage, env });
+const api = new ApiStack(app, `GhostArk-${stage}-Api`, apiProps);
+new OrchestrationStack(app, `GhostArk-${stage}-Orchestration`, {
+  stage,
+  env,
+  allowedGlueCrawlerArns: contextList("orchestrationAllowedGlueCrawlerArns", "GHOST_ARK_ORCHESTRATION_GLUE_CRAWLER_ARNS"),
+  allowedAthenaWorkgroupArns: contextList(
+    "orchestrationAllowedAthenaWorkgroupArns",
+    "GHOST_ARK_ORCHESTRATION_ATHENA_WORKGROUP_ARNS"
+  ),
+  allowedLambdaFunctionArns: [
+    api.createReceiptFunctionArn,
+    ...contextList("orchestrationAllowedLambdaFunctionArns", "GHOST_ARK_ORCHESTRATION_LAMBDA_FUNCTION_ARNS")
+  ]
+});
 new ObservatoryStack(app, `GhostArk-${stage}-Observatory`, { stage, env });

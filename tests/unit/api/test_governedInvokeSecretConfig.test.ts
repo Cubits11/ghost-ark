@@ -27,7 +27,15 @@ describe("governed invoke HMAC digest secret configuration", () => {
   });
 
   it("allows the local default only in local signer mode", async () => {
-    await expect(hmacSecretForMode({ GHOST_ARK_RECEIPT_SIGNER: "local" })).resolves.toBe(DEFAULT_DECISION_RECEIPT_HMAC_SECRET);
+    await expect(hmacSecretForMode({ STAGE: "test", GHOST_ARK_RECEIPT_SIGNER: "local" })).resolves.toBe(
+      DEFAULT_DECISION_RECEIPT_HMAC_SECRET
+    );
+  });
+
+  it("rejects the local signer outside explicit test runtime", async () => {
+    await expect(hmacSecretForMode({ STAGE: "dev", GHOST_ARK_RECEIPT_SIGNER: "local" })).rejects.toThrow(
+      /only allowed in explicit test/u
+    );
   });
 
   it("does not allow AWS/KMS mode to use the local default secret", async () => {
