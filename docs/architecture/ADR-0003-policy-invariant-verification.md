@@ -13,11 +13,14 @@ The policy compiler validates both inputs and emitted policy ASTs. It rejects te
 Generated IAM documents must satisfy these invariants:
 
 - No `Allow` statement may grant `Action: "*"`.
+- No `Allow` statement may grant wildcard action patterns such as `dynamodb:Delete*`.
+- No `Allow` statement may use `NotAction` or `NotResource`; tenant boundaries must be expressed as explicit allowlists.
 - `Resource: "*"` is allowed only for the bounded Glue, Athena, and Lake Formation read workflow.
 - Receipt ledger grants may include `dynamodb:GetItem`, `dynamodb:Query`, and `dynamodb:PutItem`; they may never include update, delete, batch-write, PartiQL mutation, transaction-write, `dynamodb:*`, or `*`.
 - Receipt ledger grants must constrain `dynamodb:LeadingKeys` to `${aws:PrincipalTag/slug}`.
 - Tenant S3 object resources must use `/tenants/${aws:PrincipalTag/slug}/`.
 - Tenant bucket listing must be constrained to the caller tenant prefix.
+- Tenant namespace bucket names must be validated before ARN construction so hostile bucket strings cannot inject paths or malformed resources.
 
 Generated Lake Formation plans must keep the consumer row filter exactly `tenant_slug = '<compiled-tenant-slug>'` and may not include destructive table permissions.
 

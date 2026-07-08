@@ -27,6 +27,10 @@ node = sha256("ghost-ark.receipt-checkpoint.node.v1:" + left + ":" + right)
 
 The checkpoint root is signed with a dedicated epoch/checkpoint signing key, separate from the per-receipt signing key.
 
+`createSignedEpochCheckpoint` is the checkpoint engine boundary: it reads the strongly consistent tenant chain heads from the decision receipt repository, signs the deterministic root, and stores the immutable checkpoint through the checkpoint repository. The operational entrypoint is `npm run receipt:checkpoint`, which uses `GHOST_ARK_DECISION_RECEIPT_TABLE`, `GHOST_ARK_RECEIPT_CHECKPOINT_TABLE`, and `GHOST_ARK_CHECKPOINT_SIGNING_KEY_ID` when explicit CLI flags are not supplied.
+
+Offline chain verification fails closed for malformed receipts, empty chains, duplicate signed receipt hashes, cross-tenant links, and timestamp regressions before evaluating Merkle inclusion.
+
 ## Consequences
 
 Auditors can verify receipt signatures, tenant-chain continuity, and inclusion in a signed global checkpoint. Exact request retries return the original receipt; same request id with different canonical content fails closed.

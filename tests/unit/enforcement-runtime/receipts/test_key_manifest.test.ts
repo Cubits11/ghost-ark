@@ -4,7 +4,7 @@ import {
   privateHmacDigest,
   publicSha256Digest
 } from "../../../../packages/enforcement-runtime/src/receipts/canonical";
-import { KeyManifest } from "../../../../packages/enforcement-runtime/src/receipts/keyManifest";
+import { KeyManifest, validateKeyManifest } from "../../../../packages/enforcement-runtime/src/receipts/keyManifest";
 import { LocalDevHmacReceiptSigner, signDecisionReceipt } from "../../../../packages/enforcement-runtime/src/receipts/signer";
 import { verifyDecisionReceipt } from "../../../../packages/enforcement-runtime/src/receipts/verifier";
 
@@ -72,5 +72,48 @@ describe("key transparency manifest verification", () => {
     expect(postRevocation.verdict).toBe(false);
     expect(postRevocation.checks.find((check) => check.name === "key_manifest")).toMatchObject({ passed: false });
     expect(postRevocation.checks.find((check) => check.name === "signature")).toMatchObject({ passed: true });
+  });
+
+  it("rejects duplicate key epochs and inverted validity windows", async () => {
+    const duplicateManifest: KeyManifest = {
+      schemaVersion: "ghost.key_manifest.v1",
+      generatedAt: "2026-07-08T00:00:00.000Z",
+      keys: [
+        {
+          keyId: "local-dev-hmac",
+          algorithm: "LOCAL_HMAC_SHA256_DEV_ONLY",
+          validFrom: "2026-07-07T00:00:00.000Z",
+          status: "ACTIVE"
+        },
+        {
+          keyId: "local-dev-hmac",
+          algorithm: "LOCAL_HMAC_SHA256_DEV_ONLY",
+          validFrom: "2026-07-08T00:00:00.000Z",
+          status: "DEPRECATED"
+        }
+      ]
+    };
+    const invertedWindowManifest: KeyManifest = {
+      schemaVersion: "ghost.key_manifest.v1",
+      generatedAt: "2026-07-08T00:00:00.000Z",
+      keys: [
+        {
+          keyId: "local-dev-hmac",
+          algorithm: "LOCAL_HMAC_SHA256_DEV_ONLY",
+          validFrom: "2026-07-08T00:00:00.000Z",
+          validUntil: "2026-07-07T00:00:00.000Z",
+          status: "ACTIVE"
+        }
+      ]
+    };
+
+    expect(() => validateKeyManifest(duplicateManifest)).toThrow(/Duplicate key manifest entry/u);
+    expect(() => validateKeyManifest(invertedWindowManifest)).toThrow(/validUntil/u);
+
+    const result = await verifyDecisionReceipt(receiptAt("2026-07-07T12:00:00.000Z"), signer, {
+      keyManifest: duplicateManifest
+    });
+    expect(result.verdict).toBe(false);
+    expect(result.checks.find((check) => check.name === "key_manifest")?.detail).toMatch(/invalid/u);
   });
 });
