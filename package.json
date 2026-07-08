@@ -26,7 +26,8 @@
     "validate": "npm run lint && npm test && npm run docs:check",
     "receipt:verify": "ts-node tools/scripts/receiptVerify.ts",
     "seed:governed-policy": "ts-node tools/scripts/seedGovernedPolicy.ts",
-    "smoke:governed-invoke": "ts-node tools/scripts/smokeGovernedInvoke.ts"
+    "smoke:governed-invoke": "ts-node tools/scripts/smokeGovernedInvoke.ts",
+    "supervised:aws-runtime-validation": "ts-node tools/scripts/supervisedAwsRuntimeValidation.ts"
   },
   "dependencies": {
     "@aws-sdk/client-athena": "^3.1080.0",
