@@ -10,6 +10,7 @@ import { VaultStore } from "../vault/store";
 import { ModelInvoker } from "../bedrock/types";
 import { GovernedInvokeStatus } from "./result";
 import { GovernedInvokeMetrics } from "./metrics";
+import { ExecutionNonceStore } from "./nonceStore";
 
 export interface GovernedInvokeRequest {
   pathTenantId: string;
@@ -42,6 +43,7 @@ export interface GovernedInvokeRequest {
     expiresAt?: string;
   };
   consentState?: ConsentState;
+  executionNonce?: string;
   now?: string;
 }
 
@@ -63,6 +65,7 @@ export interface GovernedInvokeDependencies {
   metricDimensions?: {
     stage?: string;
   };
+  executionNonceStore?: ExecutionNonceStore;
 }
 
 export function isModelInvocationAllowed(decision: PolicyDecision): boolean {

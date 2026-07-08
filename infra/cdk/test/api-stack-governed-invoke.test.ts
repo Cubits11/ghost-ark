@@ -25,12 +25,14 @@ describe("ApiStack governed invoke AWS reality gate", () => {
     });
   });
 
-  it("creates policy, privacy vault, decision receipt tables, and an HMAC digest secret", () => {
+  it("creates policy, privacy vault, decision receipt, nonce, checkpoint tables, and an HMAC digest secret", () => {
     const template = synthApiTemplate();
 
     template.hasResourceProperties("AWS::DynamoDB::Table", { TableName: "ghost-ark-dev-tenant-policies" });
     template.hasResourceProperties("AWS::DynamoDB::Table", { TableName: "ghost-ark-dev-privacy-vault" });
     template.hasResourceProperties("AWS::DynamoDB::Table", { TableName: "ghost-ark-dev-decision-receipts" });
+    template.hasResourceProperties("AWS::DynamoDB::Table", { TableName: "ghost-ark-dev-execution-nonces" });
+    template.hasResourceProperties("AWS::DynamoDB::Table", { TableName: "ghost-ark-dev-receipt-checkpoints" });
     template.hasResourceProperties("AWS::SecretsManager::Secret", {
       Name: "ghost-ark-dev-decision-receipt-hmac-secret"
     });
@@ -46,6 +48,30 @@ describe("ApiStack governed invoke AWS reality gate", () => {
     template.hasResourceProperties("AWS::KMS::Alias", {
       AliasName: "alias/ghost-ark-dev-receipt-signing"
     });
+    template.hasResourceProperties("AWS::KMS::Alias", {
+      AliasName: "alias/ghost-ark-dev-receipt-epoch-signing"
+    });
+  });
+
+  it("does not grant destructive decision receipt table mutations to governed invoke", () => {
+    const template = synthApiTemplate().toJSON();
+    const policies = Object.values(template.Resources as Record<string, { Type: string; Properties?: Record<string, unknown> }>).filter(
+      (resource) => resource.Type === "AWS::IAM::Policy"
+    );
+    const statements = policies.flatMap((policy) => {
+      const document = policy.Properties?.PolicyDocument as { Statement?: unknown[] } | undefined;
+      return document?.Statement ?? [];
+    }) as Array<{ Action?: string | string[] }>;
+    const decisionReceiptStatements = statements.filter((statement) =>
+      JSON.stringify(statement.Action).includes("dynamodb:TransactWriteItems")
+    );
+    const actions = decisionReceiptStatements.flatMap((statement) =>
+      Array.isArray(statement.Action) ? statement.Action : statement.Action ? [statement.Action] : []
+    );
+
+    expect(actions).toEqual(expect.arrayContaining(["dynamodb:TransactWriteItems", "dynamodb:GetItem"]));
+    expect(actions).not.toContain("dynamodb:DeleteItem");
+    expect(actions).not.toContain("dynamodb:UpdateItem");
   });
 
   it("does not put a plaintext HMAC secret into Lambda environment variables", () => {

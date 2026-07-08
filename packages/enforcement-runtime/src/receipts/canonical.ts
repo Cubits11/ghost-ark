@@ -12,6 +12,18 @@ export type DecisionReceiptBuildInput = Omit<UnsignedDecisionReceipt, "schema_ve
   receipt_id?: string;
 };
 
+export type DecisionReceiptBuildInputWithDefaults = Omit<
+  UnsignedDecisionReceipt,
+  "schema_version" | "receipt_id" | "execution_context_hash" | "execution_nonce"
+> & {
+  receipt_id?: string;
+  execution_context_hash?: string;
+  execution_nonce?: string;
+};
+
+export const DEFAULT_EXECUTION_CONTEXT_HASH = `sha256:${"0".repeat(64)}`;
+export const DEFAULT_EXECUTION_NONCE = "local-dev-execution-nonce";
+
 export function publicSha256Digest(value: string): string {
   return `sha256:${sha256Hex(value)}`;
 }
@@ -28,7 +40,7 @@ export function receiptIdFromUnsignedDecisionReceipt(input: Omit<UnsignedDecisio
   return `grct_${canonicalSha256Hex(receiptIdentityPayload(input))}`;
 }
 
-export function buildUnsignedDecisionReceipt(input: DecisionReceiptBuildInput): UnsignedDecisionReceipt {
+export function buildUnsignedDecisionReceipt(input: DecisionReceiptBuildInputWithDefaults): UnsignedDecisionReceipt {
   const withoutId = {
     schema_version: decisionReceiptSchemaVersion,
     request_id: input.request_id,
@@ -41,6 +53,8 @@ export function buildUnsignedDecisionReceipt(input: DecisionReceiptBuildInput): 
     policy_hash: input.policy_hash,
     input_digest: input.input_digest,
     retrieved_context_digests: [...input.retrieved_context_digests].sort(),
+    execution_context_hash: input.execution_context_hash ?? DEFAULT_EXECUTION_CONTEXT_HASH,
+    execution_nonce: input.execution_nonce ?? DEFAULT_EXECUTION_NONCE,
     decision_pre: input.decision_pre,
     decision_post: input.decision_post,
     action_taken: [...input.action_taken].sort(),
@@ -70,6 +84,11 @@ export function canonicalUnsignedDecisionReceipt(receipt: UnsignedDecisionReceip
 
 export function decisionReceiptDigest(receipt: UnsignedDecisionReceipt | SignedDecisionReceipt): string {
   return sha256Hex(canonicalUnsignedDecisionReceipt(receipt));
+}
+
+export function decisionReceiptRequestDigest(receipt: UnsignedDecisionReceipt | SignedDecisionReceipt): string {
+  const { receipt_id: _receiptId, prev_receipt_hash: _prevReceiptHash, ...requestStable } = unsignedReceiptForSigning(receipt);
+  return sha256Hex(canonicalize(requestStable));
 }
 
 export function signedDecisionReceiptHash(receipt: SignedDecisionReceipt): string {

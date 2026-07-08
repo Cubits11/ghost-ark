@@ -21,6 +21,8 @@ export const unsignedDecisionReceiptSchema = z.object({
   policy_hash: hex64Schema,
   input_digest: digestSchema,
   retrieved_context_digests: z.array(digestSchema).default([]),
+  execution_context_hash: digestSchema,
+  execution_nonce: z.string().regex(/^[A-Za-z0-9._:-]{8,256}$/u),
   decision_pre: decisionKindSchema,
   decision_post: decisionKindSchema,
   action_taken: z.array(z.string().min(1)).default([]),

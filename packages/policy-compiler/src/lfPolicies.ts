@@ -8,6 +8,7 @@ import {
 } from "@aws-sdk/client-lakeformation";
 import { canonicalSha256Hex } from "../../receipt-schema/src/hashCanonicalization";
 import { TenantNamespace, compileTenantNamespace, TenantNamespaceInput } from "./tenantNamespace";
+import { assertPolicyInvariants, verifyLakeFormationPolicyInvariants } from "./invariants";
 
 export interface LakeFormationPolicyInput extends TenantNamespaceInput {
   producerRoleArn: string;
@@ -94,10 +95,12 @@ export function compileLakeFormationPolicy(input: LakeFormationPolicyInput): Lak
     columnAllowList: allowedColumns
   };
 
-  return {
+  const plan = {
     ...planWithoutHash,
     hash: canonicalSha256Hex(planWithoutHash)
   };
+  assertPolicyInvariants(verifyLakeFormationPolicyInvariants(plan));
+  return plan;
 }
 
 export async function deployLakeFormationPolicy(

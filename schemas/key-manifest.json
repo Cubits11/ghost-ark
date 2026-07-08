@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/key-manifest.json",
+  "title": "Ghost Ark Key Transparency Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "keys"],
+  "properties": {
+    "schemaVersion": { "const": "ghost.key_manifest.v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "keys": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["keyId", "algorithm", "validFrom", "status"],
+        "properties": {
+          "keyId": { "type": "string", "minLength": 1 },
+          "algorithm": { "type": "string", "minLength": 1 },
+          "publicKeyPem": { "type": "string", "minLength": 1 },
+          "validFrom": { "type": "string", "format": "date-time" },
+          "validUntil": { "type": "string", "format": "date-time" },
+          "status": { "enum": ["ACTIVE", "DEPRECATED", "REVOKED"] },
+          "revokedAt": { "type": "string", "format": "date-time" },
+          "reason": { "type": "string" }
+        }
+      }
+    }
+  }
+}
