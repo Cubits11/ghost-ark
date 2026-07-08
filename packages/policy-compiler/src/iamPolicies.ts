@@ -1,5 +1,6 @@
 import { canonicalSha256Hex } from "../../receipt-schema/src/hashCanonicalization";
 import { TenantNamespaceInput, compileTenantNamespace } from "./tenantNamespace";
+import { assertPolicyInvariants, verifyTenantSandboxPolicyInvariants } from "./invariants";
 
 export interface TenantSandboxPolicyInput extends TenantNamespaceInput {
   accountId: string;
@@ -193,6 +194,15 @@ export function compileTenantSandboxPolicy(input: TenantSandboxPolicyInput): Com
       }
     });
   }
+
+  assertPolicyInvariants(
+    verifyTenantSandboxPolicyInvariants({
+      document,
+      namespace,
+      accountId: input.accountId,
+      region: input.region
+    })
+  );
 
   return {
     name: `ghost-ark-${namespace.stage}-${namespace.tenantSlug}-sandbox`,

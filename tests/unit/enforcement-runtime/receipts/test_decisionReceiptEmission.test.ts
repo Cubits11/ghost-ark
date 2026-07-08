@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PolicyDecision } from "../../../../packages/enforcement-runtime/src/policy/decisions";
 import { DefaultDecisionReceiptEmitter } from "../../../../packages/enforcement-runtime/src/receipts/emission";
 import { InMemoryDecisionReceiptRepository } from "../../../../packages/enforcement-runtime/src/receipts/inMemoryReceiptRepository";
+import { signedDecisionReceiptHash } from "../../../../packages/enforcement-runtime/src/receipts/canonical";
 import { LocalDevHmacReceiptSigner } from "../../../../packages/enforcement-runtime/src/receipts/signer";
 import { verifyDecisionReceipt } from "../../../../packages/enforcement-runtime/src/receipts/verifier";
 
@@ -54,5 +55,46 @@ describe("decision receipt emission", () => {
     expect((await verifyDecisionReceipt(receipt, signer)).verdict).toBe(true);
     expect(JSON.stringify(receipt)).not.toContain("hello");
     expect(JSON.stringify(receipt)).not.toContain("model output");
+  });
+
+  it("automatically links tenant receipts to the previous signed receipt hash", async () => {
+    const repository = new InMemoryDecisionReceiptRepository();
+    const signer = new LocalDevHmacReceiptSigner({ secret: "signing-secret" });
+    const emitter = new DefaultDecisionReceiptEmitter({ signer, repository, hmacSecret: "identity-secret" });
+    const baseInput = {
+      identity: {
+        tenantId: "tenant-a",
+        userId: "user-a",
+        role: "user",
+        sessionId: "session-a",
+        requestId: "request-a",
+        source: "jwt" as const
+      },
+      modelId: "anthropic.claude-test",
+      policyVersion: "organization:test@1",
+      policyHash: "a".repeat(64),
+      inputDigest: "sha256:" + "b".repeat(64),
+      retrievedContextDigests: [],
+      preDecision: decision("pre_model", "ALLOW"),
+      postDecision: decision("post_model", "ALLOW"),
+      memoryWritten: false,
+      consentState: "not_required" as const,
+      latencyMs: 3,
+      timestamp: "2026-07-07T12:00:00.000Z"
+    };
+
+    const first = await emitter.emit(baseInput);
+    const second = await emitter.emit({
+      ...baseInput,
+      identity: { ...baseInput.identity, requestId: "request-b" },
+      inputDigest: "sha256:" + "c".repeat(64),
+      timestamp: "2026-07-07T12:00:01.000Z"
+    });
+
+    expect(first.prev_receipt_hash).toBeNull();
+    expect(second.prev_receipt_hash).toBe(signedDecisionReceiptHash(first));
+    await expect(repository.latestHashForTenant({ tenantId: first.tenant_id_hash })).resolves.toBe(
+      signedDecisionReceiptHash(second)
+    );
   });
 });

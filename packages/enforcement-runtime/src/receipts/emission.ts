@@ -5,8 +5,13 @@ import {
   privateHmacDigest,
   publicSha256Digest
 } from "./canonical";
-import { DecisionReceiptPersistenceResult, DecisionReceiptRepository, IntegrityCollisionError } from "./repository";
-import { SignedDecisionReceipt, validateSignedDecisionReceipt } from "./schema";
+import {
+  ChainHeadConflictError,
+  DecisionReceiptPersistenceResult,
+  DecisionReceiptRepository,
+  IntegrityCollisionError
+} from "./repository";
+import { SignedDecisionReceipt, UnsignedDecisionReceipt, validateSignedDecisionReceipt } from "./schema";
 import { VerifiedIdentityContext } from "../identity/context";
 import { ConsentState, PolicyDecision } from "../policy/decisions";
 
@@ -34,6 +39,8 @@ export interface DecisionReceiptEmissionInput {
   latencyMs: number;
   costEstimateUsd?: number;
   previousReceiptHash?: string | null;
+  executionContextHash?: string;
+  executionNonce?: string;
   timestamp: string;
 }
 
@@ -59,9 +66,67 @@ export class DefaultDecisionReceiptEmitter implements DecisionReceiptEmitter {
   }
 
   async emit(input: DecisionReceiptEmissionInput): Promise<SignedDecisionReceipt> {
-    const unsigned = buildUnsignedDecisionReceipt({
+    const tenantIdHash = privateHmacDigest(this.hmacSecret, input.identity.tenantId);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const previousReceiptHash =
+        input.previousReceiptHash !== undefined
+          ? input.previousReceiptHash
+          : await this.repository?.latestHashForTenant?.({ tenantId: tenantIdHash }) ?? null;
+      const unsigned = this.buildUnsigned(input, tenantIdHash, previousReceiptHash);
+
+      const existingReceipt = await this.repository?.get({
+        tenantId: unsigned.tenant_id_hash,
+        receiptId: unsigned.receipt_id
+      });
+      if (existingReceipt) {
+        const incomingDigest = decisionReceiptDigest(unsigned);
+        const storedDigest = decisionReceiptDigest(existingReceipt);
+        if (incomingDigest !== storedDigest) {
+          throw new IntegrityCollisionError("Receipt replay lookup found mismatched canonical digests", {
+            tenantId: unsigned.tenant_id_hash,
+            receiptId: unsigned.receipt_id,
+            incomingDigest,
+            storedDigest
+          });
+        }
+        return existingReceipt;
+      }
+
+      const signed = await this.sign(unsigned);
+      if (!this.repository) {
+        return signed;
+      }
+
+      try {
+        const persistenceResult = await this.repository.put(signed);
+        return receiptFromPersistenceResult(persistenceResult);
+      } catch (error) {
+        if (
+          error instanceof ChainHeadConflictError &&
+          input.previousReceiptHash === undefined &&
+          this.repository.latestHashForTenant &&
+          attempt < 2
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new ChainHeadConflictError("Receipt chain head kept advancing during receipt emission", {
+      tenantId: tenantIdHash,
+      requestId: input.identity.requestId
+    });
+  }
+
+  private buildUnsigned(
+    input: DecisionReceiptEmissionInput,
+    tenantIdHash: string,
+    previousReceiptHash: string | null
+  ): UnsignedDecisionReceipt {
+    return buildUnsignedDecisionReceipt({
       request_id: input.identity.requestId,
-      tenant_id_hash: privateHmacDigest(this.hmacSecret, input.identity.tenantId),
+      tenant_id_hash: tenantIdHash,
       user_id_hash: privateHmacDigest(this.hmacSecret, input.identity.userId),
       session_id_hash: privateHmacDigest(this.hmacSecret, input.identity.sessionId),
       timestamp: input.timestamp,
@@ -70,6 +135,8 @@ export class DefaultDecisionReceiptEmitter implements DecisionReceiptEmitter {
       policy_hash: input.policyHash,
       input_digest: input.inputDigest || publicSha256Digest(""),
       retrieved_context_digests: input.retrievedContextDigests,
+      execution_context_hash: input.executionContextHash,
+      execution_nonce: input.executionNonce,
       decision_pre: input.preDecision.decision,
       decision_post: input.postDecision.decision,
       action_taken: [...input.preDecision.actionTaken, ...input.postDecision.actionTaken],
@@ -78,28 +145,12 @@ export class DefaultDecisionReceiptEmitter implements DecisionReceiptEmitter {
       memory_written: input.memoryWritten,
       latency_ms: Math.max(0, Math.round(input.latencyMs)),
       cost_estimate_usd: input.costEstimateUsd ?? 0,
-      prev_receipt_hash: input.previousReceiptHash ?? null,
+      prev_receipt_hash: previousReceiptHash,
       signature_alg: this.signer.algorithm
     });
+  }
 
-    const existingReceipt = await this.repository?.get({
-      tenantId: unsigned.tenant_id_hash,
-      receiptId: unsigned.receipt_id
-    });
-    if (existingReceipt) {
-      const incomingDigest = decisionReceiptDigest(unsigned);
-      const storedDigest = decisionReceiptDigest(existingReceipt);
-      if (incomingDigest !== storedDigest) {
-        throw new IntegrityCollisionError("Receipt replay lookup found mismatched canonical digests", {
-          tenantId: unsigned.tenant_id_hash,
-          receiptId: unsigned.receipt_id,
-          incomingDigest,
-          storedDigest
-        });
-      }
-      return existingReceipt;
-    }
-
+  private async sign(unsigned: UnsignedDecisionReceipt): Promise<SignedDecisionReceipt> {
     const canonicalPayload = canonicalUnsignedDecisionReceipt(unsigned);
     const signature = await this.signer.signCanonical(canonicalPayload);
     const signatureKeyId = this.signer.keyId;
@@ -117,13 +168,7 @@ export class DefaultDecisionReceiptEmitter implements DecisionReceiptEmitter {
         "utf8"
       ).toString("base64url")
     });
-
-    if (!this.repository) {
-      return signed;
-    }
-
-    const persistenceResult = await this.repository.put(signed);
-    return receiptFromPersistenceResult(persistenceResult);
+    return signed;
   }
 }
 

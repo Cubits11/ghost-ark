@@ -3,6 +3,12 @@ import { ReceiptPayload, ReceiptRecord, ReceiptSignature, receiptDigest, validat
 import { receiptIdFromPayload } from "../../packages/receipt-schema/src/hashCanonicalization";
 import { ReceiptRepository } from "../../services/ledger/dynamodb/data/receiptRepository";
 import { verifyReceiptSignature, verifyReceiptSignatureWithPublicKey } from "../../services/signing/kms/verifier";
+import {
+  KeyManifest,
+  findManifestEntryForKey,
+  readKeyManifestFile,
+  verifyKeyManifestEpoch
+} from "../../packages/enforcement-runtime/src/receipts/keyManifest";
 
 export interface ReceiptVerificationCheck {
   name: string;
@@ -21,6 +27,7 @@ export interface ReceiptVerificationResult {
 export interface VerifyReceiptRecordOptions {
   expectedTenantSlug?: string;
   verifySignature?: (payload: ReceiptPayload, signature: ReceiptSignature) => Promise<boolean>;
+  keyManifest?: KeyManifest;
 }
 
 function pass(name: string, detail: string): ReceiptVerificationCheck {
@@ -109,6 +116,20 @@ export async function verifyReceiptRecord(
     checks.push(fail("algorithm", `Unexpected signature algorithm ${signature.algorithm}.`));
   }
 
+  if (options.keyManifest) {
+    const manifestCheck = verifyKeyManifestEpoch({
+      manifest: options.keyManifest,
+      keyId: signature.keyId,
+      algorithm: signature.algorithm,
+      timestamp: payload.issuedAt
+    });
+    checks.push({
+      name: manifestCheck.name,
+      passed: manifestCheck.passed,
+      detail: manifestCheck.detail
+    });
+  }
+
   const digestPassed = checks.find((check) => check.name === "digest")?.passed === true;
   const schemaPassed = checks.find((check) => check.name === "schema")?.passed === true;
 
@@ -149,6 +170,7 @@ interface CliArgs {
   table?: string;
   file?: string;
   publicKey?: string;
+  keyManifest?: string;
   stage: string;
 }
 
@@ -173,6 +195,9 @@ function parseArgs(argv: string[]): CliArgs {
       index += 1;
     } else if (arg === "--public-key") {
       args.publicKey = next;
+      index += 1;
+    } else if (arg === "--key-manifest") {
+      args.keyManifest = next;
       index += 1;
     } else if (arg === "--stage") {
       args.stage = next;
@@ -209,6 +234,8 @@ Options:
   --file     Local JSON receipt record file.
   --public-key
              PEM public key for fully local signature verification. When omitted, verification uses AWS KMS Verify.
+  --key-manifest
+             Versioned key manifest JSON requiring the receipt timestamp to fall in the signing key epoch.
   --stage    Stage used for default table name. Defaults to STAGE or dev.
 
 Non-claim:
@@ -263,9 +290,16 @@ function printResult(result: ReceiptVerificationResult): void {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const record = await loadRecord(args);
-  const publicKeyPem = args.publicKey ? fs.readFileSync(args.publicKey, "utf8") : undefined;
+  const manifest = args.keyManifest ? readKeyManifestFile(args.keyManifest) : undefined;
+  const parsedRecord = validateReceiptRecord(record);
+  const manifestPublicKey =
+    manifest !== undefined
+      ? findManifestEntryForKey(manifest, parsedRecord.signature.keyId, parsedRecord.signature.algorithm)?.publicKeyPem
+      : undefined;
+  const publicKeyPem = args.publicKey ? fs.readFileSync(args.publicKey, "utf8") : manifestPublicKey;
   const result = await verifyReceiptRecord(record, {
     expectedTenantSlug: args.tenant,
+    keyManifest: manifest,
     verifySignature: publicKeyPem
       ? async (payload, signature) => verifyReceiptSignatureWithPublicKey(payload, signature, publicKeyPem)
       : undefined

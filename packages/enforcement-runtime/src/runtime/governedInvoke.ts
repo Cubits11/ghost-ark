@@ -10,6 +10,7 @@ import { filterRetrievedContext } from "../retrieval/filter";
 import { buildPromptContext } from "../retrieval/promptContext";
 import { RetrievedContextCandidate } from "../retrieval/types";
 import { MemoryWriteResult } from "../vault/store";
+import { executionContextHash, normalizeExecutionNonce } from "./executionContext";
 import { safeErrorMessage } from "./errors";
 import {
   GovernedInvokeDependencies,
@@ -21,6 +22,7 @@ import {
   syntheticDecision
 } from "./lifecycle";
 import { GovernedInvokeMetricName, normalizeModelIdForMetric } from "./metrics";
+import { ExecutionNonceReplayError } from "./nonceStore";
 import { GovernedInvokeResult, GovernedInvokeStatus } from "./result";
 
 function emptyDecision(phase: PolicyDecision["phase"], policyVersion = "unavailable", policyHash = "0".repeat(64)): PolicyDecision {
@@ -173,6 +175,8 @@ async function emitReceipt(input: {
   memoryWritten: boolean;
   latencyMs: number;
   costEstimateUsd?: number;
+  executionContextHash: string;
+  executionNonce: string;
   now: string;
 }): Promise<{ emitted: true; receiptId: string } | { emitted: false; failureReason: string }> {
   try {
@@ -189,6 +193,8 @@ async function emitReceipt(input: {
       consentState: input.request.consentState ?? "missing",
       latencyMs: input.latencyMs,
       costEstimateUsd: input.costEstimateUsd,
+      executionContextHash: input.executionContextHash,
+      executionNonce: input.executionNonce,
       timestamp: input.now
     });
     return { emitted: true, receiptId: receipt.receipt_id };
@@ -206,6 +212,7 @@ export async function governedInvoke(
   const requestId = request.auth.requestId ?? "request-unknown";
   const tenantIdHash = request.auth.tenantId ? privateHmacDigest(digestSecret, request.auth.tenantId) : publicSha256Digest("");
   const userIdHash = request.auth.userId ? privateHmacDigest(digestSecret, request.auth.userId) : publicSha256Digest("");
+  const sessionIdHash = request.auth.sessionId ? privateHmacDigest(digestSecret, request.auth.sessionId) : publicSha256Digest("");
   const inputDigest = request.input.contentDigest ?? publicSha256Digest(request.input.text);
 
   let identity: VerifiedIdentityContext;
@@ -218,6 +225,25 @@ export async function governedInvoke(
       deps,
       baseResult({
         requestId,
+        tenantIdHash,
+        userIdHash,
+        modelId: request.model.modelId,
+        status: "failed_closed",
+        preModel: emptyDecision("pre_model"),
+        errors: [safeErrorMessage(error)]
+      })
+    );
+  }
+
+  let executionNonce: string;
+  try {
+    executionNonce = normalizeExecutionNonce(request.executionNonce, identity.requestId);
+  } catch (error) {
+    deps.logger?.warn("governed invoke execution nonce rejected", { error: safeErrorMessage(error), requestId: identity.requestId });
+    return finalizeResult(
+      deps,
+      baseResult({
+        requestId: identity.requestId,
         tenantIdHash,
         userIdHash,
         modelId: request.model.modelId,
@@ -285,6 +311,42 @@ export async function governedInvoke(
     );
   }
 
+  const executionHashFor = (input: {
+    retrievedContextDigests: string[];
+    preDecision?: PolicyDecision;
+    memoryWrite?: GovernedInvokeRequest["memoryWrite"];
+  }): string =>
+    executionContextHash({
+      requestId: identity.requestId,
+      tenantIdHash,
+      userIdHash,
+      sessionIdHash,
+      modelId: request.model.modelId,
+      policyVersion: compiledPolicy.policyVersion,
+      policyHash: compiledPolicy.policyHash,
+      inputDigest,
+      retrievedContextDigests: input.retrievedContextDigests,
+      consentState: request.consentState ?? "missing",
+      executionNonce,
+      preDecision: input.preDecision
+        ? {
+            phase: input.preDecision.phase,
+            decision: input.preDecision.decision,
+            policyVersion: input.preDecision.policyVersion,
+            policyHash: input.preDecision.policyHash,
+            riskScore: input.preDecision.riskScore
+          }
+        : undefined,
+      memoryWrite: input.memoryWrite
+        ? {
+            tier: input.memoryWrite.tier,
+            contentDigest: input.memoryWrite.contentDigest,
+            classificationTags: input.memoryWrite.classificationTags,
+            expiresAt: input.memoryWrite.expiresAt
+          }
+        : undefined
+    });
+
   const preRetrieval = evaluatePolicy(compiledPolicy, {
     phase: "pre_retrieval",
     identity,
@@ -312,6 +374,8 @@ export async function governedInvoke(
       postDecision: preModel,
       memoryWritten: false,
       latencyMs: 0,
+      executionContextHash: executionHashFor({ retrievedContextDigests: [], preDecision: preModel, memoryWrite: request.memoryWrite }),
+      executionNonce,
       now
     });
     return finalizeResult(
@@ -361,6 +425,8 @@ export async function governedInvoke(
         postDecision: preModel,
         memoryWritten: false,
         latencyMs: 0,
+        executionContextHash: executionHashFor({ retrievedContextDigests: [], preDecision: preModel, memoryWrite: request.memoryWrite }),
+        executionNonce,
         now
       });
       return finalizeResult(
@@ -417,6 +483,8 @@ export async function governedInvoke(
           postDecision: preModel,
           memoryWritten: false,
           latencyMs: 0,
+          executionContextHash: executionHashFor({ retrievedContextDigests: [], preDecision: preModel, memoryWrite: request.memoryWrite }),
+          executionNonce,
           now
         });
         return finalizeResult(
@@ -461,6 +529,8 @@ export async function governedInvoke(
         postDecision: preModel,
         memoryWritten: false,
         latencyMs: 0,
+        executionContextHash: executionHashFor({ retrievedContextDigests: [], preDecision: preModel, memoryWrite: request.memoryWrite }),
+        executionNonce,
         now
       });
       return finalizeResult(
@@ -516,6 +586,8 @@ export async function governedInvoke(
       postDecision: preModel,
       memoryWritten: false,
       latencyMs: 0,
+      executionContextHash: executionHashFor({ retrievedContextDigests, preDecision: preModel, memoryWrite: request.memoryWrite }),
+      executionNonce,
       now
     });
     return finalizeResult(
@@ -574,6 +646,12 @@ export async function governedInvoke(
       postDecision: strictTaintDecision,
       memoryWritten: false,
       latencyMs: 0,
+      executionContextHash: executionHashFor({
+        retrievedContextDigests,
+        preDecision: strictTaintDecision,
+        memoryWrite: request.memoryWrite
+      }),
+      executionNonce,
       now
     });
     return finalizeResult(
@@ -613,6 +691,8 @@ export async function governedInvoke(
       postDecision: preModel,
       memoryWritten: false,
       latencyMs: 0,
+      executionContextHash: executionHashFor({ retrievedContextDigests, preDecision: preModel, memoryWrite: request.memoryWrite }),
+      executionNonce,
       now
     });
     return finalizeResult(
@@ -636,6 +716,115 @@ export async function governedInvoke(
       }),
       receiptFailureMetrics(receipt)
     );
+  }
+
+  const preExecutionContextHash = executionHashFor({
+    retrievedContextDigests,
+    preDecision: preModel,
+    memoryWrite: request.memoryWrite
+  });
+  if (deps.executionNonceStore) {
+    try {
+      const reservation = await deps.executionNonceStore.reserve({
+        tenantIdHash,
+        nonce: executionNonce,
+        executionContextHash: preExecutionContextHash,
+        requestId: identity.requestId,
+        now,
+        ttlSeconds: 24 * 60 * 60
+      });
+      if (reservation === "IDEMPOTENT_REPLAY") {
+        const replayDecision = syntheticDecision({
+          phase: "pre_model",
+          decision: "REFUSE",
+          policyVersion: compiledPolicy.policyVersion,
+          policyHash: compiledPolicy.policyHash,
+          reason: "execution nonce has already been used for this context",
+          actionTaken: ["block_replay", "fail_closed"],
+          riskScore: 1
+        });
+        const receipt = await emitReceipt({
+          deps,
+          identity,
+          request,
+          inputDigest,
+          retrievedContextDigests,
+          preDecision: replayDecision,
+          postDecision: replayDecision,
+          memoryWritten: false,
+          latencyMs: 0,
+          executionContextHash: preExecutionContextHash,
+          executionNonce,
+          now
+        });
+        return finalizeResult(
+          deps,
+          baseResult({
+            requestId: identity.requestId,
+            tenantIdHash,
+            userIdHash,
+            modelId: request.model.modelId,
+            status: "failed_closed",
+            preRetrieval,
+            preModel: replayDecision,
+            postModel: replayDecision,
+            receipt: {
+              attempted: true,
+              emitted: receipt.emitted,
+              receiptId: receipt.emitted ? receipt.receiptId : undefined,
+              failureReason: receipt.emitted ? undefined : receipt.failureReason
+            },
+            errors: ["execution nonce replay detected", ...(receipt.emitted ? [] : [receipt.failureReason])]
+          }),
+          receiptFailureMetrics(receipt)
+        );
+      }
+    } catch (error) {
+      const replayDecision = syntheticDecision({
+        phase: "pre_model",
+        decision: "REFUSE",
+        policyVersion: compiledPolicy.policyVersion,
+        policyHash: compiledPolicy.policyHash,
+        reason: error instanceof ExecutionNonceReplayError ? "execution nonce replay detected" : "execution nonce reservation failed",
+        actionTaken: ["block_replay", "fail_closed"],
+        riskScore: 1
+      });
+      const receipt = await emitReceipt({
+        deps,
+        identity,
+        request,
+        inputDigest,
+        retrievedContextDigests,
+        preDecision: replayDecision,
+        postDecision: replayDecision,
+        memoryWritten: false,
+        latencyMs: 0,
+        executionContextHash: preExecutionContextHash,
+        executionNonce,
+        now
+      });
+      return finalizeResult(
+        deps,
+        baseResult({
+          requestId: identity.requestId,
+          tenantIdHash,
+          userIdHash,
+          modelId: request.model.modelId,
+          status: "failed_closed",
+          preRetrieval,
+          preModel: replayDecision,
+          postModel: replayDecision,
+          receipt: {
+            attempted: true,
+            emitted: receipt.emitted,
+            receiptId: receipt.emitted ? receipt.receiptId : undefined,
+            failureReason: receipt.emitted ? undefined : receipt.failureReason
+          },
+          errors: [safeErrorMessage(error), ...(receipt.emitted ? [] : [receipt.failureReason])]
+        }),
+        receiptFailureMetrics(receipt)
+      );
+    }
   }
 
   let outputText = "";
@@ -675,6 +864,8 @@ export async function governedInvoke(
       postDecision: postModel,
       memoryWritten: false,
       latencyMs,
+      executionContextHash: preExecutionContextHash,
+      executionNonce,
       now
     });
     return finalizeResult(
@@ -786,6 +977,8 @@ export async function governedInvoke(
           memoryWritten: false,
           latencyMs,
           costEstimateUsd,
+          executionContextHash: preExecutionContextHash,
+          executionNonce,
           now
         });
         return finalizeResult(
@@ -826,6 +1019,8 @@ export async function governedInvoke(
     memoryWritten: memoryResult.written,
     latencyMs,
     costEstimateUsd,
+    executionContextHash: preExecutionContextHash,
+    executionNonce,
     now
   });
 
