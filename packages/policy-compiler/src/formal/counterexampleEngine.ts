@@ -87,12 +87,28 @@ const allowedConditionOperators = new Set([
   "StringNotEquals",
   "Null"
 ]);
+const supportedStatementFields = new Set(["Sid", "Effect", "Action", "Resource", "Condition", "NotAction", "NotResource"]);
+const supportedConditionKeys = new Set([
+  "aws:PrincipalTag/slug",
+  "aws:RequestedRegion",
+  "dynamodb:LeadingKeys",
+  "s3:prefix",
+  "iam:PassedToService",
+  "iam:PermissionsBoundary"
+]);
 
 function asArray(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.flatMap((item) => (typeof item === "string" ? [item] : []));
   }
   return typeof value === "string" ? [value] : [];
+}
+
+function asConditionValues(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => (typeof item === "string" || typeof item === "boolean" ? [String(item)] : []));
+  }
+  return typeof value === "string" || typeof value === "boolean" ? [String(value)] : [];
 }
 
 function statementSid(statement: Record<string, unknown>): string {
@@ -182,7 +198,7 @@ function conditionMatches(condition: unknown, request: ModeledRequestState): boo
     }
 
     for (const [key, policyValue] of Object.entries(block as Record<string, unknown>)) {
-      const values = asArray(policyValue);
+      const values = asConditionValues(policyValue);
       const requestValue = requestContextValue(request, key);
       if (operator === "StringEquals" && !valuesMatchPolicyValue(requestValue, values, request, "equals")) {
         return false;
@@ -596,17 +612,72 @@ function unsupportedPolicyWarnings(document: IamPolicyDocument): string[] {
   const warnings: string[] = [];
   for (const statement of document.Statement) {
     const sid = statementSid(statement);
+    for (const field of Object.keys(statement)) {
+      if (!supportedStatementFields.has(field)) {
+        warnings.push(`Unsupported statement field ${field} in statement ${sid}; failing closed.`);
+      }
+    }
+    if (statement.Effect !== "Allow" && statement.Effect !== "Deny") {
+      warnings.push(`Unsupported Effect in statement ${sid}; expected Allow or Deny, failing closed.`);
+    }
     if ("NotAction" in statement) {
       warnings.push(`Unsupported NotAction in statement ${sid}; failing closed.`);
     }
     if ("NotResource" in statement) {
       warnings.push(`Unsupported NotResource in statement ${sid}; failing closed.`);
     }
+    if (!("NotAction" in statement)) {
+      const actionValues = asArray(statement.Action);
+      const actionMalformed =
+        actionValues.length === 0 ||
+        (Array.isArray(statement.Action) && actionValues.length !== statement.Action.length) ||
+        (statement.Action !== undefined && !Array.isArray(statement.Action) && typeof statement.Action !== "string");
+      if (actionMalformed) {
+        warnings.push(`Unsupported Action shape in statement ${sid}; failing closed.`);
+      }
+    }
+    if (!("NotResource" in statement)) {
+      const resourceValues = asArray(statement.Resource);
+      const resourceMalformed =
+        resourceValues.length === 0 ||
+        (Array.isArray(statement.Resource) && resourceValues.length !== statement.Resource.length) ||
+        (statement.Resource !== undefined && !Array.isArray(statement.Resource) && typeof statement.Resource !== "string");
+      if (resourceMalformed) {
+        warnings.push(`Unsupported Resource shape in statement ${sid}; failing closed.`);
+      }
+    }
     const condition = statement.Condition;
     if (condition && typeof condition === "object" && !Array.isArray(condition)) {
-      for (const operator of Object.keys(condition)) {
+      for (const [operator, block] of Object.entries(condition)) {
         if (!allowedConditionOperators.has(operator)) {
           warnings.push(`Unsupported condition operator ${operator} in statement ${sid}; failing closed.`);
+          continue;
+        }
+        if (!block || typeof block !== "object" || Array.isArray(block)) {
+          warnings.push(`Unsupported condition block for ${operator} in statement ${sid}; failing closed.`);
+          continue;
+        }
+        for (const [key, policyValue] of Object.entries(block as Record<string, unknown>)) {
+          if (!supportedConditionKeys.has(key)) {
+            warnings.push(`Unsupported condition key ${key} in statement ${sid}; failing closed.`);
+          }
+          const conditionValues = asConditionValues(policyValue);
+          const conditionValueMalformed =
+            conditionValues.length === 0 ||
+            (Array.isArray(policyValue) && conditionValues.length !== policyValue.length) ||
+            (policyValue !== undefined &&
+              !Array.isArray(policyValue) &&
+              typeof policyValue !== "string" &&
+              typeof policyValue !== "boolean");
+          if (conditionValueMalformed) {
+            warnings.push(`Unsupported condition value for ${key} in statement ${sid}; failing closed.`);
+          }
+          if (operator !== "Null" && conditionValues.some((value) => value.length === 0)) {
+            warnings.push(`Unsupported empty condition value for ${key} in statement ${sid}; failing closed.`);
+          }
+          if (operator === "Null" && conditionValues.some((value) => value !== "true" && value !== "false")) {
+            warnings.push(`Unsupported Null condition value for ${key} in statement ${sid}; failing closed.`);
+          }
         }
       }
     } else if (condition !== undefined) {
@@ -621,7 +692,7 @@ function unsupportedPolicyWarnings(document: IamPolicyDocument): string[] {
 }
 
 function failClosedWarnings(warnings: readonly string[]): boolean {
-  return warnings.some((warning) => /Unsupported/u.test(warning));
+  return warnings.some((warning) => /Unsupported|Malformed|Invalid/u.test(warning));
 }
 
 function counterexampleFor(request: ModeledRequestState, boundaryDecision: "Allow" | "Deny"): PolicyCounterexample {
