@@ -1,12 +1,30 @@
-import { DecisionReceiptRepository } from "./repository";
+import { decisionReceiptDigest } from "./canonical";
+import { DecisionReceiptPersistenceResult, DecisionReceiptRepository, IntegrityCollisionError } from "./repository";
 import { SignedDecisionReceipt, validateSignedDecisionReceipt } from "./schema";
 
 export class InMemoryDecisionReceiptRepository implements DecisionReceiptRepository {
   private readonly receipts = new Map<string, SignedDecisionReceipt>();
 
-  async put(receipt: SignedDecisionReceipt): Promise<void> {
+  async put(receipt: SignedDecisionReceipt): Promise<DecisionReceiptPersistenceResult> {
     const validated = validateSignedDecisionReceipt(receipt);
-    this.receipts.set(this.key(validated.tenant_id_hash, validated.receipt_id), validated);
+    const key = this.key(validated.tenant_id_hash, validated.receipt_id);
+    const existing = this.receipts.get(key);
+    if (existing) {
+      const incomingDigest = decisionReceiptDigest(validated);
+      const storedDigest = decisionReceiptDigest(existing);
+      if (incomingDigest !== storedDigest) {
+        throw new IntegrityCollisionError("Receipt primary key collision detected with mismatched canonical digests", {
+          tenantId: validated.tenant_id_hash,
+          receiptId: validated.receipt_id,
+          incomingDigest,
+          storedDigest
+        });
+      }
+      return { status: "IDEMPOTENT_EXISTING", receipt: existing, persistedAt: existing.timestamp };
+    }
+
+    this.receipts.set(key, validated);
+    return { status: "CREATED", receipt: validated, persistedAt: validated.timestamp };
   }
 
   async get(input: { tenantId: string; receiptId: string }): Promise<SignedDecisionReceipt | null> {

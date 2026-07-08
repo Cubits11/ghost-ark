@@ -1,5 +1,6 @@
 import { PolicyDecision } from "../policy/decisions";
 import { RetrievedContextCandidate, RetrievalFilterInput, RetrievalFilterResult } from "./types";
+import { sanitizeRetrievedContextCandidate } from "./sanitizer";
 
 function policyAllowsContext(decision?: PolicyDecision): boolean {
   return !decision || ["ALLOW", "RECEIPT_ONLY", "MODIFY", "REDACT"].includes(decision.decision);
@@ -12,9 +13,13 @@ function withTaint(candidate: RetrievedContextCandidate, taint: RetrievedContext
 export function filterRetrievedContext(input: RetrievalFilterInput): RetrievalFilterResult {
   const allowed: RetrievalFilterResult["allowed"] = [];
   const rejected: RetrievedContextCandidate[] = [];
+  const sanitized: RetrievedContextCandidate[] = [];
   const riskTags = new Set<string>();
 
-  for (const candidate of input.candidates) {
+  for (const rawCandidate of input.candidates) {
+    const candidate = sanitizeRetrievedContextCandidate(rawCandidate);
+    sanitized.push(candidate);
+
     if (candidate.tenantId !== input.identityTenantId) {
       rejected.push(withTaint(candidate, "cross_tenant"));
       riskTags.add("retrieval_cross_tenant");
@@ -49,6 +54,7 @@ export function filterRetrievedContext(input: RetrievalFilterInput): RetrievalFi
   return {
     allowed,
     rejected,
+    sanitized,
     riskTags: [...riskTags].sort()
   };
 }

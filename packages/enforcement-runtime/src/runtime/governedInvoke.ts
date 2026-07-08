@@ -155,6 +155,13 @@ function receiptFailureMetrics(receipt: { emitted: boolean; failureReason?: stri
   return metrics;
 }
 
+function strictRetrievalTaintBlockingEnabled(deps: GovernedInvokeDependencies): boolean {
+  return (
+    deps.retrievalOptions?.allowTaintedDigestOnly !== true &&
+    (deps.retrievalOptions?.rejectCallerSuppliedContexts === true || deps.retrievalOptions?.requireProviderWhenEnabled === true)
+  );
+}
+
 async function emitReceipt(input: {
   deps: GovernedInvokeDependencies;
   identity: VerifiedIdentityContext;
@@ -543,6 +550,58 @@ export async function governedInvoke(
     consentState: request.consentState ?? "missing"
   });
 
+  if (
+    retrieval.riskTags.includes("retrieval_untrusted_instruction") &&
+    strictRetrievalTaintBlockingEnabled(deps) &&
+    isModelInvocationAllowed(preModel)
+  ) {
+    const strictTaintDecision = syntheticDecision({
+      phase: "pre_model",
+      decision: "ESCALATE",
+      policyVersion: compiledPolicy.policyVersion,
+      policyHash: compiledPolicy.policyHash,
+      reason: "untrusted retrieval instructions detected before prompt construction",
+      actionTaken: ["block_model_invocation", "quarantine_retrieval", "digest_only_receipt"],
+      riskScore: 1
+    });
+    const receipt = await emitReceipt({
+      deps,
+      identity,
+      request,
+      inputDigest,
+      retrievedContextDigests,
+      preDecision: strictTaintDecision,
+      postDecision: strictTaintDecision,
+      memoryWritten: false,
+      latencyMs: 0,
+      now
+    });
+    return finalizeResult(
+      deps,
+      baseResult({
+        requestId: identity.requestId,
+        tenantIdHash,
+        userIdHash,
+        modelId: request.model.modelId,
+        status: receipt.emitted ? statusForBlockingDecision(strictTaintDecision.decision, "refused_pre_model") : "failed_closed",
+        preRetrieval,
+        preModel: strictTaintDecision,
+        postModel: strictTaintDecision,
+        receipt: {
+          attempted: true,
+          emitted: receipt.emitted,
+          receiptId: receipt.emitted ? receipt.receiptId : undefined,
+          failureReason: receipt.emitted ? undefined : receipt.failureReason
+        },
+        errors: [
+          "untrusted retrieval instructions detected before prompt construction",
+          ...(receipt.emitted ? [] : [receipt.failureReason])
+        ]
+      }),
+      receiptFailureMetrics(receipt)
+    );
+  }
+
   if (!isModelInvocationAllowed(preModel)) {
     const receipt = await emitReceipt({
       deps,
@@ -587,7 +646,7 @@ export async function governedInvoke(
       modelId: request.model.modelId,
       prompt: buildPromptContext({
         userText: request.input.text,
-        retrieved: allowedCandidates(requestedContexts, retrievedContextDigests)
+        retrieved: allowedCandidates(retrieval.sanitized, retrievedContextDigests)
       }),
       temperature: request.model.temperature,
       maxTokens: request.model.maxTokens,
