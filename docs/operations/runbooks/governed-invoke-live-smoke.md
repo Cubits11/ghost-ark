@@ -59,12 +59,20 @@ Export the returned ID token:
 ```bash
 export ID_TOKEN="<id-token>"
 export API_URL="https://<api-id>.execute-api.<region>.amazonaws.com/${STAGE}"
+export REPORT_PATH="docs/validation/governed-invoke-${STAGE}-$(date -u +%Y%m%dT%H%M%SZ).json"
 ```
 
 ## 5. Run Smoke
 
 ```bash
-npm run smoke:governed-invoke -- --api "$API_URL" --token "$ID_TOKEN" --tenant "$TENANT" --model "$MODEL_ID" --expected-mode aws-validation
+npm run smoke:governed-invoke -- \
+  --api "$API_URL" \
+  --token "$ID_TOKEN" \
+  --tenant "$TENANT" \
+  --model "$MODEL_ID" \
+  --stage "$STAGE" \
+  --expected-mode aws-validation \
+  --json-report "$REPORT_PATH"
 ```
 
 Expected cases:
@@ -74,13 +82,15 @@ Expected cases:
 - body tenant override: HTTP 400,
 - cross-tenant retrieval contamination: HTTP 403, `failed_closed`.
 
+The report at `$REPORT_PATH` is sanitized validation evidence. It must include receipt IDs and decision phase summaries, and must not include the raw token, prompt, output, tenant label, user ID, session ID, or secrets.
+
 ## 6. Inspect Receipt
 
 Use the receipt ID printed by the smoke script. Decision receipts are stored in `ghost-ark-${STAGE}-decision-receipts` with `tenantId` set to the tenant HMAC digest and `receiptId` as the sort key.
 
 ## 7. Verify Receipt
 
-Use `KmsDecisionReceiptVerifier` from `packages/enforcement-runtime/src/receipts/kmsVerifier.ts` against the stored decision receipt. Verification checks schema, receipt id, algorithm, key id, digest, canonical payload, and RSA-PSS signature. It does not prove model correctness.
+Use `KmsDecisionReceiptVerifier` from `packages/enforcement-runtime/src/receipts/kmsVerifier.ts` against the stored decision receipt. Verification checks schema, receipt id, algorithm, key id, digest, canonical payload, and RSA-PSS signature. It does not prove model correctness. The exact DynamoDB fetch and KMS verification command is in `docs/operations/runbooks/governed-invoke-validation.md`.
 
 ## 8. Check Alarms And Logs
 
@@ -104,6 +114,7 @@ Logs and EMF metrics must not contain raw prompt, output, memory, token, tenant,
 - [ ] Bedrock model allowlist configured
 - [ ] live benign invoke returns completed plus receipt
 - [ ] live refusal invoke returns refused_pre_model plus receipt
+- [ ] sanitized smoke report written
 - [ ] body tenant override rejected
 - [ ] cross-tenant retrieval rejected
 - [ ] decision receipt verifies

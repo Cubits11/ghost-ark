@@ -4,7 +4,7 @@ Ghost Ark v50 is an AWS-native reference implementation for bounded governance r
 
 The existing AWS slice stores raw and curated evidence in S3, catalogs it through AWS-native metadata layers, enforces governed access, issues signed evidence receipts, records receipt state in a ledger, and exposes query, search, replay, and review workflows. The enforcement-runtime slice adds deterministic policy evaluation, tenant-scoped policy loading, tenant and taint-filtered retrieval context, Bedrock invocation adapters, memory-write gates, redacted logging, and decision receipt emission for governed LLM paths.
 
-Ghost Ark now includes a local governed Bedrock invocation runtime spine and an AWS validation-candidate path. AWS wiring exists for the invoke API route, DynamoDB policy and privacy-vault tables, decision receipt storage, KMS decision signing and verification support, Bedrock model allowlisting, scoped Bedrock IAM when an allowlist is supplied, a Secrets Manager HMAC digest secret, and operational alarms. Live AWS validation and full model-format coverage remain release blockers.
+Ghost Ark now includes a governed Bedrock invocation runtime spine with stronger local fail-closed, idempotency, retrieval-taint, vault-expiry, Bedrock-adapter, and AWS-validation evidence boundaries. AWS wiring exists for the invoke API route, DynamoDB policy and privacy-vault tables, decision receipt storage, KMS decision signing and verification support, Bedrock model allowlisting, scoped Bedrock IAM when an allowlist is supplied, a Secrets Manager HMAC digest secret, and operational alarms. Live AWS validation and server-side retrieval provider integration remain release blockers.
 
 ## What Ghost Ark Is
 
@@ -104,7 +104,7 @@ AWS validation candidate setup:
 ```bash
 npx cdk synth -c bedrockModelAllowlist=anthropic.claude-3-5-sonnet-20240620-v1:0
 npm run seed:governed-policy -- --table ghost-ark-dev-tenant-policies --tenant acme-lab
-npm run smoke:governed-invoke -- --api "$API_URL" --token "$ID_TOKEN" --tenant acme-lab --model anthropic.claude-3-5-sonnet-20240620-v1:0
+npm run smoke:governed-invoke -- --api "$API_URL" --token "$ID_TOKEN" --tenant acme-lab --model anthropic.claude-3-5-sonnet-20240620-v1:0 --json-report docs/validation/governed-invoke-dev.json
 ```
 
-The AWS path is not production-ready until the live smoke gates and alarm/log inspection pass.
+The AWS path is not production-ready after a smoke run. The smoke report is sanitized validation evidence only.

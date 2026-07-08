@@ -120,6 +120,33 @@ describe("governedInvoke runtime lifecycle", () => {
     expect(runtime.receipts.all()[0]).toMatchObject({ decision_pre: "ALLOW", decision_post: "ALLOW" });
   });
 
+  it("treats repeated deterministic receipt emission as idempotent without storing raw values", async () => {
+    const runtime = deps(new FakeModelInvoker({ outputText: "RAW_OUTPUT_SECRET" }));
+    const duplicateRequest = request({
+      input: { text: "RAW_PROMPT_SECRET" },
+      body: { input: { text: "RAW_PROMPT_SECRET" } },
+      auth: {
+        tenantId: "tenant-a",
+        userId: "raw-user-id",
+        sessionId: "raw-session-id",
+        requestId: "request-a",
+        source: "jwt"
+      }
+    });
+
+    const first = await governedInvoke(runtime, duplicateRequest);
+    const second = await governedInvoke(runtime, duplicateRequest);
+    const receiptText = JSON.stringify(runtime.receipts.all());
+
+    expect(first.receipt.receiptId).toBe(second.receipt.receiptId);
+    expect(runtime.receipts.all()).toHaveLength(1);
+    expect(receiptText).not.toContain("RAW_PROMPT_SECRET");
+    expect(receiptText).not.toContain("RAW_OUTPUT_SECRET");
+    expect(receiptText).not.toContain("raw-user-id");
+    expect(receiptText).not.toContain("raw-session-id");
+    expect(receiptText).not.toContain("tenant-a");
+  });
+
   it("redacts post-model output and does not store raw output in the receipt", async () => {
     const raw = "email: user@example.com phone 555-123-4567 secret=abc123";
     const runtime = deps(new FakeModelInvoker({ outputText: raw }));

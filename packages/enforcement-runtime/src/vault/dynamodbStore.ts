@@ -137,14 +137,36 @@ export class DynamoDbVaultStore implements VaultStore {
   async list(request: MemoryReadRequest): Promise<MemoryRecord[]> {
     const now = request.now ?? new Date().toISOString();
     const includeTiers = new Set(request.includeTiers ?? ["SESSION", "CONSTITUTION", "AUDIT", "RESTRICTED"]);
+    const expressionAttributeValues: Record<string, unknown> = {
+      ":pk": identityPk(request),
+      ":prefix": "MEMORY#",
+      ":now": now
+    };
+    const expressionAttributeNames: Record<string, string> = {};
+    const filterExpressions = ["(attribute_not_exists(expiresAt) OR expiresAt > :now)", "attribute_not_exists(tombstonedAt)"];
+
+    if (request.sessionId) {
+      expressionAttributeValues[":sessionId"] = request.sessionId;
+      filterExpressions.push("sessionId = :sessionId");
+    }
+
+    if (includeTiers.size > 0) {
+      expressionAttributeNames["#tier"] = "tier";
+      const tierPlaceholders = [...includeTiers].sort().map((tier, index) => {
+        const placeholder = `:tier${index}`;
+        expressionAttributeValues[placeholder] = tier;
+        return placeholder;
+      });
+      filterExpressions.push(`#tier IN (${tierPlaceholders.join(", ")})`);
+    }
+
     const response = await this.client.send(
       new QueryCommand({
         TableName: this.tableName,
         KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-        ExpressionAttributeValues: {
-          ":pk": identityPk(request),
-          ":prefix": "MEMORY#"
-        }
+        FilterExpression: filterExpressions.join(" AND "),
+        ExpressionAttributeValues: expressionAttributeValues,
+        ...(Object.keys(expressionAttributeNames).length > 0 ? { ExpressionAttributeNames: expressionAttributeNames } : {})
       })
     );
     return ((response.Items ?? []) as DynamoDbMemoryItem[])

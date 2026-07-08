@@ -1,6 +1,6 @@
 # AWS Runtime Validation Gate
 
-Target verdict: AWS-RUNTIME-VALIDATION-CANDIDATE.
+Target verdict: VERIFIED-RUNTIME-SPINE-v0.1-CANDIDATE.
 
 This gate is not a production, enterprise, compliance, or AI-safety gate. It proves only that the AWS-backed governed invoke path can be deployed, exercised, inspected, and attacked.
 
@@ -25,7 +25,7 @@ This gate is not a production, enterprise, compliance, or AI-safety gate. It pro
 npm run validate
 npx cdk synth -c bedrockModelAllowlist=anthropic.claude-3-5-sonnet-20240620-v1:0
 npm run seed:governed-policy -- --table ghost-ark-dev-tenant-policies --tenant acme-lab --stage dev
-npm run smoke:governed-invoke -- --api "$API_URL" --token "$ID_TOKEN" --tenant acme-lab --model anthropic.claude-3-5-sonnet-20240620-v1:0
+npm run smoke:governed-invoke -- --api "$API_URL" --token "$ID_TOKEN" --tenant acme-lab --model anthropic.claude-3-5-sonnet-20240620-v1:0 --stage dev --json-report docs/validation/governed-invoke-dev.json
 ```
 
 ## Pass Conditions
@@ -36,6 +36,7 @@ npm run smoke:governed-invoke -- --api "$API_URL" --token "$ID_TOKEN" --tenant a
 - AWS policy mode uses a seeded active tenant policy or an explicit default-policy override.
 - Decision receipts contain digests, not raw prompts, outputs, or memory contents.
 - AWS signing uses KMS and receipt verification succeeds with the KMS public key.
+- The smoke report artifact contains receipt IDs and decision phase summaries without raw token, prompt, output, tenant, user, session, or secret values.
 - Bedrock model ID is allowlisted before invocation.
 - Bedrock IAM is scoped to allowlisted model ARNs unless an explicit wildcard release blocker is accepted.
 - Retrieval uses a server-side provider when enabled in AWS mode; caller-supplied contexts are rejected.

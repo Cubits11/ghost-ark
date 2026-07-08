@@ -132,4 +132,17 @@ describe("governedInvoke fail-closed behavior", () => {
     expect(result.responseText).toBeUndefined();
     expect(result.receipt).toMatchObject({ attempted: true, emitted: false, failureReason: "signer unavailable" });
   });
+
+  it("converts model adapter invocation failures into failed_closed with a receipt attempt", async () => {
+    const runtime = deps({
+      fake: new FakeModelInvoker({ error: new Error("Unsupported Bedrock model family for governed invoke adapter") })
+    });
+    const result = await governedInvoke(runtime, request());
+
+    expect(runtime.fake.called).toBe(true);
+    expect(result.status).toBe("failed_closed");
+    expect(result.responseText).toBeUndefined();
+    expect(result.errors.join(" ")).toMatch(/Unsupported Bedrock model family/u);
+    expect(result.receipt.attempted).toBe(true);
+  });
 });
