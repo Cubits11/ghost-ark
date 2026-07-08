@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { canonicalSha256Hex } from "../../../receipt-schema/src/hashCanonicalization";
 import {
   RuntimeAttestation,
@@ -37,6 +37,12 @@ export function signLocalRuntimeAttestation(secret: string, attestation: Runtime
   assertSecret(secret);
   const payloadDigest = localRuntimeAttestationSignaturePayloadDigest(attestation);
   return `hmac-sha256:${createHmac("sha256", secret).update(payloadDigest).digest("hex")}`;
+}
+
+function constantTimeStringEquals(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left, "utf8");
+  const rightBuffer = Buffer.from(right, "utf8");
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 export class LocalDevRuntimeAttester {
@@ -113,6 +119,6 @@ export class LocalDevRuntimeAttestationVerifier implements RuntimeAttestationSig
       ...attestation,
       signature: { ...attestation.signature, value: "" }
     });
-    return attestation.signature.value === expected;
+    return constantTimeStringEquals(attestation.signature.value, expected);
   }
 }

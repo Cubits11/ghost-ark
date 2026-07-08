@@ -3,6 +3,7 @@ import {
   RuntimeAttestation,
   RuntimeAttestationPolicy,
   RuntimeIdentity,
+  RuntimeAttestationSignatureVerifier,
   runtimeAttestationSubjectDigest,
   validateRuntimeAttestation,
   verifyRuntimeAttestation
@@ -16,6 +17,9 @@ const issuedAt = "2026-07-08T12:00:00.000Z";
 const receiptHash = `sha256:${"1".repeat(64)}`;
 const checkpointDigest = `sha256:${"2".repeat(64)}`;
 const payloadDigest = `sha256:${"3".repeat(64)}`;
+const nitroPcr0 = "a".repeat(96);
+const nitroPcr1 = "b".repeat(96);
+const nitroPcr2 = "c".repeat(96);
 
 const runtime: RuntimeIdentity = {
   runtimeId: "runtime-dev-a",
@@ -52,6 +56,39 @@ function validAttestation(): RuntimeAttestation {
     issuedAt
   });
 }
+
+function nitroAttestation(measurements = { pcr0: nitroPcr0, pcr1: nitroPcr1, pcr2: nitroPcr2 }): RuntimeAttestation {
+  const nitroSubject = {
+    attestationType: "aws-nitro-enclave" as const,
+    issuedAt,
+    runtime,
+    binding: { receiptHash },
+    measurements
+  };
+  return {
+    schemaVersion: "ghost.runtime_attestation.v1",
+    attestationType: "aws-nitro-enclave",
+    attestationId: "nitro-attestation-doc-a",
+    subjectDigest: runtimeAttestationSubjectDigest(nitroSubject),
+    issuedAt,
+    runtime,
+    measurements: nitroSubject.measurements,
+    binding: nitroSubject.binding,
+    signature: {
+      algorithm: "aws-nitro-attestation",
+      value: "nitro-attestation-document-cose"
+    }
+  };
+}
+
+const nitroVerifier: RuntimeAttestationSignatureVerifier = {
+  supportedAlgorithms: ["aws-nitro-attestation"],
+  supportedTypes: ["aws-nitro-enclave"],
+  verify: () => ({
+    passed: true,
+    detail: "External Nitro verifier accepted certificate chain, COSE signature, nonce, and PCR bindings."
+  })
+};
 
 describe("runtime attestation binding", () => {
   it("passes for a valid local-dev attestation", async () => {
@@ -191,6 +228,55 @@ describe("runtime attestation binding", () => {
 
     expect(result.verdict).toBe(false);
     expect(result.checks.find((check) => check.name === "subject_digest")?.passed).toBe(false);
+  });
+
+  it("fails when the signature algorithm does not match the attestation type", async () => {
+    const result = await verifyRuntimeAttestation({
+      attestation: {
+        ...validAttestation(),
+        signature: { algorithm: "aws-nitro-attestation", value: "placeholder" }
+      },
+      policy,
+      expectedReceiptHash: receiptHash,
+      verifier: verifier()
+    });
+
+    expect(result.verdict).toBe(false);
+    expect(result.checks.find((check) => check.name === "signature_algorithm_binding")?.passed).toBe(false);
+    expect(result.checks.find((check) => check.name === "signature")?.detail).toContain("not valid");
+  });
+
+  it("passes Nitro only when PCR pins and a production verifier are supplied", async () => {
+    const result = await verifyRuntimeAttestation({
+      attestation: nitroAttestation(),
+      policy: {
+        ...policy,
+        allowedTypes: ["aws-nitro-enclave"],
+        requiredMeasurements: {
+          pcr0: [nitroPcr0],
+          pcr1: [nitroPcr1],
+          pcr2: [nitroPcr2]
+        }
+      },
+      expectedReceiptHash: receiptHash,
+      verifier: nitroVerifier
+    });
+
+    expect(result.verdict).toBe(true);
+    expect(result.checks.find((check) => check.name === "nitro_pcr_policy")?.passed).toBe(true);
+    expect(result.checks.find((check) => check.name === "signature")?.passed).toBe(true);
+  });
+
+  it("fails Nitro if PCR pins are absent even when a verifier is supplied", async () => {
+    const result = await verifyRuntimeAttestation({
+      attestation: nitroAttestation(),
+      policy: { ...policy, allowedTypes: ["aws-nitro-enclave"] },
+      expectedReceiptHash: receiptHash,
+      verifier: nitroVerifier
+    });
+
+    expect(result.verdict).toBe(false);
+    expect(result.checks.find((check) => check.name === "nitro_pcr_policy")?.passed).toBe(false);
   });
 
   it("fails closed for Nitro attestation placeholders until a real Nitro verifier exists", async () => {

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { canonicalSha256Hex } from "../../../receipt-schema/src/hashCanonicalization";
 
 export type RuntimeAttestationType = "local-dev-attestation" | "aws-nitro-enclave";
+export type RuntimeMeasurementKey = "pcr0" | "pcr1" | "pcr2" | "pcr3" | "pcr4" | "pcr8";
 
 export interface RuntimeIdentity {
   readonly runtimeId: string;
@@ -39,6 +40,7 @@ export interface RuntimeAttestationPolicy {
   readonly allowedImageDigests?: readonly string[];
   readonly allowedCodeDigests?: readonly string[];
   readonly allowedPolicyCompilerDigests?: readonly string[];
+  readonly requiredMeasurements?: Partial<Record<RuntimeMeasurementKey, readonly string[]>>;
   readonly maxClockSkewMs?: number;
   readonly requireBindingToReceipt?: boolean;
   readonly requireBindingToCheckpoint?: boolean;
@@ -59,7 +61,14 @@ export interface RuntimeAttestationVerificationResult {
 export interface RuntimeAttestationSignatureVerifier {
   readonly supportedAlgorithms: readonly RuntimeAttestation["signature"]["algorithm"][];
   readonly supportedTypes: readonly RuntimeAttestationType[];
-  verify(input: { attestation: RuntimeAttestation }): boolean | Promise<boolean>;
+  verify(input: {
+    attestation: RuntimeAttestation;
+  }): boolean | RuntimeAttestationSignatureVerificationResult | Promise<boolean | RuntimeAttestationSignatureVerificationResult>;
+}
+
+export interface RuntimeAttestationSignatureVerificationResult {
+  readonly passed: boolean;
+  readonly detail?: string;
 }
 
 export interface AttestedReceiptBundle<Receipt = unknown> {
@@ -77,6 +86,9 @@ export interface AttestedCheckpointBundle<Checkpoint = unknown> {
 const sha256DigestSchema = z.string().regex(/^sha256:[a-f0-9]{64}$/u);
 const runtimeAttestationTypes = ["local-dev-attestation", "aws-nitro-enclave"] as const;
 const signatureAlgorithms = ["hmac-sha256", "ecdsa-sha256", "rsa-sha256", "aws-nitro-attestation"] as const;
+const runtimeMeasurementKeys = ["pcr0", "pcr1", "pcr2", "pcr3", "pcr4", "pcr8"] as const;
+const nitroRequiredMeasurementKeys: readonly RuntimeMeasurementKey[] = ["pcr0", "pcr1", "pcr2"];
+const sha384HexPattern = /^[a-f0-9]{96}$/u;
 
 const runtimeIdentitySchema: z.ZodType<RuntimeIdentity> = z
   .object({
@@ -95,6 +107,17 @@ const runtimeMeasurementsSchema = z
     pcr3: z.string().min(1).optional(),
     pcr4: z.string().min(1).optional(),
     pcr8: z.string().min(1).optional()
+  })
+  .strict();
+
+const requiredRuntimeMeasurementsSchema = z
+  .object({
+    pcr0: z.array(z.string().min(1)).min(1).optional(),
+    pcr1: z.array(z.string().min(1)).min(1).optional(),
+    pcr2: z.array(z.string().min(1)).min(1).optional(),
+    pcr3: z.array(z.string().min(1)).min(1).optional(),
+    pcr4: z.array(z.string().min(1)).min(1).optional(),
+    pcr8: z.array(z.string().min(1)).min(1).optional()
   })
   .strict();
 
@@ -142,6 +165,7 @@ const runtimeAttestationPolicySchema: z.ZodType<RuntimeAttestationPolicy> = z
     allowedImageDigests: z.array(sha256DigestSchema).optional(),
     allowedCodeDigests: z.array(sha256DigestSchema).optional(),
     allowedPolicyCompilerDigests: z.array(sha256DigestSchema).optional(),
+    requiredMeasurements: requiredRuntimeMeasurementsSchema.optional(),
     maxClockSkewMs: z.number().int().min(0).optional(),
     requireBindingToReceipt: z.boolean().optional(),
     requireBindingToCheckpoint: z.boolean().optional(),
@@ -164,6 +188,71 @@ function isAllowed<T extends string>(allowed: readonly T[] | undefined, observed
 
 function optionalDigestMatches(expected: string | undefined, observed: string | undefined): boolean {
   return expected === undefined || observed === expected;
+}
+
+function expectedAlgorithmForType(
+  attestationType: RuntimeAttestationType
+): RuntimeAttestation["signature"]["algorithm"] {
+  return attestationType === "aws-nitro-enclave" ? "aws-nitro-attestation" : "hmac-sha256";
+}
+
+function requiredMeasurementEntries(
+  policy: RuntimeAttestationPolicy
+): Array<[RuntimeMeasurementKey, readonly string[]]> {
+  return runtimeMeasurementKeys.flatMap((key) => {
+    const values = policy.requiredMeasurements?.[key];
+    return values && values.length > 0 ? [[key, values] as [RuntimeMeasurementKey, readonly string[]]] : [];
+  });
+}
+
+function measurementPolicyFailures(attestation: RuntimeAttestation, policy: RuntimeAttestationPolicy): string[] {
+  return requiredMeasurementEntries(policy).flatMap(([key, allowedValues]) => {
+    const observed = attestation.measurements?.[key];
+    if (!observed) {
+      return [`${key} missing from attestation evidence`];
+    }
+    if (!allowedValues.includes(observed)) {
+      return [`${key} mismatch`];
+    }
+    return [];
+  });
+}
+
+function nitroPcrPolicyFailures(attestation: RuntimeAttestation, policy: RuntimeAttestationPolicy): string[] {
+  const failures: string[] = [];
+  const measurements = attestation.measurements ?? {};
+  const requiredMeasurements = policy.requiredMeasurements ?? {};
+
+  for (const key of nitroRequiredMeasurementKeys) {
+    const pinnedValues = requiredMeasurements[key] ?? [];
+    const observed = measurements[key];
+    if (pinnedValues.length === 0) {
+      failures.push(`${key} is not pinned by policy`);
+    }
+    if (!observed) {
+      failures.push(`${key} missing from Nitro evidence`);
+    } else if (!sha384HexPattern.test(observed)) {
+      failures.push(`${key} must be a lowercase SHA-384 PCR value`);
+    }
+    for (const pinnedValue of pinnedValues) {
+      if (!sha384HexPattern.test(pinnedValue)) {
+        failures.push(`${key} policy pin must be a lowercase SHA-384 PCR value`);
+      }
+    }
+    if (observed && pinnedValues.length > 0 && !pinnedValues.includes(observed)) {
+      failures.push(`${key} does not match policy pin`);
+    }
+  }
+
+  return failures;
+}
+
+function normalizeSignatureVerifierResult(
+  result: boolean | RuntimeAttestationSignatureVerificationResult
+): RuntimeAttestationSignatureVerificationResult {
+  return typeof result === "boolean"
+    ? { passed: result, detail: "Runtime attestation signature verification completed." }
+    : result;
 }
 
 function bindingForSubjectDigest(binding: RuntimeAttestationBinding): RuntimeAttestationBinding {
@@ -288,6 +377,30 @@ export async function verifyRuntimeAttestation(input: {
       : `Policy compiler digest ${attestation.runtime.policyCompilerDigest} is not allowed.`
   );
 
+  const measurementFailures = measurementPolicyFailures(attestation, policy);
+  check(
+    checks,
+    "measurement_policy",
+    measurementFailures.length === 0,
+    measurementFailures.length === 0
+      ? requiredMeasurementEntries(policy).length > 0
+        ? "Runtime measurements match all policy pins."
+        : "No exact runtime measurement pins were required by policy."
+      : `Runtime measurement policy failed: ${measurementFailures.join("; ")}.`
+  );
+
+  if (attestation.attestationType === "aws-nitro-enclave") {
+    const failures = nitroPcrPolicyFailures(attestation, policy);
+    check(
+      checks,
+      "nitro_pcr_policy",
+      failures.length === 0,
+      failures.length === 0
+        ? "Nitro PCR0/PCR1/PCR2 evidence is present, SHA-384 shaped, and pinned by policy."
+        : `Nitro attestation requires pinned PCR0/PCR1/PCR2 measurements: ${failures.join("; ")}.`
+    );
+  }
+
   if (policy.maxClockSkewMs !== undefined) {
     const issuedAt = Date.parse(attestation.issuedAt);
     const delta = Math.abs(Date.now() - issuedAt);
@@ -348,15 +461,28 @@ export async function verifyRuntimeAttestation(input: {
         : "Payload binding was not required."
   );
 
-  if (attestation.attestationType === "aws-nitro-enclave" || attestation.signature.algorithm === "aws-nitro-attestation") {
+  const expectedAlgorithm = expectedAlgorithmForType(attestation.attestationType);
+  const algorithmMatchesType = attestation.signature.algorithm === expectedAlgorithm;
+  check(
+    checks,
+    "signature_algorithm_binding",
+    algorithmMatchesType,
+    algorithmMatchesType
+      ? `${attestation.signature.algorithm} is the expected algorithm for ${attestation.attestationType}.`
+      : `${attestation.attestationType} requires ${expectedAlgorithm}; observed ${attestation.signature.algorithm}.`
+  );
+
+  if (!algorithmMatchesType) {
+    check(checks, "signature", false, "Runtime attestation signature algorithm is not valid for the attestation type.");
+  } else if (!input.verifier) {
     check(
       checks,
       "signature",
       false,
-      "AWS Nitro Enclave attestation validation is not implemented in this verifier; evidence fails closed."
+      attestation.attestationType === "aws-nitro-enclave"
+        ? "AWS Nitro Enclave attestation validation requires a supplied production verifier; bundled Nitro validation is not implemented, so evidence fails closed."
+        : "No runtime attestation signature verifier was supplied."
     );
-  } else if (!input.verifier) {
-    check(checks, "signature", false, "No runtime attestation signature verifier was supplied.");
   } else if (
     !input.verifier.supportedAlgorithms.includes(attestation.signature.algorithm) ||
     !input.verifier.supportedTypes.includes(attestation.attestationType)
@@ -371,7 +497,9 @@ export async function verifyRuntimeAttestation(input: {
     let signaturePassed = false;
     let detail = "Runtime attestation signature verification completed.";
     try {
-      signaturePassed = await input.verifier.verify({ attestation });
+      const verifierResult = normalizeSignatureVerifierResult(await input.verifier.verify({ attestation }));
+      signaturePassed = verifierResult.passed;
+      detail = verifierResult.detail ?? detail;
     } catch (error) {
       detail = error instanceof Error ? error.message : String(error);
     }

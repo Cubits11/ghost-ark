@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createLocalReceiptProof } from "../../../packages/enforcement-runtime/src/proofs/localReceiptProof";
 import {
   ReceiptProof,
+  ReceiptProofBackendVerifier,
   ReceiptProofClaims,
   ReceiptProofPublicInputs,
   privateReceiptProofBundleWarning,
@@ -34,6 +35,29 @@ function localProof(): ReceiptProof {
     transcriptWitnessDigest: `sha256:${"6".repeat(64)}`
   });
 }
+
+function risc0Proof(overrides: Partial<ReceiptProof["proof"]> = {}): ReceiptProof {
+  return {
+    schemaVersion: "ghost.receipt_proof.v1",
+    proofSystem: "risc0",
+    statement: {
+      schemaVersion: "ghost.receipt_proof_statement.v1",
+      proofSystem: "risc0",
+      publicInputs,
+      claims,
+      statementDigest: receiptProofStatementDigest({ proofSystem: "risc0", publicInputs, claims })
+    },
+    proof: { proofBytesBase64: "AA==", ...overrides }
+  };
+}
+
+const risc0Verifier: ReceiptProofBackendVerifier = {
+  supportedProofSystems: ["risc0"],
+  verify: () => ({
+    passed: true,
+    detail: "External RISC Zero verifier accepted the seal and journal commitment."
+  })
+};
 
 describe("receipt proof interface", () => {
   it("passes for a valid local transcript proof", async () => {
@@ -86,23 +110,49 @@ describe("receipt proof interface", () => {
   });
 
   it("fails closed for unsupported proof systems", async () => {
-    const proof: ReceiptProof = {
-      schemaVersion: "ghost.receipt_proof.v1",
-      proofSystem: "risc0",
-      statement: {
-        schemaVersion: "ghost.receipt_proof_statement.v1",
-        proofSystem: "risc0",
-        publicInputs,
-        claims,
-        statementDigest: receiptProofStatementDigest({ proofSystem: "risc0", publicInputs, claims })
-      },
-      proof: { proofBytesBase64: "AA==" }
-    };
-
-    const result = await verifyReceiptProof({ proof, allowedProofSystems: ["risc0"] });
+    const result = await verifyReceiptProof({ proof: risc0Proof(), allowedProofSystems: ["risc0"] });
 
     expect(result.verdict).toBe(false);
     expect(result.checks.find((check) => check.name === "backend_implemented")?.passed).toBe(false);
+  });
+
+  it("can delegate a reserved proof system to an explicit backend verifier", async () => {
+    const result = await verifyReceiptProof({
+      proof: risc0Proof(),
+      allowedProofSystems: ["risc0"],
+      verifier: risc0Verifier
+    });
+
+    expect(result.verdict).toBe(true);
+    expect(result.checks.find((check) => check.name === "proof_bytes")?.passed).toBe(true);
+    expect(result.checks.find((check) => check.name === "backend_verification")?.passed).toBe(true);
+  });
+
+  it("fails reserved proof systems with malformed proof bytes even if a backend verifier is supplied", async () => {
+    const result = await verifyReceiptProof({
+      proof: risc0Proof({ proofBytesBase64: "not base64" }),
+      allowedProofSystems: ["risc0"],
+      verifier: risc0Verifier
+    });
+
+    expect(result.verdict).toBe(false);
+    expect(result.checks.find((check) => check.name === "proof_bytes")?.passed).toBe(false);
+  });
+
+  it("fails reserved proof systems that leak local witness metadata", async () => {
+    const result = await verifyReceiptProof({
+      proof: risc0Proof({
+        backendMetadata: {
+          transcriptWitnessDigest: `sha256:${"6".repeat(64)}`,
+          notZeroKnowledge: true
+        }
+      }),
+      allowedProofSystems: ["risc0"],
+      verifier: risc0Verifier
+    });
+
+    expect(result.verdict).toBe(false);
+    expect(result.checks.find((check) => check.name === "private_witness_sealed")?.passed).toBe(false);
   });
 
   it("rejects a backend that is not in the allowed proof system list", async () => {

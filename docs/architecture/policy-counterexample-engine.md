@@ -11,6 +11,9 @@ The counterexample engine is bounded to the Ghost-Ark generated tenant sandbox s
 - Evaluates the generated policy over the modeled subset.
 - Reports any modeled request where the policy returns `Allow` and the declared tenant boundary returns `Deny`.
 - Emits `ghost.policy_verification_report.v1` with policy digest, boundary digest, counterexamples, warnings, and non-claims.
+- Fails closed on unsupported IAM statement fields such as `Principal` and `NotPrincipal`, since the engine models identity-policy sandbox documents rather than resource policies.
+- Fails closed on supported condition operators when the condition key is outside the modeled set.
+- Fails closed on malformed `Action`, `Resource`, condition blocks, and condition values instead of silently treating them as local implicit denies.
 
 ## What It Does Not Claim
 
@@ -24,7 +27,9 @@ The counterexample engine is bounded to the Ghost-Ark generated tenant sandbox s
 
 The model covers the Ghost-Ark tenant sandbox subset: S3 tenant prefixes and list prefixes, DynamoDB leading-key conditions, receipt ledger append-only constraints, selected Athena/Glue/Lake Formation workflow actions, IAM service-role pass-through, Lambda invocation, and logs write actions used by the generated policy.
 
-Unsupported `NotAction`, `NotResource`, malformed conditions, and unsupported condition operators fail closed.
+Unsupported `NotAction`, `NotResource`, unsupported statement fields, unsupported condition keys, malformed conditions, and unsupported condition operators fail closed.
+
+Modeled condition keys are intentionally narrow: `aws:PrincipalTag/slug`, `aws:RequestedRegion`, `dynamodb:LeadingKeys`, `s3:prefix`, `iam:PassedToService`, and `iam:PermissionsBoundary`.
 
 ## CLI
 
@@ -45,5 +50,7 @@ The command exits `0` on `PASS` and `1` on `FAIL`.
 - Add S3 access to another tenant prefix: `FAIL`.
 - Use `NotAction` or `NotResource`: `FAIL`.
 - Use an unsupported condition operator: `FAIL`.
+- Use `StringEquals` against an unsupported key such as `aws:PrincipalArn`: `FAIL`.
+- Add resource-policy fields such as `Principal`: `FAIL`.
 
 A PASS verdict means no counterexample was found inside this bounded model. It is not full AWS IAM formal verification.
