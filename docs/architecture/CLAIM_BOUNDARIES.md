@@ -110,8 +110,8 @@ Safety claims:
 Compliance claims:
 
 - Compliance is achieved.
-- The system is HIPAA compliant.
-- The system is SOC 2 compliant.
+- Do not claim the system is HIPAA compliant.
+- Do not claim the system is SOC 2 compliant.
 - The system is ISO compliant.
 - The system is GDPR compliant.
 - The system is audit-ready in a formal regulatory sense.
