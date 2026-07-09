@@ -1,5 +1,5 @@
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scannableExtensions = new Set([
@@ -17,10 +17,12 @@ const scannableExtensions = new Set([
 const skippedDirectories = new Set([
   ".git",
   ".next",
+  ".turbo",
   "build",
   "coverage",
   "dist",
   "node_modules",
+  "cdk.out",
 ]);
 
 const skippedFiles = new Set([
@@ -31,13 +33,15 @@ const skippedFiles = new Set([
   "yarn.lock",
 ]);
 
-// Exact policy-document exceptions. These files catalogue claim boundaries and
-// known forbidden phrasing, so they are allowed to quote unsafe language.
 const allowedPolicyFiles = new Set([
   "docs/research/THREAT_MODEL_FRONTIER.md",
   "docs/research/ASSURANCE_MATURITY_LADDER.md",
   "docs/research/AGENT_RESEARCH_AUDIT_2026-07-08.md",
   "docs/release/CLAIMS_BOUNDARY.md",
+  "docs/compliance/non-claims.md",
+  "docs/governance/claim-evidence-matrix.md",
+  "docs/governance/risk-register.md",
+  "docs/governance/external-reviewer-guide.md",
 ]);
 
 const boundarySuggestion =
@@ -53,6 +57,16 @@ const rules = [
     pattern: /\bprov(?:e|es|ed|ing)\s+ai\s+safety\b/i,
     reason: "Broad AI-safety proof claim.",
     suggestion: boundarySuggestion,
+    allowance: "strict",
+  },
+  {
+    id: "certified-ai-safety",
+    pattern: rx(
+      String.raw`\b(?:certified\s+ai\s+safety|ai\s+safety\s+certified|ai[- ]safety[- ]certified)\b`,
+    ),
+    reason: "Unsupported AI-safety certification claim.",
+    suggestion:
+      "Say Ghost-Ark is an AWS-runtime-validation candidate or certification-supporting evidence prototype.",
     allowance: "strict",
   },
   {
@@ -72,6 +86,14 @@ const rules = [
     allowance: "strict",
   },
   {
+    id: "general-guarantee",
+    pattern: /\bguarantee(?:s|d|ing)?\b/i,
+    reason: "Generic guarantee language is too broad for assurance claims.",
+    suggestion:
+      "Use bounded language: records, checks, verifies a binding, provides evidence, or requires validation.",
+    allowance: "strict",
+  },
+  {
     id: "truthfulness-guarantee",
     pattern: /\b(?:(?:guarantee(?:s|d)?|guaranteeing|prov(?:e|es|ed|ing))\s+(?:truthfulness|semantic\s+correctness)|truthfulness\s+guarantee)\b/i,
     reason: "Semantic-truth assurance claim.",
@@ -81,7 +103,7 @@ const rules = [
   },
   {
     id: "risk-elimination",
-    pattern: /\beliminat(?:e|es|ed|ing)\s+all\s+risk\b/i,
+    pattern: /\b(?:zero\s+risk|no\s+risk|eliminat(?:e|es|ed|ing)\s+all\s+risk|risk[- ]free)\b/i,
     reason: "Absolute risk-elimination claim.",
     suggestion:
       "Say Ghost-Ark narrows what can be checked from recorded artifacts; residual risk remains.",
@@ -97,18 +119,54 @@ const rules = [
   },
   {
     id: "absolute-security",
-    pattern: rx(String.raw`\bun`, "breakable", String.raw`\b`),
+    pattern: rx(
+      String.raw`\b(?:un`,
+      "breakable",
+      String.raw`|fully\s+secure|perfectly\s+secure|impossible\s+to\s+(?:forge|bypass|tamper)|tamper[- ]proof)\b`,
+    ),
     reason: "Absolute security claim.",
     suggestion:
       "Say the implementation is experimental and must be reviewed against specific threat models.",
     allowance: "strict",
   },
   {
-    id: "production-enterprise",
-    pattern: /\bproduction[- ]ready\s+enterprise\s+infrastructure\b/i,
+    id: "secure-by-default",
+    pattern: /\bsecure\s+by\s+default\b/i,
+    reason: "Overbroad default-security claim.",
+    suggestion:
+      "Name the specific fail-closed behavior, validation rule, or configured security default.",
+    allowance: "strict",
+  },
+  {
+    id: "production-ready",
+    pattern: /\bproduction[- ]ready\b/i,
     reason: "Unsupported production-readiness claim.",
     suggestion:
-      "Say this is a reference implementation unless deployment evidence and review scope are included.",
+      "Say AWS-runtime-validation candidate, reference implementation, or prototype unless production evidence is provided.",
+    allowance: "research",
+  },
+  {
+    id: "enterprise-grade",
+    pattern: /\benterprise[- ]grade\b/i,
+    reason: "Unsupported enterprise-grade claim.",
+    suggestion:
+      "Say reviewer-grade, reference implementation, or evidence prototype unless enterprise review evidence exists.",
+    allowance: "research",
+  },
+  {
+    id: "audit-complete",
+    pattern: /\baudit\s+complete\b/i,
+    reason: "Unsupported audit-completion claim.",
+    suggestion:
+      "Say audit-supporting evidence exists, or identify the specific audit scope and reviewer.",
+    allowance: "strict",
+  },
+  {
+    id: "formal-verification",
+    pattern: /\bformally\s+verified\b/i,
+    reason: "Unsupported formal-verification claim.",
+    suggestion:
+      "Say tested, checked by counterexample search, schema-validated, or planned for formal verification.",
     allowance: "research",
   },
   {
@@ -116,13 +174,21 @@ const rules = [
     pattern: rx(
       String.raw`\b(?:certif(?:y|ies|ied|ication|ications)|certified)\b.{0,40}\b(?:`,
       "compliance",
-      String.raw`|regulatory|SOC\s*2|HIPAA|FedRAMP|ISO\s*42001|NIST)\b|\b(?:SOC\s*2|HIPAA)\s+`,
+      String.raw`|regulatory|SOC\s*2|HIPAA|FedRAMP|ISO\s*42001|ISO\/IEC\s*42001|NIST)\b|\b(?:SOC\s*2|HIPAA)\s+`,
       "compliant",
-      String.raw`\b|\b(?:FedRAMP|ISO\s*42001|NIST)\s+certified\b`,
+      String.raw`\b|\b(?:FedRAMP|ISO\s*42001|ISO\/IEC\s*42001|NIST)\s+certified\b`,
     ),
     reason: "Unsupported compliance-certification claim.",
     suggestion:
       "Say Ghost-Ark may produce evidence artifacts; do not claim certification without external proof.",
+    allowance: "strict",
+  },
+  {
+    id: "one-click-compliance",
+    pattern: /\bone[- ]click\s+compliance\b/i,
+    reason: "Compliance automation overclaim.",
+    suggestion:
+      "Say Ghost-Ark can produce evidence artifacts for review, not automatic compliance.",
     allowance: "strict",
   },
   {
@@ -154,12 +220,7 @@ function normalizePath(path) {
 }
 
 function extensionOf(path) {
-  const normalized = normalizePath(path);
-  const lastDot = normalized.lastIndexOf(".");
-  if (lastDot === -1) {
-    return "";
-  }
-  return normalized.slice(lastDot);
+  return extname(normalizePath(path));
 }
 
 function hasStrictNonClaimContext(line) {
@@ -178,6 +239,17 @@ function hasStrictNonClaimContext(line) {
     "cannot claim",
     "is not",
     "are not",
+    "not a",
+    "not an",
+    "not proof",
+    "not certified",
+    "not production",
+    "not production-ready",
+    "not production ready",
+    "not a guarantee",
+    "does not guarantee",
+    "should reject",
+    "reject as",
   ].some((marker) => normalized.includes(marker));
 }
 
@@ -193,13 +265,21 @@ function hasResearchAllowanceContext(line) {
       "mock",
       "simulation",
       "simulated",
-      "not production-ready",
-      "not production ready",
       "not implemented",
       "placeholder",
       "experimental",
+      "reference implementation",
+      "candidate",
+      "requires live",
+      "requires aws",
+      "requires external",
+      "requires validation",
       "requires live nitro enclaves",
       "requiring live nitro enclaves",
+      "release blocker",
+      "not yet",
+      "partial",
+      "planned",
     ].some((marker) => normalized.includes(marker))
   );
 }
@@ -225,6 +305,7 @@ export function scanText(text, filePath) {
 
   lines.forEach((line, index) => {
     for (const rule of rules) {
+      rule.pattern.lastIndex = 0;
       if (rule.pattern.test(line) && !isAllowedLine(line, rule.allowance)) {
         violations.push({
           filePath,
@@ -297,6 +378,9 @@ export function main(argv = process.argv.slice(2)) {
       for (const violation of violations) {
         console.error(`- ${formatViolation(violation)}`);
       }
+      console.error(
+        `\nChecked ${files.length} scannable files. ${violations.length} forbidden claim violation(s) found.`,
+      );
       return 1;
     }
 
