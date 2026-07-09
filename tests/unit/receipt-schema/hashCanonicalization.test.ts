@@ -6,8 +6,9 @@ import { buildReceiptPayload, receiptDigest, BuildReceiptPayloadInput } from "..
 const undefinedValueErrorMessage =
   "Canonical JSON cannot encode undefined values. Use explicit null or omit the key structurally.";
 
-function expectUndefinedValidationError(value: unknown, context: Record<string, unknown>): void {
+function expectValidationError(value: unknown, message?: string, context: Record<string, unknown> = {}): void {
   let thrown: unknown;
+
   try {
     canonicalize(value);
   } catch (error) {
@@ -15,8 +16,18 @@ function expectUndefinedValidationError(value: unknown, context: Record<string, 
   }
 
   expect(thrown).toBeInstanceOf(ValidationError);
-  expect((thrown as ValidationError).message).toBe(undefinedValueErrorMessage);
-  expect((thrown as ValidationError).context).toMatchObject({
+
+  if (message) {
+    expect((thrown as ValidationError).message).toBe(message);
+  }
+
+  if (Object.keys(context).length > 0) {
+    expect((thrown as ValidationError).context).toMatchObject(context);
+  }
+}
+
+function expectUndefinedValidationError(value: unknown, context: Record<string, unknown>): void {
+  expectValidationError(value, undefinedValueErrorMessage, {
     type: "undefined_value_encountered",
     ...context
   });
@@ -107,6 +118,14 @@ describe("canonicalization", () => {
     expect(canonicalSha256Hex({ b: 2, a: 1 })).toBe(canonicalSha256Hex({ a: 1, b: 2 }));
   });
 
+  it("removes insignificant whitespace from canonical objects and arrays", () => {
+    expect(canonicalize({ z: [3, 2, 1], a: { y: true, x: null } })).toBe('{"a":{"x":null,"y":true},"z":[3,2,1]}');
+  });
+
+  it("preserves explicit array order", () => {
+    expect(canonicalSha256Hex(["a", "b"])).not.toBe(canonicalSha256Hex(["b", "a"]));
+  });
+
   it("builds stable receipt IDs for identical payload inputs", () => {
     const input = {
       tenantSlug: "acme-lab",
@@ -122,8 +141,10 @@ describe("canonicalization", () => {
         parameters: {}
       }
     };
+
     const first = buildReceiptPayload(input);
     const second = buildReceiptPayload({ ...input, evidenceObjects: ["ev_a", "ev_b"] });
+
     expect(first.receiptId).toBe(second.receiptId);
     expect(receiptDigest(first)).toMatch(/^[a-f0-9]{64}$/u);
   });
@@ -148,7 +169,7 @@ describe("canonicalization", () => {
     const sparse: unknown[] = [];
     sparse[1] = "test";
 
-    expectUndefinedValidationError(sparse, { index: 0 });
+    expectValidationError(sparse, "Canonical JSON cannot encode sparse arrays", { index: 0 });
   });
 
   it("preserves_null_semantics", () => {
@@ -156,15 +177,57 @@ describe("canonicalization", () => {
     expect(canonicalSha256Hex({ a: null })).not.toBe(canonicalSha256Hex({}));
   });
 
-  it("normalizes dates to ISO 8601 UTC strings and negative zero to 0", () => {
-    expect(canonicalize(new Date("2026-07-07T00:00:00-04:00"))).toBe('"2026-07-07T04:00:00.000Z"');
+  it("normalizes negative zero to 0", () => {
     expect(canonicalize(-0)).toBe("0");
+  });
+
+  it("rejects Date objects instead of silently normalizing host-runtime values", () => {
+    expectValidationError(
+      new Date("2026-07-07T00:00:00-04:00"),
+      "Canonical JSON cannot encode Date objects. Serialize timestamps as schema-owned ISO strings before signing.",
+      { constructor: "Date" }
+    );
+  });
+
+  it("accepts explicit ISO timestamp strings", () => {
+    expect(canonicalize("2026-07-07T04:00:00.000Z")).toBe('"2026-07-07T04:00:00.000Z"');
   });
 
   it("rejects non-finite numbers", () => {
     for (const value of [NaN, Infinity, -Infinity]) {
       expect(() => canonicalize(value)).toThrow(ValidationError);
     }
+  });
+
+  it("rejects binary and collection host-runtime objects", () => {
+    expectValidationError(Buffer.from("ghost"), "Canonical JSON cannot encode Buffer values. Encode bytes explicitly before signing.", {
+      constructor: "Buffer"
+    });
+    expectValidationError(new Uint8Array([1, 2, 3]), "Canonical JSON cannot encode binary view values. Encode bytes explicitly before signing.", {
+      constructor: "Uint8Array"
+    });
+    expectValidationError(new Map([["a", 1]]), "Canonical JSON cannot encode Map or Set values. Convert them to explicit schema objects before signing.", {
+      constructor: "Map"
+    });
+    expectValidationError(new Set(["a"]), "Canonical JSON cannot encode Map or Set values. Convert them to explicit schema objects before signing.", {
+      constructor: "Set"
+    });
+  });
+
+  it("rejects bigint function and symbol values", () => {
+    expectValidationError(1n, "Canonical JSON cannot encode bigint values", { type: "bigint" });
+    expectValidationError(() => "ghost", "Canonical JSON cannot encode executable or symbolic values", { type: "function" });
+    expectValidationError(Symbol("ghost"), "Canonical JSON cannot encode executable or symbolic values", { type: "symbol" });
+  });
+
+  it("rejects class instances", () => {
+    class GhostPayload {
+      constructor(public readonly tenantSlug: string) {}
+    }
+
+    expectValidationError(new GhostPayload("acme-lab"), "Unsupported value in canonical JSON payload", {
+      constructor: "GhostPayload"
+    });
   });
 
   it("regression_stability", () => {
