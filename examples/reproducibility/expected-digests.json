@@ -1,0 +1,20 @@
+{
+  "schema_version": "ghost.repro_expected_digests.v1",
+  "fixtures": {
+    "hmac-baseline": {
+      "receipt_id": "grct_1debd067f8310ec416610ea9866d6162e12f73e5b96f4a001e66d7203342cb64",
+      "digest_sha256": "b73b061366bd0b713c9ccc82d9e1fb785c82fc38a30620d6f33b213f37476184",
+      "signed_receipt_hash": "sha256:b025de75eca16454a0e74386d929bace44a189ae4a626bc45322f0fec8f53bd2"
+    },
+    "hmac-chained": {
+      "receipt_id": "grct_7add8fc0cdf17dba1d09fb3daf6cc450fa1d4fcef1e839375c49efaa6e7ed07c",
+      "digest_sha256": "250c831eec0156b18e2f585e08d17fb4f3b97c7fd98d18c09611c751b551f854",
+      "signed_receipt_hash": "sha256:854c06bb58d1be24230c8279fb016bfac3317001700be40ce802aa67174e787a"
+    },
+    "kms-style-rsa": {
+      "receipt_id": "grct_5dc895402e98810a7b4df34b571debc209a9eeb2bf8823b46c8531048c476bc7",
+      "digest_sha256": "590ec12bbc1e56fdcc169e508776345c74a1c4ddd57685ef6479abcabdaf2d87",
+      "signed_receipt_hash": "sha256:9e9774dcb1869e9d9df94f55c95e0f204572ef220caf855307e9b9ed5e8776ec"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "ghost.decision_receipt_signature.v1",
+  "keyId": "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-0000000000aa",
+  "algorithm": "KMS_SIGN_RSASSA_PSS_SHA_256",
+  "digestSha256": "590ec12bbc1e56fdcc169e508776345c74a1c4ddd57685ef6479abcabdaf2d87",
+  "signature": "CrIj53V+E1IqpeXYrPGLEjXHyZE9qV4vdSkRKfTvvq9aiYaP/zI3LBMRAGGKGUkGi579zGYOYHmTcjTYiqw3QPOhUOtE4IMHe1vgrOld4zTe0rnvLxxlouLI/WYGMNwenhCgKuOB3dItpzIVUG6+gi8LCgVRdN1fLNgsLyg+DeYuaLGqiRHOYkH+sVsENUFx6XeyZYy0vPjn1odMa8m5eT/bwJqEjdvQrR8nIWjCBt1qkD3EDSwpUEfQvfcsoCe2Ghb9raBG76WzpxbGlloqS7cz/Cp5ps7LQAsJZFnwZvU7PKsGObL/PjVrswvjE3xJXEckt0WC7CRklXFAavHZPA=="
+}

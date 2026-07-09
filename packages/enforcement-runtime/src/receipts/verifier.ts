@@ -1,6 +1,7 @@
 import { canonicalUnsignedDecisionReceipt, decisionReceiptDigest, receiptIdFromUnsignedDecisionReceipt, unsignedReceiptForSigning } from "./canonical";
 import { immutableKmsKeyIdsMatch, isImmutableKmsKeyId } from "../aws/kmsKeyIdentity";
 import { KeyManifest, verifyKeyManifestEpoch } from "./keyManifest";
+import { decodeDecisionReceiptSignatureEnvelope } from "./signer";
 import { SignedDecisionReceipt, validateSignedDecisionReceipt } from "./schema";
 
 export interface DecisionReceiptVerificationCheck {
@@ -85,6 +86,20 @@ export async function verifyDecisionReceipt(
         : `Unexpected signature algorithm ${receipt.signature_alg}.`
     )
   );
+
+  let envelopePassed = false;
+  let envelopeDetail = "Signature envelope is strict canonical base64url JSON with the expected field set.";
+  try {
+    const strictEnvelope = decodeDecisionReceiptSignatureEnvelope(receipt.receipt_signature);
+    if (strictEnvelope.algorithm !== receipt.signature_alg) {
+      envelopeDetail = `Envelope algorithm ${strictEnvelope.algorithm} does not match receipt signature_alg ${receipt.signature_alg}.`;
+    } else {
+      envelopePassed = true;
+    }
+  } catch (error) {
+    envelopeDetail = error instanceof Error ? error.message : String(error);
+  }
+  checks.push(check("envelope", envelopePassed, envelopeDetail));
 
   const canonicalPayload = canonicalUnsignedDecisionReceipt(receipt);
   const signatureEnvelope = parseDecisionReceiptSignatureEnvelope(receipt.receipt_signature);
