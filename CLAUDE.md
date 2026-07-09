@@ -75,7 +75,7 @@ Never claim or imply:
 
 - guarantees safety
 
-- unbreakable
+- absolute-security language
 
 - deployment-safety certification
 

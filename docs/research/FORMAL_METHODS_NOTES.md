@@ -273,4 +273,4 @@ A checked model can validate a finite abstraction.
 
 A refinement proof can connect abstraction to implementation.
 
-None of these automatically prove AI safety, compliance, production security, or correctness of external cloud services.
+None of these automatically establish broad AI-safety assurance, regulatory status, production security posture, or correctness of external cloud services.
