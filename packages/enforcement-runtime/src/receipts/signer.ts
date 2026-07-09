@@ -4,7 +4,7 @@ import {
   canonicalUnsignedDecisionReceipt,
   decisionReceiptDigest
 } from "./canonical";
-import { SignedDecisionReceipt, UnsignedDecisionReceipt, validateSignedDecisionReceipt } from "./schema";
+import { SignedDecisionReceipt, UnsignedDecisionReceipt, validateSignedDecisionReceipt, validateUnsignedDecisionReceipt } from "./schema";
 import { canonicalize } from "../../../receipt-schema/src/hashCanonicalization";
 import { ValidationError } from "../../../shared/src/errors";
 
@@ -23,6 +23,14 @@ export interface DecisionReceiptSignatureEnvelope {
   readonly signature: string;
 }
 
+const signatureEnvelopeSchemaVersion = "ghost.decision_receipt_signature.v1" as const;
+const localDevHmacAlgorithm = "LOCAL_HMAC_SHA256_DEV_ONLY" as const;
+const kmsRsaPssAlgorithm = "KMS_SIGN_RSASSA_PSS_SHA_256" as const;
+
+const lowerSha256HexPattern = /^[a-f0-9]{64}$/u;
+const standardBase64Pattern = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u;
+const base64urlJsonPattern = /^[A-Za-z0-9_-]+$/u;
+
 function signingError(message: string, context: Record<string, unknown> = {}): ValidationError {
   return new ValidationError(message, { domain: "ghost_ark.decision_receipt_signer.v1", ...context });
 }
@@ -33,28 +41,116 @@ function assertNonEmptyString(name: string, value: string): void {
   }
 }
 
-function assertBase64Signature(signature: string): void {
-  assertNonEmptyString("signature", signature);
-
-  try {
-    const decoded = Buffer.from(signature, "base64");
-    if (decoded.length === 0) {
-      throw signingError("signature must decode to non-empty bytes.", { field: "signature" });
-    }
-  } catch (error) {
-    throw signingError("signature must be valid base64.", {
-      field: "signature",
-      cause: error instanceof Error ? error.message : String(error)
+function assertKnownSignatureAlgorithm(algorithm: unknown): asserts algorithm is SignedDecisionReceipt["signature_alg"] {
+  if (algorithm !== localDevHmacAlgorithm && algorithm !== kmsRsaPssAlgorithm) {
+    throw signingError("Unsupported decision receipt signature algorithm.", {
+      field: "algorithm",
+      observed: algorithm
     });
   }
 }
 
+function assertSignerShape(signer: DecisionReceiptSigner): void {
+  if (!signer || typeof signer !== "object") {
+    throw signingError("Decision receipt signer must be an object.", { field: "signer" });
+  }
+
+  assertNonEmptyString("keyId", signer.keyId);
+  assertKnownSignatureAlgorithm(signer.algorithm);
+
+  if (typeof signer.signCanonical !== "function") {
+    throw signingError("Decision receipt signer must expose signCanonical().", { field: "signCanonical" });
+  }
+}
+
+function assertLowerSha256Hex(name: string, value: string): void {
+  if (!lowerSha256HexPattern.test(value)) {
+    throw signingError(`${name} must be a lowercase SHA-256 hex digest.`, { field: name });
+  }
+}
+
+function assertStandardBase64Signature(signature: string): void {
+  assertNonEmptyString("signature", signature);
+
+  if (!standardBase64Pattern.test(signature)) {
+    throw signingError("signature must be standard base64-encoded bytes.", { field: "signature" });
+  }
+
+  const decoded = Buffer.from(signature, "base64");
+  if (decoded.length === 0) {
+    throw signingError("signature must decode to non-empty bytes.", { field: "signature" });
+  }
+}
+
+function assertBase64urlEnvelope(value: string): void {
+  assertNonEmptyString("receipt_signature", value);
+
+  if (!base64urlJsonPattern.test(value)) {
+    throw signingError("receipt_signature must be unpadded base64url text.", {
+      field: "receipt_signature"
+    });
+  }
+}
+
+function assertExactEnvelopeKeys(envelope: Record<string, unknown>): void {
+  const expected = ["algorithm", "digestSha256", "keyId", "schemaVersion", "signature"].sort();
+  const observed = Object.keys(envelope).sort();
+
+  if (observed.length !== expected.length || observed.some((key, index) => key !== expected[index])) {
+    throw signingError("receipt_signature envelope contains an unexpected field set.", {
+      field: "receipt_signature",
+      expected,
+      observed
+    });
+  }
+}
+
+function assertEnvelopeShape(envelope: Record<string, unknown>): DecisionReceiptSignatureEnvelope {
+  assertExactEnvelopeKeys(envelope);
+
+  if (envelope.schemaVersion !== signatureEnvelopeSchemaVersion) {
+    throw signingError("receipt_signature envelope has an unsupported schemaVersion.", {
+      field: "schemaVersion",
+      observed: envelope.schemaVersion
+    });
+  }
+
+  assertKnownSignatureAlgorithm(envelope.algorithm);
+
+  if (typeof envelope.keyId !== "string" || envelope.keyId.length === 0) {
+    throw signingError("receipt_signature envelope keyId must be non-empty.", { field: "keyId" });
+  }
+
+  if (typeof envelope.digestSha256 !== "string") {
+    throw signingError("receipt_signature envelope digestSha256 must be a string.", {
+      field: "digestSha256"
+    });
+  }
+
+  assertLowerSha256Hex("digestSha256", envelope.digestSha256);
+
+  if (typeof envelope.signature !== "string") {
+    throw signingError("receipt_signature envelope signature must be a string.", { field: "signature" });
+  }
+
+  assertStandardBase64Signature(envelope.signature);
+
+  return {
+    schemaVersion: signatureEnvelopeSchemaVersion,
+    keyId: envelope.keyId,
+    algorithm: envelope.algorithm,
+    digestSha256: envelope.digestSha256,
+    signature: envelope.signature
+  };
+}
+
 export function encodeDecisionReceiptSignatureEnvelope(envelope: DecisionReceiptSignatureEnvelope): string {
+  assertEnvelopeShape({ ...envelope });
   return Buffer.from(canonicalize(envelope), "utf8").toString("base64url");
 }
 
 export function decodeDecisionReceiptSignatureEnvelope(value: string): DecisionReceiptSignatureEnvelope {
-  assertNonEmptyString("receipt_signature", value);
+  assertBase64urlEnvelope(value);
 
   let parsed: unknown;
   try {
@@ -67,49 +163,16 @@ export function decodeDecisionReceiptSignatureEnvelope(value: string): DecisionR
   }
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw signingError("receipt_signature envelope must decode to an object.", { field: "receipt_signature" });
-  }
-
-  const envelope = parsed as Record<string, unknown>;
-  if (envelope.schemaVersion !== "ghost.decision_receipt_signature.v1") {
-    throw signingError("receipt_signature envelope has an unsupported schemaVersion.", {
-      field: "schemaVersion",
-      observed: envelope.schemaVersion
+    throw signingError("receipt_signature envelope must decode to an object.", {
+      field: "receipt_signature"
     });
   }
 
-  if (envelope.algorithm !== "LOCAL_HMAC_SHA256_DEV_ONLY" && envelope.algorithm !== "KMS_SIGN_RSASSA_PSS_SHA_256") {
-    throw signingError("receipt_signature envelope has an unsupported algorithm.", {
-      field: "algorithm",
-      observed: envelope.algorithm
-    });
-  }
-
-  if (typeof envelope.keyId !== "string" || envelope.keyId.length === 0) {
-    throw signingError("receipt_signature envelope keyId must be non-empty.", { field: "keyId" });
-  }
-
-  if (typeof envelope.digestSha256 !== "string" || !/^[a-f0-9]{64}$/u.test(envelope.digestSha256)) {
-    throw signingError("receipt_signature envelope digestSha256 must be a lowercase SHA-256 hex digest.", {
-      field: "digestSha256"
-    });
-  }
-
-  if (typeof envelope.signature !== "string" || envelope.signature.length === 0) {
-    throw signingError("receipt_signature envelope signature must be non-empty.", { field: "signature" });
-  }
-
-  return {
-    schemaVersion: "ghost.decision_receipt_signature.v1",
-    keyId: envelope.keyId,
-    algorithm: envelope.algorithm,
-    digestSha256: envelope.digestSha256,
-    signature: envelope.signature
-  };
+  return assertEnvelopeShape(parsed as Record<string, unknown>);
 }
 
 export class LocalDevHmacReceiptSigner implements DecisionReceiptSigner {
-  readonly algorithm = "LOCAL_HMAC_SHA256_DEV_ONLY" as const;
+  readonly algorithm = localDevHmacAlgorithm;
   readonly keyId: string;
   private readonly secret: string;
 
@@ -117,6 +180,8 @@ export class LocalDevHmacReceiptSigner implements DecisionReceiptSigner {
     assertNonEmptyString("secret", options.secret);
 
     this.keyId = options.keyId ?? "local-dev-hmac";
+    assertNonEmptyString("keyId", this.keyId);
+
     this.secret = options.secret;
   }
 
@@ -127,7 +192,7 @@ export class LocalDevHmacReceiptSigner implements DecisionReceiptSigner {
 
   verifyCanonical(canonicalPayload: string, signature: string): boolean {
     assertNonEmptyString("canonicalPayload", canonicalPayload);
-    assertBase64Signature(signature);
+    assertStandardBase64Signature(signature);
 
     const expected = Buffer.from(this.signCanonical(canonicalPayload), "base64");
     const observed = Buffer.from(signature, "base64");
@@ -136,35 +201,44 @@ export class LocalDevHmacReceiptSigner implements DecisionReceiptSigner {
   }
 }
 
-export function signDecisionReceipt(receipt: UnsignedDecisionReceipt, signer: DecisionReceiptSigner): SignedDecisionReceipt {
-  if (receipt.signature_alg !== signer.algorithm) {
-    throw signingError(`Receipt signature_alg ${receipt.signature_alg} does not match signer algorithm ${signer.algorithm}`, {
-      receiptAlgorithm: receipt.signature_alg,
+export function buildDecisionReceiptSignatureEnvelope(
+  receipt: UnsignedDecisionReceipt,
+  signer: DecisionReceiptSigner
+): DecisionReceiptSignatureEnvelope {
+  assertSignerShape(signer);
+
+  const unsigned = validateUnsignedDecisionReceipt(receipt);
+
+  if (unsigned.signature_alg !== signer.algorithm) {
+    throw signingError(`Receipt signature_alg ${unsigned.signature_alg} does not match signer algorithm ${signer.algorithm}`, {
+      receiptAlgorithm: unsigned.signature_alg,
       signerAlgorithm: signer.algorithm
     });
   }
 
-  if (signer.algorithm === "KMS_SIGN_RSASSA_PSS_SHA_256") {
-    assertNonDefaultExecutionBoundary(receipt);
+  if (signer.algorithm === kmsRsaPssAlgorithm) {
+    assertNonDefaultExecutionBoundary(unsigned);
   }
 
-  const canonicalPayload = canonicalUnsignedDecisionReceipt(receipt);
-  const digestSha256 = decisionReceiptDigest(receipt);
+  const canonicalPayload = canonicalUnsignedDecisionReceipt(unsigned);
   const signature = signer.signCanonical(canonicalPayload);
-  assertBase64Signature(signature);
+  assertStandardBase64Signature(signature);
 
-  const signatureEnvelope: DecisionReceiptSignatureEnvelope = {
-    schemaVersion: "ghost.decision_receipt_signature.v1",
+  return {
+    schemaVersion: signatureEnvelopeSchemaVersion,
     keyId: signer.keyId,
     algorithm: signer.algorithm,
-    digestSha256,
+    digestSha256: decisionReceiptDigest(unsigned),
     signature
   };
+}
 
-  const signed = {
-    ...receipt,
+export function signDecisionReceipt(receipt: UnsignedDecisionReceipt, signer: DecisionReceiptSigner): SignedDecisionReceipt {
+  const unsigned = validateUnsignedDecisionReceipt(receipt);
+  const signatureEnvelope = buildDecisionReceiptSignatureEnvelope(unsigned, signer);
+
+  return validateSignedDecisionReceipt({
+    ...unsigned,
     receipt_signature: encodeDecisionReceiptSignatureEnvelope(signatureEnvelope)
-  };
-
-  return validateSignedDecisionReceipt(signed);
+  });
 }
