@@ -40,6 +40,8 @@
     "smoke:governed-invoke": "ts-node tools/scripts/smokeGovernedInvoke.ts",
     "supervised:aws-runtime-validation": "ts-node tools/scripts/supervisedAwsRuntimeValidation.ts",
     "research:witness-bundle": "ts-node tools/scripts/createResearchWitnessBundle.ts"
+    "scan:claims": "node tools/research/check-forbidden-claims.mjs",
+    "spine:a": "npm run lint && npm run validate:claims && npm run scan:claims && npm test && npm run docs:check"
   },
   "dependencies": {
     "@aws-sdk/client-athena": "^3.1080.0",
