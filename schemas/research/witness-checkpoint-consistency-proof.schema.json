@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/research/witness-checkpoint-consistency-proof.schema.json",
+  "title": "Ghost-Ark Witness Checkpoint Consistency Proof",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "log_id",
+    "old_tree_size",
+    "new_tree_size",
+    "old_root_hash",
+    "new_root_hash",
+    "audit_path"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "ghostark.research.witness_checkpoint_consistency_proof.v1"
+    },
+    "log_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "old_tree_size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "new_tree_size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "old_root_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "new_root_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "audit_path": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    }
+  },
+  "additionalProperties": false
+}
