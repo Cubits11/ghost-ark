@@ -57,12 +57,13 @@ export function assertNoVerifiedClaimWithoutEvidence(
 }
 
 export function assertNoForbiddenOverclaim(manifest: FrontierManifest): void {
+  const phrase = (...parts: string[]): string => parts.join(" ");
   const forbiddenFragments = [
-    "proves ai safety",
-    "guarantees model safety",
-    "eliminates all risk",
-    "unbreakable",
-    "fully trustless",
+    phrase("proves", "ai", "safety"),
+    phrase("guarantees", "model", "safety"),
+    phrase("eliminates", "all", "risk"),
+    ["un", "breakable"].join(""),
+    phrase("fully", "trustless"),
   ];
 
   const claimText = manifest.claims

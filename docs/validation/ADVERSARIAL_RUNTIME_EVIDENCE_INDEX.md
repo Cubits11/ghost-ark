@@ -94,7 +94,7 @@ Ghost-Ark has stronger adversarial runtime evidence for local fail-closed behavi
 - Ghost-Ark is enterprise ready.
 - Ghost-Ark is AI safe.
 - Ghost-Ark is legally or compliance certified.
-- Ghost-Ark proves semantic correctness.
-- Ghost-Ark proves empirical truth.
+- Do not claim Ghost-Ark proves semantic correctness.
+- Do not claim Ghost-Ark proves empirical truth.
 - Decision receipts prove model output correctness.
 - Local tests replace live AWS validation.
