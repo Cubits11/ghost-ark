@@ -38,7 +38,8 @@
     "policy:counterexamples": "ts-node tools/scripts/verifyTenantPolicyCounterexamples.ts",
     "seed:governed-policy": "ts-node tools/scripts/seedGovernedPolicy.ts",
     "smoke:governed-invoke": "ts-node tools/scripts/smokeGovernedInvoke.ts",
-    "supervised:aws-runtime-validation": "ts-node tools/scripts/supervisedAwsRuntimeValidation.ts"
+    "supervised:aws-runtime-validation": "ts-node tools/scripts/supervisedAwsRuntimeValidation.ts",
+    "research:witness-bundle": "ts-node tools/scripts/createResearchWitnessBundle.ts"
   },
   "dependencies": {
     "@aws-sdk/client-athena": "^3.1080.0",

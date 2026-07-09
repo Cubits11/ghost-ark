@@ -101,7 +101,7 @@ describe("forbidden claim scanner", () => {
       ruleId: "production-enterprise",
     },
     {
-      name: "truthfulness guarantee wording",
+      name: "semantic truth overclaim wording",
       line: phrase("Ghost-Ark provides a", "truthfulness", "guarantee."),
       ruleId: "truthfulness-guarantee",
     },

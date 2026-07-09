@@ -1,0 +1,11 @@
+{
+  "schema_version": "ghostark.research.witness_checkpoint_consistency_proof.v1",
+  "log_id": "ghost-ark-local-research-log",
+  "old_tree_size": 2,
+  "new_tree_size": 4,
+  "old_root_hash": "e7b1f312c1f294f90abb56b001750f85b8123a209527efd74b2afc2ea10bed18",
+  "new_root_hash": "5468c5d870e91d16ecedeec39da97e3858c449eae775a9f17de21b43d22d04c7",
+  "audit_path": [
+    "136cf84213ef2576b086b2eb4778d5c88109c39360ae6ccf8105d7e29b766360"
+  ]
+}
