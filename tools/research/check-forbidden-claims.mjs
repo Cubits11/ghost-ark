@@ -6,6 +6,8 @@ const roots = ["README.md", "docs"];
 const allowedPolicyFiles = new Set([
   "docs/research/THREAT_MODEL_FRONTIER.md",
   "docs/research/ASSURANCE_MATURITY_LADDER.md",
+  "docs/research/AGENT_RESEARCH_AUDIT_2026-07-08.md",
+  "docs/release/CLAIMS_BOUNDARY.md",
 ]);
 
 const forbiddenPatterns = [
