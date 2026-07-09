@@ -37,7 +37,7 @@ Ghost-Ark has deterministic receipt and checkpoint primitives.	L3	Receipt and ch
 Ghost-Ark can generate and verify local research witness checkpoint consistency bundles.	L4	tools/scripts/createResearchWitnessBundle.ts, local witness bundle examples, verifier integration tests.	npm run research:witness-bundle -- --out examples/research/witness-bundle.local; node tools/ghost-verify.mjs --witness-checkpoint-consistency-proof ...	Published golden bundle, pinned hashes, external verifier report, independent witness keys.	Ghost-Ark can generate and locally verify a research witness checkpoint consistency bundle under Ghost-Ark verifier rules.	Ghost-Ark has decentralized transparency, independent witness confirmation, or public monitor verification.
 Ghost-Ark defines a CC-Ghost discretization contract.	L1-L2 initially; L3-L4 after tests	docs/research/CC_GHOST_DISCRETIZATION_CONTRACT.md, schemas/ghost_discretization_rule_receipt.v1.json, examples/cc-ghost/**, discretization contract tests.	npx vitest run tests/integration/tools/ccGhostDiscretizationContract.test.ts after implementation.	CLI verifier, signed receipt envelope, CC-Framework adapter, end-to-end CC bounds replay, external artifact bundle.	Ghost-Ark defines and tests a local contract for mapping bounded guardrail scores into CC-compatible binary variables under explicit rule preconditions.	Ghost-Ark proves scoring validity, threshold optimality, calibration quality, AI safety, statistical validity, or real-world stationarity.
 Ghost-Ark has AWS-native deployment scaffolding.	L2-L4 depending on component	infra/cdk, infra/terraform, services/**, apps/api/**, local synthesis and tests.	npm run validate, terraform validate, npx cdk synth	Continuous live AWS validation evidence, IAM snapshots, recovery tests, threat-model review, production readiness review.	Ghost-Ark includes AWS CDK/Terraform scaffolding and AWS validation candidate paths.	Ghost-Ark is enterprise-ready, production-ready, compliant, or operationally hardened by default.
-Ghost-Ark supports governed invocation receipt emission in candidate AWS mode.	L4 locally; L5 only after checked live evidence	apps/api/**, packages/enforcement-runtime/**, tools/scripts/smokeGovernedInvoke.ts, governed invoke tests.	Local: npm test; AWS: npm run smoke:governed-invoke -- ... only with explicit human approval and AWS credentials.	Sanitized live evidence, CloudWatch logs, KMS verification output, deployed stack metadata, regression pipeline, preserved smoke reports.	Ghost-Ark has a governed invocation path designed to emit decision receipts and fail closed under tested local conditions.	Ghost-Ark guarantees safe model behavior, correct deployment decisions, compliant outputs, or production-grade runtime assurance.
+Ghost-Ark supports governed invocation receipt emission in candidate AWS mode.	L4 locally; L5 only after checked live evidence	apps/api/**, packages/enforcement-runtime/**, tools/scripts/smokeGovernedInvoke.ts, governed invoke tests.	Local: npm test; AWS: npm run smoke:governed-invoke -- ... only with explicit human approval and AWS credentials.	Sanitized live evidence, CloudWatch logs, KMS verification output, deployed stack metadata, regression pipeline, preserved smoke reports.	Ghost-Ark has a governed invocation path designed to emit decision receipts and fail closed under tested local conditions.	Ghost-Ark does not establish safe model behavior, correct deployment decisions, compliant outputs, or production-grade runtime assurance.
 Ghost-Ark uses claim-boundary scanning.	L3	tools/research/check-forbidden-claims.mjs, scanner tests, CI claim checks.	npm run claims:check	Unicode/homoglyph negative tests, broader semantic review, generated-doc coverage, public claim review workflow.	Ghost-Ark includes a CI-enforced forbidden-claim scanner for known overclaim patterns.	Ghost-Ark is immune to false advertising, all semantic overclaim drift, or malicious wording bypasses.
 Ghost-Ark models Nitro attestation boundaries.	L1-L2	Research docs, attestation-related schemas, manifest stubs, local tests when present.	Local schema or unit tests only.	Real Nitro Enclave build, attestation document parser, PCR measurement evidence, KMS attestation-bound key release, AWS runtime evidence.	Ghost-Ark documents Nitro attestation boundaries and future validation requirements.	Ghost-Ark provides production enclave security or hardware-isolated execution.
 Ghost-Ark models zk receipt boundaries.	L1-L2	Research docs, mock interfaces, schema-only receipts, reserved proof-system tests where present.	Local mock/schema tests only.	Real SP1/RISC Zero proof generation, verifier adapter, public journal commitments, reproducible proof artifacts.	Ghost-Ark defines research interfaces for future zk receipt verification.	Ghost-Ark executes, verifies, or proves real zero-knowledge execution unless real proof artifacts are checked in and verified.
@@ -122,14 +122,14 @@ Avoid unless supported
 
 Forbidden without exact evidence
 
-* “proves AI safety”
-* “guarantees model safety”
+* broad AI-safety proof language
+* broad model-safety guarantee language
 * “proves output truthfulness”
-* “certifies compliance”
+* compliance-certification language
 * “eliminates risk”
-* “fully trustless”
-* “unbreakable”
-* “production-ready enterprise infrastructure”
+* unrestricted trustlessness language
+* absolute-security language
+* production-readiness language
 * “decentralized transparency” without independent witnesses
 * “formal proof” without proof artifacts and verifier instructions
 
