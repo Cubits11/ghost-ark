@@ -266,15 +266,15 @@ A reviewer should accept narrow evidence claims only when the repo points to con
 
 A reviewer should reject broad claims that imply:
 
-* model safety
-* alignment guarantees
-* semantic truth
-* deployment correctness
-* compliance certification
-* production readiness
-* zero risk
-* complete security
-* live AWS validation without live AWS evidence
+- model behavior has been proven safe
+- alignment has been established
+- semantic truth has been established
+- deployment correctness has been proven
+- compliance certification has been achieved
+- production readiness has been achieved
+- residual risk has been eliminated
+- complete security has been achieved
+- live AWS validation exists without a preserved live AWS evidence bundle
 
 Passing local tests means local artifacts behave as expected under the implemented verifier rules. It does not prove live AWS behavior, production security, regulatory compliance, or AI safety.
 
