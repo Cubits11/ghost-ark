@@ -1,0 +1,13 @@
+{
+  "schema_version": "ghostark.research.witness_key_manifest.v1",
+  "generated_at": "2026-07-08T12:00:30.000Z",
+  "witnesses": [
+    {
+      "witness_id": "local-dev-witness-1",
+      "signature_algorithm": "ecdsa-p256-sha256",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESt2kVF/nN8yYQlPlDfiVMt08dpVD\ncPuyEu9d8ym/fmIFQQc8HUS6QV6hRCCijTJnFjEkidcCv9e76mKXoRoWAA==\n-----END PUBLIC KEY-----\n",
+      "valid_from": "2026-07-08T00:00:00.000Z",
+      "status": "ACTIVE"
+    }
+  ]
+}
