@@ -2,6 +2,33 @@
 
 This backlog is for local-first Codex execution in Ghost-Ark. It assumes TypeScript, npm, Vitest, AWS CDK, Terraform, JSON Schema, and markdown docs. Python tasks are allowed only for existing AWS Glue jobs or AWS-gated Python tests.
 
+## Mandatory Task Contract
+
+Every executable Codex task must name:
+
+- Branch.
+- Files to edit.
+- Files forbidden to edit.
+- Implementation goal.
+- Tests to run.
+- Commit message.
+- Rollback plan.
+- Claim/non-claim boundary.
+- Human approval required.
+
+## Current Next 10 Task Titles
+
+1. test(scanner): add negative tests for forbidden claim scanner
+2. chore(npm): add focused validation scripts for research and claim checks
+3. docs(agents): tighten symlink, secrets, and live AWS boundaries
+4. docs(pr): require mock-vs-cryptographic proof boundary declaration
+5. docs(security): add SECURITY.md with experimental unaudited status
+6. proofs: add tenant isolation TLA+ model stub
+7. transparency: add deterministic Merkle checkpoint primitive
+8. attestation: model Nitro PCR-bound KMS release conditions
+9. zk: add execution receipt interface and mock verifier
+10. docs(readme): add current-status and non-claims table
+
 ## Defaults For Every Task
 
 - Branch format: `codex/<area>-<short-slug>`.
