@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/ghost_discretization_rule_receipt.v1.json",
+  "title": "Ghost Discretization Rule Receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "rule_id",
+    "guardrail_id",
+    "score_name",
+    "score_domain",
+    "score_polarity",
+    "comparator",
+    "threshold",
+    "threshold_inclusive",
+    "failure_semantics",
+    "calibration_digest",
+    "scoring_function_digest",
+    "policy_digest",
+    "model_or_classifier_digest",
+    "valid_from",
+    "valid_until",
+    "canonicalization",
+    "receipt_digest",
+    "non_claim"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ghost.discretization_rule_receipt.v1"
+    },
+    "rule_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "guardrail_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "score_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "score_domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "lower", "upper"],
+      "properties": {
+        "type": {
+          "const": "closed_interval"
+        },
+        "lower": {
+          "type": "number"
+        },
+        "upper": {
+          "type": "number"
+        }
+      }
+    },
+    "score_polarity": {
+      "enum": ["higher_is_riskier", "lower_is_riskier"]
+    },
+    "comparator": {
+      "enum": [">=", ">", "<=", "<"]
+    },
+    "threshold": {
+      "type": "number"
+    },
+    "threshold_inclusive": {
+      "type": "boolean"
+    },
+    "failure_semantics": {
+      "const": "1 means guardrail failure or unsafe pass"
+    },
+    "calibration_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "scoring_function_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "policy_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "model_or_classifier_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "valid_from": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "valid_until": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "canonicalization": {
+      "const": "json-canonical-v1"
+    },
+    "receipt_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "non_claim": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
