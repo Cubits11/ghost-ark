@@ -1,0 +1,21 @@
+{
+  "schema_version": "ghost.cc_binary_observation.v1",
+  "observation_id": "obs_toxicity_001",
+  "execution_receipt_id": "rct_exec_001",
+  "discretization_rule_id": "toxicity_filter_v1_threshold_085",
+  "discretization_rule_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+  "variable_id": "Z_toxicity_filter",
+  "score_name": "toxicity_score",
+  "score_value": 0.91,
+  "binary_value": 1,
+  "failure_semantics": "1 means guardrail failure or unsafe pass",
+  "observed_at": "2026-07-09T00:05:00Z",
+  "parent_trace_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+  "cohort_id": "cc-ghost-demo-cohort-001",
+  "copula_stationarity": {
+    "declared": true,
+    "scope": "demo fixture only",
+    "non_claim": "This fixture declares stationarity for contract testing only. It does not validate real-world distribution stability."
+  },
+  "non_claim": "This observation verifies discretization mechanics only. It does not validate the scoring model, calibration dataset, threshold choice, empirical representativeness, AI safety, compliance, production readiness, or deployment correctness."
+}
