@@ -16,26 +16,45 @@ Ghost-Ark is an AWS-native reference implementation for bounded governance recei
 - Typecheck/build: `npm run lint`
 - Unit/integration tests: `npm test`
 - Full local gate: `npm run validate`
+- Fast local gate: `npm run validate:fast`
+- Claim boundary check: `npm run validate:claims`
+- Legacy claim boundary alias: `npm run claims:check`
 - Focused Vitest: `npx vitest run <path>`
 - Terraform check: `terraform fmt -check -recursive infra/terraform`
-- Claim boundary check: `npm run claims:check`
 
 Run focused tests for the files you touch. Run `npm run validate` before any commit that changes runtime, security-sensitive code, docs claims, schemas, CI, CDK, Terraform, or public examples.
+
+## Forbidden Commands Without Human Approval
+
+- `cdk deploy`
+- `terraform apply`
+- Mutating `aws ...` commands, including writes, deletes, KMS calls, Bedrock calls, and live smoke tests.
+- `git push --force`
+- `git reset --hard`
+- `git clean -fd`
+- Arbitrary `curl`/`bash` install scripts or remote shell installers.
 
 ## Claim Rules
 
 Allowed claim shape: "Given receipt R, policy hash H, signature S, key manifest K, and checkpoint C, an external verifier can check the recorded binding under Ghost-Ark verifier rules."
 
-Forbidden public claims:
+Do not publicly claim:
 
-- Ghost-Ark proves AI safety.
-- Ghost-Ark guarantees safe model behavior.
-- Ghost-Ark eliminates all risk.
-- Ghost-Ark is fully trustless.
-- Ghost-Ark certifies regulatory compliance by itself.
-- Ghost-Ark proves truthfulness or semantic correctness of model outputs.
+- Do not claim that Ghost-Ark proves AI safety.
+- Do not claim that Ghost-Ark guarantees safe model behavior, model safety, or alignment.
+- Do not claim that Ghost-Ark eliminates all risk.
+- Do not claim that Ghost-Ark is fully trustless or unbreakable.
+- Do not claim that Ghost-Ark certifies regulatory compliance, SOC2, HIPAA, FedRAMP, ISO 42001, or NIST status.
+- Do not claim that Ghost-Ark proves truthfulness or semantic correctness of model outputs.
+- Do not claim that Ghost-Ark executes live zk proofs, live Nitro Enclaves, or formal proofs without checked-in implementation and evidence.
 
 When adding README/docs/marketing copy, classify each claim using `docs/research/ASSURANCE_MATURITY_LADDER.md`. Separate implemented behavior, mock interfaces, schemas, documented designs, and future work.
+
+## Mock Vs Real Boundary
+
+- Mock verifiers must be named `Mock*`.
+- Mock data must say it is non-cryptographic, test-only, or simulation-only.
+- Never claim mock verifier output is a real zk, Nitro, or formal proof.
 
 ## Safe Edit Zones
 
@@ -68,9 +87,16 @@ Do not edit without explicit human approval:
 ## AWS And Secrets
 
 - Do not run live AWS commands, CDK deploys, Terraform applies, Bedrock calls, KMS operations, or smoke tests that can spend money unless the user explicitly authorizes that exact action.
-- Never print, commit, synthesize, or move secrets. Treat `.env`, AWS credentials, tokens, private keys, and MCP/agent config as sensitive.
+- Never read `.env`, `~/.aws/credentials`, `~/.ssh/*`, browser credential stores, or OS credential managers.
+- Never print environment variables, tokens, private keys, AWS credentials, or MCP/agent config.
+- Never commit, synthesize, copy, or move secrets.
 - Prefer `npx cdk synth`, `terraform validate`, and local unit tests over live cloud operations.
 - IAM, KMS, tenant isolation, signature verification, and receipt canonicalization are security-sensitive. Add negative tests for bypass, mismatch, replay, downgrade, and missing-context cases.
+
+## Workspace Boundaries
+
+- Do not write outside the repository workspace.
+- Do not follow or write through symlinks that resolve outside the repository root.
 
 ## Coding Style
 
@@ -85,6 +111,7 @@ Do not edit without explicit human approval:
 - Preserve user changes and unrelated dirty work.
 - Do not add dependencies without a clear reason and tests.
 - Do not rewrite architecture docs as marketing. Keep docs falsifiable and evidence-linked.
+- Before a final commit, run the focused test first, run `npm run validate`, then inspect `git diff` and `git status -s`.
 - Stop and ask when a task requires live AWS spend, production secret access, legal/compliance certification language, destructive data operations, or a new public cryptographic/security claim without evidence.
 
 ## Commit And PR Format
