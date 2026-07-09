@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/verifier-report.json",
+  "title": "Ghost Ark Offline Verifier Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "verifier",
+    "verdict",
+    "checks",
+    "nonClaim"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "ghost.verifier_report.v1"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "const": "ghost-verify"
+        }
+      }
+    },
+    "verdict": {
+      "type": "boolean"
+    },
+    "receiptId": {
+      "type": "string"
+    },
+    "tenantSlug": {
+      "type": "string"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "passed", "detail"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "nonClaim": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
