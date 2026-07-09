@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/research/witness-key-manifest.schema.json",
+  "title": "Ghost-Ark Research Witness Key Manifest",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "witnesses"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "ghostark.research.witness_key_manifest.v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "witnesses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "witness_id",
+          "signature_algorithm",
+          "public_key_pem",
+          "valid_from",
+          "status"
+        ],
+        "properties": {
+          "witness_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "signature_algorithm": {
+            "type": "string",
+            "enum": ["ecdsa-p256-sha256"]
+          },
+          "public_key_pem": {
+            "type": "string",
+            "minLength": 1
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "DEPRECATED", "REVOKED"]
+          },
+          "revoked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

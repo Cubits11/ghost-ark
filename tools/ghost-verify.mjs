@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { constants, createHash, createHmac, createPublicKey, timingSafeEqual, verify as verifySignature } from "crypto";
+import { constants, createHash, createHmac, createPublicKey, createVerify, timingSafeEqual, verify as verifySignature } from "crypto";
 import fs from "fs";
 
 const nonClaim =
-  "This verifies receipt schema shape, canonical digests, tenant expectation, and RSA-PSS signature validity only. It does not prove evidence truth, AI safety, compliance, production readiness, or deployment safety.";
+  "This verifies local artifact shape, canonical digests, signatures, attestations, or Merkle proofs only for the selected mode. It does not prove evidence truth, AI safety, compliance, production readiness, or deployment safety.";
 
 function usage() {
   console.log(`Ghost Ark offline receipt verifier
@@ -13,6 +13,7 @@ Usage:
   node tools/ghost-verify.mjs --verify-chain <decisionReceipts.json>
   node tools/ghost-verify.mjs --runtime-attestation <attestation.json> --attestation-policy <policy.json>
   node tools/ghost-verify.mjs --attested-receipt-bundle <bundle.json> --attestation-policy <policy.json>
+  node tools/ghost-verify.mjs --witness-checkpoint-consistency-proof <proof.json> --previous-witness-checkpoint <checkpoint.json> --new-witness-checkpoint <checkpoint.json> [--witness-key-manifest <manifest.json>]
   node tools/ghost-verify.mjs --receipt-proof <proof.json>
 
 Options:
@@ -37,8 +38,17 @@ Options:
             Sidecar bundle containing a decision receipt and runtime attestation.
   --attested-checkpoint-bundle
             Sidecar bundle containing an epoch checkpoint and runtime attestation.
+  --witness-checkpoint-consistency-proof
+            Research witness checkpoint consistency proof JSON.
+  --previous-witness-checkpoint
+            Previous ghostark.research.witness_checkpoint.v1 checkpoint JSON for consistency verification.
+  --new-witness-checkpoint
+            New ghostark.research.witness_checkpoint.v1 checkpoint JSON for consistency verification.
+  --witness-key-manifest
+            Research witness key manifest JSON for checkpoint signature and key-epoch verification.
   --receipt-proof
             Receipt proof JSON. Only local-transcript is implemented; other proof systems fail closed.
+  --json    Emit a machine-readable verifier report instead of text.
   --help     Show this help text.
 `);
 }
@@ -84,9 +94,23 @@ function parseArgs(argv) {
     } else if (arg === "--attested-checkpoint-bundle") {
       args.attestedCheckpointBundle = next;
       index += 1;
+    } else if (arg === "--witness-checkpoint-consistency-proof") {
+      args.witnessCheckpointConsistencyProof = next;
+      index += 1;
+    } else if (arg === "--previous-witness-checkpoint") {
+      args.previousWitnessCheckpoint = next;
+      index += 1;
+    } else if (arg === "--new-witness-checkpoint") {
+      args.newWitnessCheckpoint = next;
+      index += 1;
+    } else if (arg === "--witness-key-manifest") {
+      args.witnessKeyManifest = next;
+      index += 1;
     } else if (arg === "--receipt-proof") {
       args.receiptProof = next;
       index += 1;
+    } else if (arg === "--json") {
+      args.json = true;
     } else if (arg === "--help" || arg === "-h") {
       usage();
       process.exit(0);
@@ -102,10 +126,11 @@ function parseArgs(argv) {
     !args.runtimeAttestation &&
     !args.attestedReceiptBundle &&
     !args.attestedCheckpointBundle &&
+    !args.witnessCheckpointConsistencyProof &&
     !args.receiptProof
   ) {
     throw new Error(
-      "At least one of --receipt, --verify-chain, --inclusion-proof, --runtime-attestation, --attested-receipt-bundle, --attested-checkpoint-bundle, or --receipt-proof is required"
+      "At least one of --receipt, --verify-chain, --inclusion-proof, --runtime-attestation, --attested-receipt-bundle, --attested-checkpoint-bundle, --witness-checkpoint-consistency-proof, or --receipt-proof is required"
     );
   }
 
@@ -158,6 +183,7 @@ function isRecord(value) {
 }
 
 const sha256DigestPattern = /^sha256:[a-f0-9]{64}$/u;
+const sha256HexPattern = /^[a-f0-9]{64}$/u;
 const identityDigestPattern = /^(sha256|hmac-sha256):[a-f0-9]{64}$/u;
 const sha384HexPattern = /^[a-f0-9]{96}$/u;
 const runtimeMeasurementKeys = ["pcr0", "pcr1", "pcr2", "pcr3", "pcr4", "pcr8"];
@@ -567,6 +593,472 @@ function verifyInclusionProof(proof, expectedRoot) {
     computed = step.position === "left" ? merkleParentHash(step.hash, computed) : merkleParentHash(computed, step.hash);
   }
   return computed === expectedRoot;
+}
+
+const researchEmptyTreeRoot = sha256Hex("ghostark.empty_merkle_tree.v1");
+
+function researchMerkleParentHash(left, right) {
+  return sha256Hex(`ghostark.node.v1:${left}:${right}`);
+}
+
+function largestPowerOfTwoLessThan(value) {
+  if (!Number.isSafeInteger(value) || value <= 1) {
+    throw new Error("value must be a safe integer greater than one");
+  }
+  let power = 1;
+  while (power * 2 < value) {
+    power *= 2;
+  }
+  return power;
+}
+
+function validateResearchWitnessCheckpointShape(checkpoint, label) {
+  if (!isRecord(checkpoint)) {
+    return { passed: false, detail: `${label} witness checkpoint must be an object.` };
+  }
+  const unknown = exactKeys(checkpoint, [
+    "schema_version",
+    "log_id",
+    "tree_size",
+    "root_hash",
+    "integrated_time",
+    "witness_signatures"
+  ]);
+  if (unknown.length > 0) {
+    return { passed: false, detail: `${label} witness checkpoint contains unknown fields: ${unknown.join(", ")}.` };
+  }
+  if (checkpoint.schema_version !== "ghostark.research.witness_checkpoint.v1") {
+    return { passed: false, detail: `${label} witness checkpoint schema_version must be ghostark.research.witness_checkpoint.v1.` };
+  }
+  if (typeof checkpoint.log_id !== "string" || checkpoint.log_id.length === 0) {
+    return { passed: false, detail: `${label} witness checkpoint log_id must be a non-empty string.` };
+  }
+  if (!Number.isSafeInteger(checkpoint.tree_size) || checkpoint.tree_size < 0) {
+    return { passed: false, detail: `${label} witness checkpoint tree_size must be a non-negative safe integer.` };
+  }
+  if (typeof checkpoint.root_hash !== "string" || !sha256HexPattern.test(checkpoint.root_hash)) {
+    return { passed: false, detail: `${label} witness checkpoint root_hash must be a lowercase SHA-256 hex digest.` };
+  }
+  if (typeof checkpoint.integrated_time !== "string" || !Number.isFinite(Date.parse(checkpoint.integrated_time))) {
+    return { passed: false, detail: `${label} witness checkpoint integrated_time must be a valid date-time.` };
+  }
+  if (!Array.isArray(checkpoint.witness_signatures) || checkpoint.witness_signatures.length === 0) {
+    return { passed: false, detail: `${label} witness checkpoint witness_signatures must contain at least one signature.` };
+  }
+  for (const [index, signature] of checkpoint.witness_signatures.entries()) {
+    if (
+      !isRecord(signature) ||
+      typeof signature.witness_id !== "string" ||
+      signature.witness_id.length === 0 ||
+      !["ed25519", "ecdsa-p256-sha256", "kms-ecdsa-sha256"].includes(signature.signature_algorithm) ||
+      typeof signature.signature !== "string" ||
+      signature.signature.length === 0
+    ) {
+      return { passed: false, detail: `${label} witness checkpoint signature ${index} is malformed.` };
+    }
+  }
+  return { passed: true, detail: `${label} witness checkpoint shape is valid.` };
+}
+
+function validateResearchWitnessConsistencyProofShape(proof) {
+  if (!isRecord(proof)) {
+    return { passed: false, detail: "Witness checkpoint consistency proof must be an object." };
+  }
+  const unknown = exactKeys(proof, [
+    "schema_version",
+    "log_id",
+    "old_tree_size",
+    "new_tree_size",
+    "old_root_hash",
+    "new_root_hash",
+    "audit_path"
+  ]);
+  if (unknown.length > 0) {
+    return { passed: false, detail: `Witness checkpoint consistency proof contains unknown fields: ${unknown.join(", ")}.` };
+  }
+  if (proof.schema_version !== "ghostark.research.witness_checkpoint_consistency_proof.v1") {
+    return {
+      passed: false,
+      detail: "Witness checkpoint consistency proof schema_version must be ghostark.research.witness_checkpoint_consistency_proof.v1."
+    };
+  }
+  if (typeof proof.log_id !== "string" || proof.log_id.length === 0) {
+    return { passed: false, detail: "Witness checkpoint consistency proof log_id must be a non-empty string." };
+  }
+  if (!Number.isSafeInteger(proof.old_tree_size) || proof.old_tree_size < 0) {
+    return { passed: false, detail: "Witness checkpoint consistency proof old_tree_size must be a non-negative safe integer." };
+  }
+  if (!Number.isSafeInteger(proof.new_tree_size) || proof.new_tree_size < 0) {
+    return { passed: false, detail: "Witness checkpoint consistency proof new_tree_size must be a non-negative safe integer." };
+  }
+  if (typeof proof.old_root_hash !== "string" || !sha256HexPattern.test(proof.old_root_hash)) {
+    return { passed: false, detail: "Witness checkpoint consistency proof old_root_hash must be a lowercase SHA-256 hex digest." };
+  }
+  if (typeof proof.new_root_hash !== "string" || !sha256HexPattern.test(proof.new_root_hash)) {
+    return { passed: false, detail: "Witness checkpoint consistency proof new_root_hash must be a lowercase SHA-256 hex digest." };
+  }
+  if (!Array.isArray(proof.audit_path)) {
+    return { passed: false, detail: "Witness checkpoint consistency proof audit_path must be an array." };
+  }
+  for (const [index, hash] of proof.audit_path.entries()) {
+    if (typeof hash !== "string" || !sha256HexPattern.test(hash)) {
+      return { passed: false, detail: `Witness checkpoint consistency proof audit_path entry ${index} must be a lowercase SHA-256 hex digest.` };
+    }
+  }
+  return { passed: true, detail: "Witness checkpoint consistency proof shape is valid." };
+}
+
+function validateResearchWitnessKeyManifestShape(manifest) {
+  if (!isRecord(manifest)) {
+    return { passed: false, detail: "Witness key manifest must be an object." };
+  }
+  const unknown = exactKeys(manifest, ["schema_version", "generated_at", "witnesses"]);
+  if (unknown.length > 0) {
+    return { passed: false, detail: `Witness key manifest contains unknown fields: ${unknown.join(", ")}.` };
+  }
+  if (manifest.schema_version !== "ghostark.research.witness_key_manifest.v1") {
+    return { passed: false, detail: "Witness key manifest schema_version must be ghostark.research.witness_key_manifest.v1." };
+  }
+  if (typeof manifest.generated_at !== "string" || !Number.isFinite(Date.parse(manifest.generated_at))) {
+    return { passed: false, detail: "Witness key manifest generated_at must be a valid date-time." };
+  }
+  if (!Array.isArray(manifest.witnesses) || manifest.witnesses.length === 0) {
+    return { passed: false, detail: "Witness key manifest witnesses must contain at least one entry." };
+  }
+
+  const seen = new Set();
+  for (const [index, witness] of manifest.witnesses.entries()) {
+    if (!isRecord(witness)) {
+      return { passed: false, detail: `Witness key manifest entry ${index} must be an object.` };
+    }
+    const entryUnknown = exactKeys(witness, [
+      "witness_id",
+      "signature_algorithm",
+      "public_key_pem",
+      "valid_from",
+      "valid_until",
+      "status",
+      "revoked_at",
+      "reason"
+    ]);
+    if (entryUnknown.length > 0) {
+      return { passed: false, detail: `Witness key manifest entry ${index} contains unknown fields: ${entryUnknown.join(", ")}.` };
+    }
+    if (typeof witness.witness_id !== "string" || witness.witness_id.length === 0) {
+      return { passed: false, detail: `Witness key manifest entry ${index} witness_id must be a non-empty string.` };
+    }
+    if (witness.signature_algorithm !== "ecdsa-p256-sha256") {
+      return { passed: false, detail: `Witness key manifest entry ${index} signature_algorithm is unsupported.` };
+    }
+    if (typeof witness.public_key_pem !== "string" || witness.public_key_pem.length === 0) {
+      return { passed: false, detail: `Witness key manifest entry ${index} public_key_pem must be a non-empty string.` };
+    }
+    if (typeof witness.valid_from !== "string" || !Number.isFinite(Date.parse(witness.valid_from))) {
+      return { passed: false, detail: `Witness key manifest entry ${index} valid_from must be a valid date-time.` };
+    }
+    if (witness.valid_until !== undefined && (typeof witness.valid_until !== "string" || !Number.isFinite(Date.parse(witness.valid_until)))) {
+      return { passed: false, detail: `Witness key manifest entry ${index} valid_until must be a valid date-time.` };
+    }
+    if (!["ACTIVE", "DEPRECATED", "REVOKED"].includes(witness.status)) {
+      return { passed: false, detail: `Witness key manifest entry ${index} status is unsupported.` };
+    }
+    if (witness.revoked_at !== undefined && (typeof witness.revoked_at !== "string" || !Number.isFinite(Date.parse(witness.revoked_at)))) {
+      return { passed: false, detail: `Witness key manifest entry ${index} revoked_at must be a valid date-time.` };
+    }
+    const validFrom = Date.parse(witness.valid_from);
+    const validUntil = witness.valid_until ? Date.parse(witness.valid_until) : undefined;
+    const revokedAt = witness.revoked_at ? Date.parse(witness.revoked_at) : undefined;
+    if (validUntil !== undefined && validUntil <= validFrom) {
+      return { passed: false, detail: `Witness key manifest entry ${index} valid_until must be later than valid_from.` };
+    }
+    if (revokedAt !== undefined && revokedAt < validFrom) {
+      return { passed: false, detail: `Witness key manifest entry ${index} revoked_at cannot be earlier than valid_from.` };
+    }
+    const identity = `${witness.witness_id}:${witness.signature_algorithm}`;
+    if (seen.has(identity)) {
+      return { passed: false, detail: `Duplicate witness key manifest entry for ${identity}.` };
+    }
+    seen.add(identity);
+  }
+
+  return { passed: true, detail: "Witness key manifest shape is valid." };
+}
+
+function findResearchWitnessManifestEntry(manifest, witnessId, signatureAlgorithm) {
+  return (
+    manifest?.witnesses?.find((entry) => entry.witness_id === witnessId && entry.signature_algorithm === signatureAlgorithm) ??
+    manifest?.witnesses?.find((entry) => entry.witness_id === witnessId) ??
+    null
+  );
+}
+
+function verifyResearchWitnessKeyManifestEpoch(manifest, signature, integratedTime) {
+  const shape = validateResearchWitnessKeyManifestShape(manifest);
+  if (!shape.passed) {
+    return { passed: false, detail: `Witness key manifest is invalid: ${shape.detail}` };
+  }
+  const entry = findResearchWitnessManifestEntry(manifest, signature.witness_id, signature.signature_algorithm);
+  if (!entry) {
+    return { passed: false, detail: `No witness key manifest entry exists for witness ${signature.witness_id}.` };
+  }
+  if (entry.signature_algorithm !== signature.signature_algorithm) {
+    return {
+      passed: false,
+      detail: `Witness algorithm mismatch. Expected ${entry.signature_algorithm}; observed ${signature.signature_algorithm}.`
+    };
+  }
+  const observed = Date.parse(integratedTime);
+  const validFrom = Date.parse(entry.valid_from);
+  const validUntil = entry.valid_until ? Date.parse(entry.valid_until) : Number.POSITIVE_INFINITY;
+  const revokedAt = entry.revoked_at ? Date.parse(entry.revoked_at) : undefined;
+  if (!Number.isFinite(observed)) {
+    return { passed: false, detail: `Checkpoint integrated_time is not parseable: ${integratedTime}.` };
+  }
+  if (observed < validFrom) {
+    return { passed: false, detail: `Checkpoint integrated_time ${integratedTime} is before witness valid_from ${entry.valid_from}.` };
+  }
+  if (observed >= validUntil) {
+    return { passed: false, detail: `Checkpoint integrated_time ${integratedTime} is not before witness valid_until ${entry.valid_until}.` };
+  }
+  if (entry.status === "REVOKED" && revokedAt === undefined) {
+    return { passed: false, detail: `Witness ${entry.witness_id} is revoked without a revoked_at timestamp.` };
+  }
+  if (revokedAt !== undefined && observed >= revokedAt) {
+    return { passed: false, detail: `Checkpoint integrated_time ${integratedTime} is at or after witness revoked_at ${entry.revoked_at}.` };
+  }
+  return {
+    passed: true,
+    detail:
+      entry.status === "REVOKED"
+        ? `Witness ${entry.witness_id} was revoked after this historical checkpoint.`
+        : `Witness ${entry.witness_id} is ${entry.status} for the checkpoint integrated_time.`
+  };
+}
+
+function canonicalResearchWitnessCheckpointPayload(checkpoint) {
+  return JSON.stringify({
+    integrated_time: checkpoint.integrated_time,
+    log_id: checkpoint.log_id,
+    root_hash: checkpoint.root_hash,
+    schema_version: checkpoint.schema_version,
+    tree_size: checkpoint.tree_size
+  });
+}
+
+function verifyResearchWitnessCheckpointSignatures(checkpoint, manifest, label) {
+  const manifestShape = validateResearchWitnessKeyManifestShape(manifest);
+  if (!manifestShape.passed) {
+    return { passed: false, detail: manifestShape.detail };
+  }
+
+  const payload = canonicalResearchWitnessCheckpointPayload(checkpoint);
+  for (const [index, signature] of checkpoint.witness_signatures.entries()) {
+    const epoch = verifyResearchWitnessKeyManifestEpoch(manifest, signature, checkpoint.integrated_time);
+    if (!epoch.passed) {
+      return { passed: false, detail: `${label} checkpoint signature ${index}: ${epoch.detail}` };
+    }
+    const entry = findResearchWitnessManifestEntry(manifest, signature.witness_id, signature.signature_algorithm);
+    if (!entry) {
+      return { passed: false, detail: `${label} checkpoint signature ${index}: witness key entry disappeared after epoch validation.` };
+    }
+    try {
+      const verifier = createVerify("sha256");
+      verifier.update(payload);
+      verifier.end();
+      if (!verifier.verify(createPublicKey(entry.public_key_pem), signature.signature, "base64")) {
+        return { passed: false, detail: `${label} checkpoint signature ${index} does not verify with manifest witness key ${entry.witness_id}.` };
+      }
+    } catch (error) {
+      return { passed: false, detail: `${label} checkpoint signature ${index}: ${error instanceof Error ? error.message : String(error)}` };
+    }
+  }
+
+  return { passed: true, detail: `${label} checkpoint witness signatures verify against the witness key manifest.` };
+}
+
+function verifyResearchConsistencySubproof(state) {
+  if (state.oldTreeSize === state.newTreeSize) {
+    if (state.includeOldRoot) {
+      return {
+        cursor: state.cursor,
+        oldRootHash: state.oldRootHash,
+        newRootHash: state.oldRootHash
+      };
+    }
+    const rootHash = state.auditPath[state.cursor];
+    if (rootHash === undefined) {
+      return null;
+    }
+    return {
+      cursor: state.cursor + 1,
+      oldRootHash: rootHash,
+      newRootHash: rootHash
+    };
+  }
+
+  const splitSize = largestPowerOfTwoLessThan(state.newTreeSize);
+  if (state.oldTreeSize <= splitSize) {
+    const left = verifyResearchConsistencySubproof({
+      oldTreeSize: state.oldTreeSize,
+      newTreeSize: splitSize,
+      includeOldRoot: state.includeOldRoot,
+      auditPath: state.auditPath,
+      cursor: state.cursor,
+      oldRootHash: state.oldRootHash
+    });
+    if (left === null) {
+      return null;
+    }
+    const rightHash = state.auditPath[left.cursor];
+    if (rightHash === undefined) {
+      return null;
+    }
+    return {
+      cursor: left.cursor + 1,
+      oldRootHash: left.oldRootHash,
+      newRootHash: researchMerkleParentHash(left.newRootHash, rightHash)
+    };
+  }
+
+  const right = verifyResearchConsistencySubproof({
+    oldTreeSize: state.oldTreeSize - splitSize,
+    newTreeSize: state.newTreeSize - splitSize,
+    includeOldRoot: false,
+    auditPath: state.auditPath,
+    cursor: state.cursor,
+    oldRootHash: state.oldRootHash
+  });
+  if (right === null) {
+    return null;
+  }
+  const leftHash = state.auditPath[right.cursor];
+  if (leftHash === undefined) {
+    return null;
+  }
+  return {
+    cursor: right.cursor + 1,
+    oldRootHash: researchMerkleParentHash(leftHash, right.oldRootHash),
+    newRootHash: researchMerkleParentHash(leftHash, right.newRootHash)
+  };
+}
+
+function verifyResearchMerkleConsistencyProof(proof) {
+  if (!validateResearchWitnessConsistencyProofShape(proof).passed) {
+    return false;
+  }
+  if (proof.old_tree_size > proof.new_tree_size) {
+    return false;
+  }
+  if (proof.old_tree_size === 0) {
+    return proof.old_root_hash === researchEmptyTreeRoot && proof.audit_path.length === 0;
+  }
+  if (proof.old_tree_size === proof.new_tree_size) {
+    return proof.audit_path.length === 0 && proof.old_root_hash === proof.new_root_hash;
+  }
+  const reconstructed = verifyResearchConsistencySubproof({
+    oldTreeSize: proof.old_tree_size,
+    newTreeSize: proof.new_tree_size,
+    includeOldRoot: true,
+    auditPath: proof.audit_path,
+    cursor: 0,
+    oldRootHash: proof.old_root_hash
+  });
+  return (
+    reconstructed !== null &&
+    reconstructed.cursor === proof.audit_path.length &&
+    reconstructed.oldRootHash === proof.old_root_hash &&
+    reconstructed.newRootHash === proof.new_root_hash
+  );
+}
+
+function verifyResearchWitnessCheckpointConsistency(previousCheckpoint, newCheckpoint, proof, witnessKeyManifest) {
+  const checks = [];
+  const previousShape = validateResearchWitnessCheckpointShape(previousCheckpoint, "Previous");
+  const newShape = validateResearchWitnessCheckpointShape(newCheckpoint, "New");
+  const proofShape = validateResearchWitnessConsistencyProofShape(proof);
+  check(checks, "witness_previous_checkpoint_schema", previousShape.passed, previousShape.detail);
+  check(checks, "witness_new_checkpoint_schema", newShape.passed, newShape.detail);
+  check(checks, "witness_consistency_proof_schema", proofShape.passed, proofShape.detail);
+  if (witnessKeyManifest) {
+    const manifestShape = validateResearchWitnessKeyManifestShape(witnessKeyManifest);
+    check(checks, "witness_key_manifest_schema", manifestShape.passed, manifestShape.detail);
+  } else {
+    check(
+      checks,
+      "witness_key_manifest",
+      true,
+      "No witness key manifest supplied; witness checkpoint signatures were not checked."
+    );
+  }
+
+  if (!checks.every((entry) => entry.passed)) {
+    return { verdict: false, checks };
+  }
+
+  const metadataMatches =
+    previousCheckpoint.log_id === newCheckpoint.log_id &&
+    proof.log_id === previousCheckpoint.log_id &&
+    proof.old_tree_size === previousCheckpoint.tree_size &&
+    proof.new_tree_size === newCheckpoint.tree_size &&
+    proof.old_root_hash === previousCheckpoint.root_hash &&
+    proof.new_root_hash === newCheckpoint.root_hash;
+  check(
+    checks,
+    "witness_consistency_metadata",
+    metadataMatches,
+    metadataMatches
+      ? "Consistency proof metadata matches both witness checkpoints."
+      : "Consistency proof metadata does not match the supplied witness checkpoints."
+  );
+
+  const previousTime = Date.parse(previousCheckpoint.integrated_time);
+  const newTime = Date.parse(newCheckpoint.integrated_time);
+  const timeOrderValid = previousTime <= newTime;
+  check(
+    checks,
+    "witness_checkpoint_time_order",
+    timeOrderValid,
+    timeOrderValid
+      ? "New checkpoint integrated_time is not earlier than the previous checkpoint."
+      : "New checkpoint integrated_time is earlier than the previous checkpoint."
+  );
+
+  const merklePassed = metadataMatches && verifyResearchMerkleConsistencyProof(proof);
+  check(
+    checks,
+    "witness_consistency_proof",
+    merklePassed,
+    merklePassed
+      ? "Witness checkpoint consistency proof reconstructs the new root from the previous root."
+      : "Witness checkpoint consistency proof does not reconstruct the supplied checkpoint roots."
+  );
+
+  if (witnessKeyManifest) {
+    const previousSignatures = verifyResearchWitnessCheckpointSignatures(
+      previousCheckpoint,
+      witnessKeyManifest,
+      "Previous"
+    );
+    const newSignatures = verifyResearchWitnessCheckpointSignatures(
+      newCheckpoint,
+      witnessKeyManifest,
+      "New"
+    );
+    check(
+      checks,
+      "witness_previous_checkpoint_signatures",
+      previousSignatures.passed,
+      previousSignatures.detail
+    );
+    check(
+      checks,
+      "witness_new_checkpoint_signatures",
+      newSignatures.passed,
+      newSignatures.detail
+    );
+  }
+
+  return { verdict: checks.every((entry) => entry.passed), checks };
 }
 
 function validateInclusionProofShape(proof, expectedRoot) {
@@ -1238,9 +1730,29 @@ function printResult(result) {
   console.log(`Non-claim: ${nonClaim}`);
 }
 
+function verifierReport(result) {
+  return {
+    schemaVersion: "ghost.verifier_report.v1",
+    generatedAt: new Date().toISOString(),
+    verifier: {
+      name: "ghost-verify"
+    },
+    verdict: result.verdict,
+    receiptId: result.receiptId,
+    tenantSlug: result.tenantSlug,
+    checks: result.checks,
+    nonClaim
+  };
+}
+
+function printJsonResult(result) {
+  console.log(JSON.stringify(verifierReport(result), null, 2));
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const manifest = args.keyManifest ? readJsonFile(args.keyManifest) : undefined;
+  const witnessKeyManifest = args.witnessKeyManifest ? readJsonFile(args.witnessKeyManifest) : undefined;
   const attestationPolicy = args.attestationPolicy ? readJsonFile(args.attestationPolicy) : undefined;
   const attestationSecret = args.attestationSecret ?? process.env.GHOST_ARK_LOCAL_ATTESTATION_SECRET;
   const checks = [];
@@ -1395,6 +1907,22 @@ function main() {
     }
   }
 
+  if (args.witnessCheckpointConsistencyProof) {
+    if (!args.previousWitnessCheckpoint || !args.newWitnessCheckpoint) {
+      throw new Error("--previous-witness-checkpoint and --new-witness-checkpoint are required with --witness-checkpoint-consistency-proof");
+    }
+    const consistencyResult = verifyResearchWitnessCheckpointConsistency(
+      readJsonFile(args.previousWitnessCheckpoint),
+      readJsonFile(args.newWitnessCheckpoint),
+      readJsonFile(args.witnessCheckpointConsistencyProof),
+      witnessKeyManifest
+    );
+    result = {
+      verdict: result.verdict && consistencyResult.verdict,
+      checks: [...result.checks, ...consistencyResult.checks]
+    };
+  }
+
   if (args.receiptProof) {
     const proofResult = verifyReceiptProofCli(readJsonFile(args.receiptProof));
     result = {
@@ -1403,7 +1931,11 @@ function main() {
     };
   }
 
-  printResult(result);
+  if (args.json) {
+    printJsonResult(result);
+  } else {
+    printResult(result);
+  }
   if (!result.verdict) {
     process.exitCode = 1;
   }
