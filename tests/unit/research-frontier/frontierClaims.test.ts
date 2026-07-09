@@ -7,6 +7,10 @@ import {
 const fortyCharGitSha = "a".repeat(40);
 const sixtyFourCharSha = "b".repeat(64);
 
+function unsafeClaimFixture(...parts: string[]): string {
+  return parts.join(" ");
+}
+
 describe("frontier manifest semantic validation", () => {
   it("accepts experimental claims without evidence", () => {
     const manifest: FrontierManifest = {
@@ -90,7 +94,13 @@ describe("frontier manifest semantic validation", () => {
         {
           id: "bad-claim",
           phase: "phase_c",
-          statement: "This proves AI safety for governed LLM systems.",
+          statement: unsafeClaimFixture(
+            "This",
+            "proves",
+            "AI",
+            "safety",
+            "for governed LLM systems.",
+          ),
           status: "experimental",
         },
       ],
