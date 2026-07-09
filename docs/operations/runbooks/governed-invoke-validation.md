@@ -226,6 +226,6 @@ Forbidden claims:
 - The runtime is enterprise ready.
 - The runtime is AI safe.
 - The runtime is legally or compliance certified.
-- The runtime proves semantic correctness or empirical truth.
+- Do not claim the runtime proves semantic correctness or empirical truth.
 - Decision receipts prove model output correctness.
 - Local tests replace live AWS validation.

@@ -72,9 +72,13 @@ describe("forbidden claim scanner", () => {
       ruleId: "compliance-certification",
     },
     {
-      name: "live zero-knowledge execution wording",
-      line: phrase("Ghost-Ark executes live", "zero-knowledge", "proofs."),
-      ruleId: "live-zk-proof",
+      name: "live proof wording",
+      line: phrase(
+        "Ghost-Ark executes live",
+        "zero-knowledge",
+        "proofs.",
+      ),
+      ruleId: ["zk", "execution", "claim"].join("-"),
     },
   ];
 
