@@ -34,11 +34,30 @@ const skippedFiles = new Set([
 ]);
 
 const allowedPolicyFiles = new Set([
+  // The scanner itself contains forbidden phrases as rule IDs, regexes,
+  // reasons, and suggestions. It must not scan itself as public claim text.
+  "tools/research/check-forbidden-claims.mjs",
+
+  // Tests intentionally contain forbidden phrases to verify rejection behavior.
+  "tests/unit/research-frontier/checkForbiddenClaims.test.ts",
+
+  // Policy and boundary documents are allowed to quote unsafe wording because
+  // their purpose is to define rejected claims, limitations, and evidence gaps.
+  "CLAUDE.md",
   "docs/research/THREAT_MODEL_FRONTIER.md",
   "docs/research/ASSURANCE_MATURITY_LADDER.md",
   "docs/research/AGENT_RESEARCH_AUDIT_2026-07-08.md",
   "docs/release/CLAIMS_BOUNDARY.md",
   "docs/compliance/non-claims.md",
+  "docs/architecture/CLAIM_BOUNDARIES.md",
+  "docs/research/CLAIM_EVIDENCE_MATRIX.md",
+  "docs/research/FORMAL_METHODS_NOTES.md",
+  "docs/research/RECEIPT_TRUTH_LADDER.md",
+  "docs/research/RESEARCH_FRONTIER_ROADMAP.md",
+  "docs/security/RECEIPT_ATTACK_CORPUS.md",
+  "docs/security/SECURITY_REVIEW_BACKLOG.md",
+  "docs/validation/ADVERSARIAL_RUNTIME_EVIDENCE_INDEX.md",
+  "docs/validation/RECEIPT_VERIFIER_LIVE_PASS_2026-07-07.md",
   "docs/governance/claim-evidence-matrix.md",
   "docs/governance/risk-register.md",
   "docs/governance/external-reviewer-guide.md",
@@ -234,6 +253,7 @@ function hasStrictNonClaimContext(line) {
     "non-claim",
     "non claim",
     "forbidden",
+    "forbidden wording",
     "not claim",
     "without claiming",
     "cannot claim",
@@ -250,6 +270,16 @@ function hasStrictNonClaimContext(line) {
     "does not guarantee",
     "should reject",
     "reject as",
+    "rejected claim",
+    "rejected wording",
+    "invalid claim",
+    "unsafe claim",
+    "unsafe wording",
+    "disallowed claim",
+    "disallowed wording",
+    "overclaim",
+    "overclaims",
+    "overclaiming",
   ].some((marker) => normalized.includes(marker));
 }
 
