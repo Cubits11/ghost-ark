@@ -1,49 +1,59 @@
-## What Changed
+## Summary
 
-- 
+-
 
-## Implementation Status
+## Files Changed
 
-- [ ] Runtime behavior changed
-- [ ] Schema or public artifact changed
-- [ ] Documentation only
-- [ ] Mock or research interface only
-- [ ] AWS/CDK/Terraform behavior changed
+-
 
-## Claim Boundary
+## Validation Commands Run
 
-- Implemented claims:
-- Documented-only claims:
-- Mock/research-only claims:
-- Non-claims preserved:
-
-## Security Notes
-
-- Tenant isolation impact:
-- IAM/KMS/signing impact:
-- Receipt/canonicalization impact:
-- Secret handling impact:
-- Live AWS spend required: no
-
-## Tests
-
-- [ ] `npm run lint`
-- [ ] `npm test`
-- [ ] `npm run docs:check`
-- [ ] `npm run claims:check`
+- [ ] `npm run validate`
 - [ ] Focused tests:
-- [ ] AWS/manual tests, if explicitly authorized:
+- [ ] Other:
+
+## Claim Boundary Checklist
+
+- [ ] This PR does not claim AI safety, model truthfulness, or guaranteed alignment.
+- [ ] This PR does not claim real zk proof verification unless real prover/verifier code and evidence are included.
+- [ ] This PR does not claim live Nitro Enclave execution unless live attestation evidence is included.
+- [ ] This PR does not claim compliance certification.
+- [ ] This PR does not run or require live AWS deployment unless explicitly approved.
+- [ ] I ran the exact validation commands listed below.
+
+## Non-Claims
+
+-
+
+## Classification
+
+- [ ] Implemented behavior
+- [ ] Documented design
+- [ ] Mock/research interface
+- [ ] Experimental
+- [ ] Cryptographic implementation
+- [ ] Cloud-validated evidence
+
+## AWS / Live Infrastructure
+
+- [ ] No live AWS resources touched.
+- [ ] Live AWS action required and explicitly approved:
+
+## Risk Level
+
+- [ ] Low
+- [ ] Medium
+- [ ] High
 
 ## Rollback Plan
 
 - Revert commit(s):
 - Files/resources affected:
-- Data or public artifact compatibility impact:
+- Data, AWS resources, or public artifact impact:
 
 ## Reviewer Checklist
 
-- [ ] No unsupported AI safety, compliance, trustlessness, or truthfulness claim was added.
 - [ ] Implemented, documented, mocked, and aspirational work are clearly separated.
-- [ ] Failure modes and negative tests are included where behavior is security-sensitive.
-- [ ] No live AWS deployment or spend path is introduced without explicit approval.
-- [ ] No secrets, private keys, tokens, or sensitive prompts are logged or committed.
+- [ ] Security-sensitive behavior includes negative tests where applicable.
+- [ ] No secrets, private keys, tokens, environment variables, or sensitive prompts are logged or committed.
+- [ ] Rollback plan names the files or commits to revert.
