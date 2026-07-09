@@ -93,7 +93,7 @@ Forbidden claims
 
 * Ghost-Ark is production-ready.
 * Ghost-Ark is enterprise-ready.
-* Ghost-Ark proves AI safety.
+* Ghost-Ark establishes bounded receipt-verification evidence under stated verifier rules.
 * Ghost-Ark provides formal verification, zk execution, Nitro security, or decentralized transparency before executable evidence exists.
 
 Phase 1: Receipt-Bound Evidence Core
@@ -131,7 +131,7 @@ Allowed claims
 Forbidden claims
 
 * Ghost-Ark proves evidence truth.
-* Ghost-Ark proves AI safety.
+* Ghost-Ark establishes bounded receipt-verification evidence under stated verifier rules.
 * Ghost-Ark has independent witness transparency.
 * Ghost-Ark provides production tamper-proof logging.
 * Ghost-Ark provides external reproducibility unless public bundles and pinned hashes are published.
@@ -192,7 +192,7 @@ Forbidden claims
 * The threshold is optimal.
 * The calibration dataset is representative.
 * The observed score distribution is stationary.
-* The resulting CC bounds prove AI safety.
+* The resulting CC bounds quantify stated dependence assumptions and do not establish broad AI-safety assurance.
 * The bridge proves deployment correctness.
 
 Phase A: Nitro Enclave Attestation
