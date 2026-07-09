@@ -193,7 +193,7 @@ describe("DynamoDbDecisionReceiptRepository", () => {
 
   it("emitter_returns_existing_receipt_without_resigning_replay", async () => {
     const existingReceipt = signedReceipt();
-    const signCanonical = vi.fn(() => "new-signature");
+    const signCanonical = vi.fn(() => Buffer.from("new-signature", "utf8").toString("base64"));
     const repository: DecisionReceiptRepository = {
       put: vi.fn(async () => {
         throw new Error("put should not run for an existing deterministic receipt");
@@ -236,7 +236,7 @@ describe("DynamoDbDecisionReceiptRepository", () => {
 
   it("emitter_returns_idempotent_existing_receipt_from_persistence_race", async () => {
     const existingReceipt = signedReceipt();
-    const signCanonical = vi.fn(() => "new-signature");
+    const signCanonical = vi.fn(() => Buffer.from("new-signature", "utf8").toString("base64"));
     const repository: DecisionReceiptRepository = {
       put: vi.fn(async () => ({
         status: "IDEMPOTENT_EXISTING" as const,

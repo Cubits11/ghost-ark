@@ -27,7 +27,7 @@ export const DEFAULT_EXECUTION_NONCE = "local-dev-execution-nonce";
 
 const sha256DigestPattern = /^sha256:[a-f0-9]{64}$/u;
 const hmacSha256DigestPattern = /^hmac-sha256:[a-f0-9]{64}$/u;
-const executionNoncePattern = /^[A-Za-z0-9_-]{12,256}$/u;
+const executionNoncePattern = /^[A-Za-z0-9._:-]{8,256}$/u;
 
 function receiptCanonicalizationError(message: string, context: Record<string, unknown> = {}): ValidationError {
   return new ValidationError(message, { domain: "ghost_ark.decision_receipt_canonical.v1", ...context });
@@ -53,7 +53,7 @@ function assertDigestShape(name: string, value: string, pattern: RegExp): void {
 
 function assertExecutionNonceShape(value: string): void {
   if (!executionNoncePattern.test(value)) {
-    throw receiptCanonicalizationError("execution_nonce must be a URL-safe nonce between 12 and 256 characters.", {
+    throw receiptCanonicalizationError("execution_nonce must be 8-256 characters of URL-safe text.", {
       field: "execution_nonce"
     });
   }
