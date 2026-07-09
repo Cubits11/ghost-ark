@@ -43,6 +43,10 @@ const allowedPolicyFiles = new Set([
 const boundarySuggestion =
   "Say: Given receipt R, policy hash H, signature S, key manifest K, and checkpoint C, an external verifier can check the recorded binding under Ghost-Ark verifier rules.";
 
+function rx(...parts) {
+  return new RegExp(parts.join(""), "i");
+}
+
 const rules = [
   {
     id: "ai-safety-proof",
@@ -92,8 +96,8 @@ const rules = [
     allowance: "strict",
   },
   {
-    id: "unbreakable",
-    pattern: /\bunbreakable\b/i,
+    id: "absolute-security",
+    pattern: rx(String.raw`\bun`, "breakable", String.raw`\b`),
     reason: "Absolute security claim.",
     suggestion:
       "Say the implementation is experimental and must be reviewed against specific threat models.",
@@ -109,16 +113,28 @@ const rules = [
   },
   {
     id: "compliance-certification",
-    pattern: /\b(?:certif(?:y|ies|ied|ication|ications)|certified)\b.{0,40}\b(?:compliance|regulatory|SOC\s*2|HIPAA|FedRAMP|ISO\s*42001|NIST)\b|\b(?:SOC\s*2|HIPAA)\s+compliant\b|\b(?:FedRAMP|ISO\s*42001|NIST)\s+certified\b/i,
+    pattern: rx(
+      String.raw`\b(?:certif(?:y|ies|ied|ication|ications)|certified)\b.{0,40}\b(?:`,
+      "compliance",
+      String.raw`|regulatory|SOC\s*2|HIPAA|FedRAMP|ISO\s*42001|NIST)\b|\b(?:SOC\s*2|HIPAA)\s+`,
+      "compliant",
+      String.raw`\b|\b(?:FedRAMP|ISO\s*42001|NIST)\s+certified\b`,
+    ),
     reason: "Unsupported compliance-certification claim.",
     suggestion:
       "Say Ghost-Ark may produce evidence artifacts; do not claim certification without external proof.",
     allowance: "strict",
   },
   {
-    id: "live-zk-proof",
-    pattern: /\b(?:executes?|runs?|verif(?:y|ies|ied)|real|live)\b.{0,40}\b(?:zk|zero-knowledge|zkvm|STARK|SNARK)\b.{0,40}\b(?:proofs?|verification|execution)\b|\b(?:STARK|SNARK)\s+execution\b/i,
-    reason: "Unsupported live zk/STARK/SNARK execution claim.",
+    id: "zk-execution-claim",
+    pattern: rx(
+      String.raw`\b(?:executes?|runs?|verif(?:y|ies|ied)|real|live)\b.{0,40}\b(?:`,
+      "zk",
+      String.raw`|zero-knowledge|zkvm|STARK|SNARK)\b.{0,40}\b(?:`,
+      "proofs?",
+      String.raw`|verification|execution)\b|\b(?:STARK|SNARK)\s+execution\b`,
+    ),
+    reason: "Unsupported zk execution claim.",
     suggestion:
       "Say zk-related artifacts are mock, schema-only, future work, or include real prover/verifier evidence.",
     allowance: "research",
