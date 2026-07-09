@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "ghost.decision_receipt_signature.v1",
+  "keyId": "local-dev-hmac",
+  "algorithm": "LOCAL_HMAC_SHA256_DEV_ONLY",
+  "digestSha256": "250c831eec0156b18e2f585e08d17fb4f3b97c7fd98d18c09611c751b551f854",
+  "signature": "DlNf6CIPinOC1Qexoxzem8VK8h7XD36TGnwxbyQyo88="
+}

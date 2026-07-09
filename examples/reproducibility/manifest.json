@@ -1,0 +1,146 @@
+{
+  "schema_version": "ghost.repro_manifest.v1",
+  "updated_at": "2026-07-09T00:00:00.000Z",
+  "expected_digests_path": "expected-digests.json",
+  "non_claim": "These fixtures prove that Ghost-Ark decision receipts are reproducible from declared inputs under Ghost-Ark canonicalization, signing, and verifier rules. They do not prove model safety, semantic truth, compliance, alignment, production readiness, or runtime integrity. All identity values and digest source texts are synthetic non-sensitive test vectors: no prompts, completions, memory contents, PII, secrets, tokens, credentials, or private keys are stored here. The HMAC secrets below are published dev-only test vectors, not credentials. The kms-style-rsa fixture is a local simulation of the KMS RSASSA_PSS_SHA_256 algorithm path and is NOT AWS KMS evidence.",
+  "fixtures": [
+    {
+      "fixture_id": "hmac-baseline",
+      "description": "Minimal chain-head decision receipt signed with the dev-only local HMAC path using default local-dev execution boundary values.",
+      "signature_alg": "LOCAL_HMAC_SHA256_DEV_ONLY",
+      "dev_only": true,
+      "regenerable": true,
+      "local_only_simulation": false,
+      "signing": {
+        "key_id": "local-dev-hmac",
+        "hmac_secret_dev_only_test_vector": "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "note": "Published dev-only HMAC test vector. Not a credential. Local HMAC signing is dev-only and is never a production signing mode."
+      },
+      "identity": {
+        "hmac_secret_dev_only_test_vector": "ghost-ark-repro-identity-dev-only-test-vector-v1",
+        "tenant_id": "tenant-repro-a",
+        "user_id": "user-repro-a",
+        "session_id": "session-repro-a"
+      },
+      "receipt_inputs": {
+        "request_id": "request-repro-0001",
+        "timestamp": "2026-07-09T00:00:00.000Z",
+        "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "policy_version": "organization:repro@1",
+        "policy_hash": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+        "input_digest_source_text": "ghost-ark-repro-synthetic-input-0001",
+        "retrieved_context_digest_source_texts": [],
+        "decision_pre": "ALLOW",
+        "decision_post": "ALLOW",
+        "action_taken": ["emit_receipt"],
+        "risk_score": 0,
+        "consent_state": "not_required",
+        "memory_written": false,
+        "latency_ms": 12,
+        "cost_estimate_usd": 0,
+        "prev_receipt_fixture_id": null,
+        "execution_context_source_text": null,
+        "execution_nonce": null
+      },
+      "paths": {
+        "receipt": "receipts/hmac-baseline.receipt.json",
+        "canonical_payload": "canonical-payloads/hmac-baseline.canonical.json",
+        "signature_envelope": "signature-envelopes/hmac-baseline.envelope.json"
+      },
+      "non_claim": "Dev-only HMAC signing proves signing authorization with a shared dev secret only. It is not a production signing mode and proves nothing about the AI output."
+    },
+    {
+      "fixture_id": "hmac-chained",
+      "description": "Second receipt in the tenant chain: non-null prev_receipt_hash linking to hmac-baseline, populated retrieved_context_digests and multi-entry action_taken, non-default execution boundary values.",
+      "signature_alg": "LOCAL_HMAC_SHA256_DEV_ONLY",
+      "dev_only": true,
+      "regenerable": true,
+      "local_only_simulation": false,
+      "signing": {
+        "key_id": "local-dev-hmac",
+        "hmac_secret_dev_only_test_vector": "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "note": "Published dev-only HMAC test vector. Not a credential."
+      },
+      "identity": {
+        "hmac_secret_dev_only_test_vector": "ghost-ark-repro-identity-dev-only-test-vector-v1",
+        "tenant_id": "tenant-repro-a",
+        "user_id": "user-repro-a",
+        "session_id": "session-repro-b"
+      },
+      "receipt_inputs": {
+        "request_id": "request-repro-0002",
+        "timestamp": "2026-07-09T00:05:00.000Z",
+        "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "policy_version": "organization:repro@1",
+        "policy_hash": "cafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00d",
+        "input_digest_source_text": "ghost-ark-repro-synthetic-input-0002",
+        "retrieved_context_digest_source_texts": [
+          "ghost-ark-repro-synthetic-context-0001",
+          "ghost-ark-repro-synthetic-context-0002"
+        ],
+        "decision_pre": "ALLOW",
+        "decision_post": "ALLOW",
+        "action_taken": ["emit_receipt", "redact_output"],
+        "risk_score": 0,
+        "consent_state": "not_required",
+        "memory_written": false,
+        "latency_ms": 27,
+        "cost_estimate_usd": 0,
+        "prev_receipt_fixture_id": "hmac-baseline",
+        "execution_context_source_text": "ghost-ark-repro-execution-context-0002",
+        "execution_nonce": "ghost-ark-repro-nonce-0002"
+      },
+      "paths": {
+        "receipt": "receipts/hmac-chained.receipt.json",
+        "canonical_payload": "canonical-payloads/hmac-chained.canonical.json",
+        "signature_envelope": "signature-envelopes/hmac-chained.envelope.json"
+      },
+      "non_claim": "Chain linkage proves that this receipt binds the signed hash of hmac-baseline. It does not prove ledger completeness or that no receipts were withheld."
+    },
+    {
+      "fixture_id": "kms-style-rsa",
+      "description": "Decision receipt signed locally with a throwaway RSA-2048 key using the same RSASSA_PSS_SHA_256 parameters as the KMS signing path. LOCAL SIMULATION ONLY: no AWS KMS call was made and this fixture is not AWS evidence. The private key was discarded after generation; only the public key is committed.",
+      "signature_alg": "KMS_SIGN_RSASSA_PSS_SHA_256",
+      "dev_only": false,
+      "regenerable": false,
+      "local_only_simulation": true,
+      "signing": {
+        "key_id": "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-0000000000aa",
+        "public_key_path": "keys/kms-style-public-key.pem",
+        "note": "Syntactically valid, fictitious immutable KMS key ARN (AWS documentation account 111122223333). It identifies no real AWS resource. Signature produced locally; NOT AWS KMS evidence."
+      },
+      "identity": {
+        "hmac_secret_dev_only_test_vector": "ghost-ark-repro-identity-dev-only-test-vector-v1",
+        "tenant_id": "tenant-repro-a",
+        "user_id": "user-repro-a",
+        "session_id": "session-repro-c"
+      },
+      "receipt_inputs": {
+        "request_id": "request-repro-0003",
+        "timestamp": "2026-07-09T00:10:00.000Z",
+        "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "policy_version": "organization:repro@1",
+        "policy_hash": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+        "input_digest_source_text": "ghost-ark-repro-synthetic-input-0003",
+        "retrieved_context_digest_source_texts": ["ghost-ark-repro-synthetic-context-0003"],
+        "decision_pre": "ALLOW",
+        "decision_post": "ALLOW",
+        "action_taken": ["emit_receipt"],
+        "risk_score": 0,
+        "consent_state": "not_required",
+        "memory_written": false,
+        "latency_ms": 41,
+        "cost_estimate_usd": 0,
+        "prev_receipt_fixture_id": null,
+        "execution_context_source_text": "ghost-ark-repro-execution-context-0003",
+        "execution_nonce": "ghost-ark-repro-nonce-0003"
+      },
+      "paths": {
+        "receipt": "receipts/kms-style-rsa.receipt.json",
+        "canonical_payload": "canonical-payloads/kms-style-rsa.canonical.json",
+        "signature_envelope": "signature-envelopes/kms-style-rsa.envelope.json"
+      },
+      "non_claim": "This fixture exercises the RSASSA_PSS_SHA_256 verification math only. It does not prove AWS KMS signing authorization, key custody, hardware attestation, or runtime integrity."
+    }
+  ]
+}

@@ -74,7 +74,9 @@ function signKmsLikeReceipt(receipt: UnsignedDecisionReceipt, privateKey: KeyObj
     ...receipt,
     receipt_signature: Buffer.from(
       JSON.stringify({
+        schemaVersion: "ghost.decision_receipt_signature.v1",
         keyId,
+        algorithm: "KMS_SIGN_RSASSA_PSS_SHA_256",
         digestSha256: decisionReceiptDigest(receipt),
         signature: signature.toString("base64")
       }),
@@ -98,15 +100,19 @@ function decision(phase: PolicyDecision["phase"], value: PolicyDecision["decisio
   };
 }
 
-function decodeSignatureEnvelope(receipt: SignedDecisionReceipt): { keyId: string; digestSha256: string; signature: string } {
-  return JSON.parse(Buffer.from(receipt.receipt_signature, "base64url").toString("utf8")) as {
-    keyId: string;
-    digestSha256: string;
-    signature: string;
-  };
+interface TestSignatureEnvelope {
+  schemaVersion: string;
+  keyId: string;
+  algorithm: string;
+  digestSha256: string;
+  signature: string;
 }
 
-function encodeSignatureEnvelope(envelope: { keyId: string; digestSha256: string; signature: string }): string {
+function decodeSignatureEnvelope(receipt: SignedDecisionReceipt): TestSignatureEnvelope {
+  return JSON.parse(Buffer.from(receipt.receipt_signature, "base64url").toString("utf8")) as TestSignatureEnvelope;
+}
+
+function encodeSignatureEnvelope(envelope: TestSignatureEnvelope): string {
   return Buffer.from(JSON.stringify(envelope), "utf8").toString("base64url");
 }
 
@@ -317,6 +323,7 @@ describe("KMS decision receipt verification", () => {
       ["schema", true],
       ["receipt_id", true],
       ["algorithm", true],
+      ["envelope", true],
       ["key_id", true],
       ["digest", true],
       ["canonical_payload", true],

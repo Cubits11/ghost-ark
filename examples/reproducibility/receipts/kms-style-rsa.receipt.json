@@ -1,0 +1,31 @@
+{
+  "schema_version": "ghost.receipt.v1",
+  "receipt_id": "grct_5dc895402e98810a7b4df34b571debc209a9eeb2bf8823b46c8531048c476bc7",
+  "request_id": "request-repro-0003",
+  "tenant_id_hash": "hmac-sha256:585fb5719f8ae7739d9dbd7b047166dd02102c4fbfcb04fed5f5440098ca277f",
+  "user_id_hash": "hmac-sha256:1c9b61a4c1b0fdb08973a79edb25391b46c6ad06e2ebda4e71048e7bbfed171e",
+  "session_id_hash": "hmac-sha256:17bac35d7e9ba08081dee10e825cd3203619db7602351462a82afec7b003c347",
+  "timestamp": "2026-07-09T00:10:00.000Z",
+  "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "policy_version": "organization:repro@1",
+  "policy_hash": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+  "input_digest": "sha256:6139beee4d5c3a7c33c356ca6acc69e3067467581b0f8b138f2f7e9ae9cdf085",
+  "retrieved_context_digests": [
+    "sha256:ab008d2f1cb9a18c0017485990118a03f7b938701e4e38480cba2d5c3f05ad6e"
+  ],
+  "execution_context_hash": "sha256:b6778a64998f1ee182a534ef19c2b141a267ada1f902b2b42f99af376cbec271",
+  "execution_nonce": "ghost-ark-repro-nonce-0003",
+  "decision_pre": "ALLOW",
+  "decision_post": "ALLOW",
+  "action_taken": [
+    "emit_receipt"
+  ],
+  "risk_score": 0,
+  "consent_state": "not_required",
+  "memory_written": false,
+  "latency_ms": 41,
+  "cost_estimate_usd": 0,
+  "prev_receipt_hash": null,
+  "signature_alg": "KMS_SIGN_RSASSA_PSS_SHA_256",
+  "receipt_signature": "eyJhbGdvcml0aG0iOiJLTVNfU0lHTl9SU0FTU0FfUFNTX1NIQV8yNTYiLCJkaWdlc3RTaGEyNTYiOiI1OTBlYzEyYmJjMWU1NmZkY2MxNjllNTA4Nzc2MzQ1Yzc0YTFjNGRkZDU3Njg1ZWY2NDc5YWJjYWJkYWYyZDg3Iiwia2V5SWQiOiJhcm46YXdzOmttczp1cy1lYXN0LTE6MTExMTIyMjIzMzMzOmtleS8wMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwYWEiLCJzY2hlbWFWZXJzaW9uIjoiZ2hvc3QuZGVjaXNpb25fcmVjZWlwdF9zaWduYXR1cmUudjEiLCJzaWduYXR1cmUiOiJDcklqNTNWK0UxSXFwZVhZclBHTEVqWEh5WkU5cVY0dmRTa1JLZlR2dnE5YWlZYVAvekkzTEJNUkFHR0tHVWtHaTU3OXpHWU9ZSG1UY2pUWWlxdzNRUE9oVU90RTRJTUhlMXZnck9sZDR6VGUwcm52THh4bG91TEkvV1lHTU53ZW5oQ2dLdU9CM2RJdHB6SVZVRzYrZ2k4TENnVlJkTjFmTE5nc0x5ZytEZVl1YUxHcWlSSE9Za0grc1ZzRU5VRng2WGV5Wll5MHZQam4xb2RNYThtNWVUL2J3SnFFamR2UXJSOG5JV2pDQnQxcWtEM0VEU3dwVUVmUXZmY3NvQ2UyR2hiOXJhQkc3Nld6cHhiR2xsb3FTN2N6L0NwNXBzN0xRQXNKWkZud1p2VTdQS3NHT2JML1BqVnJzd3ZqRTN4SlhFY2t0MFdDN0NSa2xYRkFhdkhaUEE9PSJ9"
+}
