@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist coverage cdk.out",
-    "docs:check": "node -e \"const fs=require('fs'); const required=['docs/architecture/system-overview.md','docs/compliance/non-claims.md','README.md']; for (const f of required) { if (!fs.existsSync(f)) throw new Error('Missing '+f); }\"",
+    "docs:check": "node -e \"const fs=require('fs'); const required=['docs/architecture/system-overview.md','docs/compliance/non-claims.md','docs/governance/claim-evidence-matrix.md','docs/governance/risk-register.md','docs/governance/external-reviewer-guide.md','README.md']; for (const f of required) { if (!fs.existsSync(f)) throw new Error('Missing '+f); }\"",
     "test:research": "vitest run tests/unit/research-frontier",
     "validate:claims": "node tools/research/check-forbidden-claims.mjs",
     "validate:fast": "npm run test:research && npm run validate:claims",

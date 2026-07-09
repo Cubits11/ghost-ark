@@ -88,7 +88,7 @@ describe("forbidden claim scanner", () => {
         "enterprise",
         "infrastructure.",
       ),
-      ruleId: "production-enterprise",
+      ruleId: "production-ready",
     },
     {
       name: "hyphenated production enterprise readiness wording",
@@ -98,7 +98,17 @@ describe("forbidden claim scanner", () => {
         "enterprise",
         "infrastructure.",
       ),
-      ruleId: "production-enterprise",
+      ruleId: "production-ready",
+    },
+    {
+      name: "enterprise readiness wording",
+      line: phrase("Ghost-Ark is", "enterprise", "ready."),
+      ruleId: "enterprise-ready",
+    },
+    {
+      name: "compliance certification wording",
+      line: phrase("Ghost-Ark is", "compliance", "certified."),
+      ruleId: "compliance-certification",
     },
     {
       name: "semantic truth overclaim wording",
@@ -196,7 +206,7 @@ describe("forbidden claim scanner", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("examples/claims.json");
     expect(result.stderr).toContain("docs/claims.yml");
-    expect(result.stderr).toContain("production-enterprise");
+    expect(result.stderr).toContain("production-ready");
     expect(result.stderr).toContain("risk-elimination");
   });
 

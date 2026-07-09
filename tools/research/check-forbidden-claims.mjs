@@ -41,6 +41,10 @@ const allowedPolicyFiles = new Set([
   // Tests intentionally contain forbidden phrases to verify rejection behavior.
   "tests/unit/research-frontier/checkForbiddenClaims.test.ts",
 
+  // Claims-enforcement source: encodes the forbidden fragments it rejects at
+  // runtime, so its rule constants are not public claims.
+  "packages/research-frontier/src/frontierClaims.ts",
+
   // Policy and boundary documents are allowed to quote unsafe wording because
   // their purpose is to define rejected claims, limitations, and evidence gaps.
   "CLAUDE.md",
@@ -173,6 +177,14 @@ const rules = [
     allowance: "research",
   },
   {
+    id: "enterprise-ready",
+    pattern: /\benterprise[- ]ready\b/i,
+    reason: "Unsupported enterprise-readiness claim.",
+    suggestion:
+      "Say reference implementation or evidence prototype unless enterprise review evidence exists.",
+    allowance: "research",
+  },
+  {
     id: "audit-complete",
     pattern: /\baudit\s+complete\b/i,
     reason: "Unsupported audit-completion claim.",
@@ -195,7 +207,9 @@ const rules = [
       "compliance",
       String.raw`|regulatory|SOC\s*2|HIPAA|FedRAMP|ISO\s*42001|ISO\/IEC\s*42001|NIST)\b|\b(?:SOC\s*2|HIPAA)\s+`,
       "compliant",
-      String.raw`\b|\b(?:FedRAMP|ISO\s*42001|ISO\/IEC\s*42001|NIST)\s+certified\b`,
+      String.raw`\b|\b(?:FedRAMP|ISO\s*42001|ISO\/IEC\s*42001|NIST)\s+certified\b|\b`,
+      "compliance",
+      String.raw`[- ]certified\b`,
     ),
     reason: "Unsupported compliance-certification claim.",
     suggestion:

@@ -222,10 +222,12 @@ This report is bounded runtime validation evidence only. It does not prove AI sa
 
 Forbidden claims:
 
-- The runtime is production ready.
-- The runtime is enterprise ready.
-- The runtime is AI safe.
-- The runtime is legally or compliance certified.
+- Do not claim the runtime is ready for production use from a single smoke run.
+- Do not claim the runtime is ready for enterprise use.
+- Do not claim the runtime makes AI safe.
+- Do not claim legal or regulatory certification for the runtime.
 - Do not claim the runtime proves semantic correctness or empirical truth.
-- Decision receipts prove model output correctness.
-- Local tests replace live AWS validation.
+- Do not claim decision receipts prove model output correctness.
+- Do not claim local tests replace live AWS validation.
+
+The runtime has bounded AWS validation evidence for the specific captured run only.
