@@ -25,6 +25,7 @@ export interface DevWitnessKeyPair {
 }
 
 export function createDevWitnessKeyPair(witnessId: string): DevWitnessKeyPair {
+  // Local dev keys keep this research primitive testable without a witness service.
   const { publicKey, privateKey } = generateKeyPairSync("ec", {
     namedCurve: "P-256",
     publicKeyEncoding: {
@@ -83,7 +84,7 @@ export function createWitnessCheckpoint(params: {
   integratedTime: string;
   witness: DevWitnessKeyPair;
 }): WitnessCheckpoint {
-  const unsigned = {
+  const unsigned: Omit<WitnessCheckpoint, "witness_signatures"> = {
     schema_version: "ghostark.research.witness_checkpoint.v1" as const,
     log_id: params.logId,
     tree_size: params.receiptPayloads.length,
@@ -95,7 +96,11 @@ export function createWitnessCheckpoint(params: {
   const signature = signCheckpointPayload(payload, params.witness.privateKeyPem);
 
   return {
-    ...unsigned,
+    schema_version: unsigned.schema_version,
+    log_id: unsigned.log_id,
+    tree_size: unsigned.tree_size,
+    root_hash: unsigned.root_hash,
+    integrated_time: unsigned.integrated_time,
     witness_signatures: [
       {
         witness_id: params.witness.witnessId,

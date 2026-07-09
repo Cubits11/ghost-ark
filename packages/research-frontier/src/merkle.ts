@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 
-const EMPTY_TREE_ROOT = createHash("sha256")
+export const EMPTY_TREE_ROOT = createHash("sha256")
   .update("ghostark.empty_merkle_tree.v1")
   .digest("hex");
 
@@ -34,6 +34,7 @@ export function computeMerkleRootFromLeafHashes(leafHashes: string[]): string {
 
     for (let i = 0; i < level.length; i += 2) {
       const left = level[i];
+      // Odd levels duplicate the final leaf for this local research primitive.
       const right = level[i + 1] ?? level[i];
       nextLevel.push(nodeHash(left, right));
     }
@@ -53,5 +54,3 @@ export function assertSha256Hex(value: string, label: string): void {
     throw new Error(`${label} must be a lowercase SHA-256 hex digest`);
   }
 }
-
-export { EMPTY_TREE_ROOT };
