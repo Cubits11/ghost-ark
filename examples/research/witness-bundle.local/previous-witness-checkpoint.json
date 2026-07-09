@@ -1,0 +1,14 @@
+{
+  "schema_version": "ghostark.research.witness_checkpoint.v1",
+  "log_id": "ghost-ark-local-research-log",
+  "tree_size": 2,
+  "root_hash": "e7b1f312c1f294f90abb56b001750f85b8123a209527efd74b2afc2ea10bed18",
+  "integrated_time": "2026-07-08T12:00:00.000Z",
+  "witness_signatures": [
+    {
+      "witness_id": "local-dev-witness-1",
+      "signature_algorithm": "ecdsa-p256-sha256",
+      "signature": "MEUCIQDvYa+gFvWrOOON5R2EbET7w17kw30f5wfleCfXHe9X1gIgAIQyzxj4MkjHDgjCKlkW6Mo3IKVhroGwbyL47Vkb1aE="
+    }
+  ]
+}
