@@ -1,5 +1,6 @@
-import { createHmac } from "crypto";
+import { createHmac, randomBytes } from "crypto";
 import { canonicalSha256Hex, canonicalize, sha256Hex } from "../../../receipt-schema/src/hashCanonicalization";
+import { ValidationError } from "../../../shared/src/errors";
 import {
   SignedDecisionReceipt,
   UnsignedDecisionReceipt,
@@ -24,12 +25,82 @@ export type DecisionReceiptBuildInputWithDefaults = Omit<
 export const DEFAULT_EXECUTION_CONTEXT_HASH = `sha256:${"0".repeat(64)}`;
 export const DEFAULT_EXECUTION_NONCE = "local-dev-execution-nonce";
 
+const sha256DigestPattern = /^sha256:[a-f0-9]{64}$/u;
+const hmacSha256DigestPattern = /^hmac-sha256:[a-f0-9]{64}$/u;
+const executionNoncePattern = /^[A-Za-z0-9_-]{12,256}$/u;
+
+function receiptCanonicalizationError(message: string, context: Record<string, unknown> = {}): ValidationError {
+  return new ValidationError(message, { domain: "ghost_ark.decision_receipt_canonical.v1", ...context });
+}
+
+function assertString(name: string, value: string): void {
+  if (typeof value !== "string") {
+    throw receiptCanonicalizationError(`${name} must be a string.`, { field: name });
+  }
+}
+
+function assertNonEmptyString(name: string, value: string): void {
+  if (typeof value !== "string" || value.length === 0) {
+    throw receiptCanonicalizationError(`${name} must be a non-empty string.`, { field: name });
+  }
+}
+
+function assertDigestShape(name: string, value: string, pattern: RegExp): void {
+  if (!pattern.test(value)) {
+    throw receiptCanonicalizationError(`${name} has an invalid digest shape.`, { field: name, value });
+  }
+}
+
+function assertExecutionNonceShape(value: string): void {
+  if (!executionNoncePattern.test(value)) {
+    throw receiptCanonicalizationError("execution_nonce must be a URL-safe nonce between 12 and 256 characters.", {
+      field: "execution_nonce"
+    });
+  }
+}
+
+export function createExecutionNonce(bytes = 32): string {
+  if (!Number.isSafeInteger(bytes) || bytes < 18 || bytes > 96) {
+    throw receiptCanonicalizationError("Execution nonce byte length must be a safe integer between 18 and 96.", {
+      bytes
+    });
+  }
+
+  return randomBytes(bytes).toString("base64url");
+}
+
 export function publicSha256Digest(value: string): string {
+  assertString("value", value);
   return `sha256:${sha256Hex(value)}`;
 }
 
 export function privateHmacDigest(secret: string, value: string): string {
+  assertNonEmptyString("secret", secret);
+  assertString("value", value);
   return `hmac-sha256:${createHmac("sha256", secret).update(value).digest("hex")}`;
+}
+
+export function isDefaultExecutionBoundary(receipt: UnsignedDecisionReceipt | SignedDecisionReceipt): boolean {
+  return (
+    receipt.execution_context_hash === DEFAULT_EXECUTION_CONTEXT_HASH ||
+    receipt.execution_nonce === DEFAULT_EXECUTION_NONCE
+  );
+}
+
+export function assertNonDefaultExecutionBoundary(receipt: UnsignedDecisionReceipt | SignedDecisionReceipt): void {
+  const unsigned = unsignedReceiptForSigning(receipt);
+
+  if (unsigned.execution_context_hash === DEFAULT_EXECUTION_CONTEXT_HASH) {
+    throw receiptCanonicalizationError("Production decision receipts must not use the default execution_context_hash.", {
+      field: "execution_context_hash"
+    });
+  }
+
+  if (unsigned.execution_nonce === DEFAULT_EXECUTION_NONCE) {
+    throw receiptCanonicalizationError("Production decision receipts must not use the default local-dev execution_nonce.", {
+      field: "execution_nonce"
+    });
+  }
 }
 
 function receiptIdentityPayload(input: Omit<UnsignedDecisionReceipt, "receipt_id">): Omit<UnsignedDecisionReceipt, "receipt_id"> {
@@ -41,6 +112,19 @@ export function receiptIdFromUnsignedDecisionReceipt(input: Omit<UnsignedDecisio
 }
 
 export function buildUnsignedDecisionReceipt(input: DecisionReceiptBuildInputWithDefaults): UnsignedDecisionReceipt {
+  if (input.execution_context_hash !== undefined) {
+    assertDigestShape("execution_context_hash", input.execution_context_hash, sha256DigestPattern);
+  }
+
+  if (input.input_digest.startsWith("hmac-sha256:")) {
+    assertDigestShape("input_digest", input.input_digest, hmacSha256DigestPattern);
+  } else {
+    assertDigestShape("input_digest", input.input_digest, sha256DigestPattern);
+  }
+
+  const executionNonce = input.execution_nonce ?? DEFAULT_EXECUTION_NONCE;
+  assertExecutionNonceShape(executionNonce);
+
   const withoutId = {
     schema_version: decisionReceiptSchemaVersion,
     request_id: input.request_id,
@@ -54,7 +138,7 @@ export function buildUnsignedDecisionReceipt(input: DecisionReceiptBuildInputWit
     input_digest: input.input_digest,
     retrieved_context_digests: [...input.retrieved_context_digests].sort(),
     execution_context_hash: input.execution_context_hash ?? DEFAULT_EXECUTION_CONTEXT_HASH,
-    execution_nonce: input.execution_nonce ?? DEFAULT_EXECUTION_NONCE,
+    execution_nonce: executionNonce,
     decision_pre: input.decision_pre,
     decision_post: input.decision_post,
     action_taken: [...input.action_taken].sort(),
