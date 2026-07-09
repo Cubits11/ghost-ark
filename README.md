@@ -40,7 +40,7 @@ This checklist tracks evidence maturity, not personal goals or certification sta
 | Repeatable deployment evidence | Not complete | Spine C | Requires deploy, smoke, evidence, destroy |
 | Independent verifier implementation | Partial | Spine B | Local verifier exists; independence boundary needs review |
 
-A completed item means the repository contains evidence for that narrow item. It does not mean Ghost Ark is certified, production-ready, or safe for unsupervised deployment.
+A completed item means the repository contains evidence for that narrow item. It does not mean Ghost Ark is certified, production-hardened, or safe for unsupervised deployment.
 
 ## Verify A Receipt In 60 Seconds
 
