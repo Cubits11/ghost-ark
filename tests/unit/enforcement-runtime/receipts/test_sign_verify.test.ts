@@ -43,6 +43,7 @@ describe("decision receipt signing and verification", () => {
       ["schema", true],
       ["receipt_id", true],
       ["algorithm", true],
+      ["envelope", true],
       ["key_id", true],
       ["digest", true],
       ["canonical_payload", true],

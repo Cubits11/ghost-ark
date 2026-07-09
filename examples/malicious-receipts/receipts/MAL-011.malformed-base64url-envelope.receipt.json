@@ -1,0 +1,29 @@
+{
+  "schema_version": "ghost.receipt.v1",
+  "receipt_id": "grct_1debd067f8310ec416610ea9866d6162e12f73e5b96f4a001e66d7203342cb64",
+  "request_id": "request-repro-0001",
+  "tenant_id_hash": "hmac-sha256:585fb5719f8ae7739d9dbd7b047166dd02102c4fbfcb04fed5f5440098ca277f",
+  "user_id_hash": "hmac-sha256:1c9b61a4c1b0fdb08973a79edb25391b46c6ad06e2ebda4e71048e7bbfed171e",
+  "session_id_hash": "hmac-sha256:f68cda16ca633c321c4409707ae9b4e057d8f8efe33a5cbb711d296c46c41f16",
+  "timestamp": "2026-07-09T00:00:00.000Z",
+  "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "policy_version": "organization:repro@1",
+  "policy_hash": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+  "input_digest": "sha256:6cbe0d99007c8a568442ab4bea5e42237b4843ef5770aafb36ba2995f894c60c",
+  "retrieved_context_digests": [],
+  "execution_context_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "execution_nonce": "local-dev-execution-nonce",
+  "decision_pre": "ALLOW",
+  "decision_post": "ALLOW",
+  "action_taken": [
+    "emit_receipt"
+  ],
+  "risk_score": 0,
+  "consent_state": "not_required",
+  "memory_written": false,
+  "latency_ms": 12,
+  "cost_estimate_usd": 0,
+  "prev_receipt_hash": null,
+  "signature_alg": "LOCAL_HMAC_SHA256_DEV_ONLY",
+  "receipt_signature": "!!!not-base64url!!!"
+}
