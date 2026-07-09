@@ -80,6 +80,51 @@ describe("forbidden claim scanner", () => {
       ),
       ruleId: ["zk", "execution", "claim"].join("-"),
     },
+    {
+      name: "production enterprise readiness wording",
+      line: phrase(
+        "Ghost-Ark is",
+        "production-ready",
+        "enterprise",
+        "infrastructure.",
+      ),
+      ruleId: "production-enterprise",
+    },
+    {
+      name: "hyphenated production enterprise readiness wording",
+      line: phrase(
+        "Ghost-Ark is",
+        "production ready",
+        "enterprise",
+        "infrastructure.",
+      ),
+      ruleId: "production-enterprise",
+    },
+    {
+      name: "truthfulness guarantee wording",
+      line: phrase("Ghost-Ark provides a", "truthfulness", "guarantee."),
+      ruleId: "truthfulness-guarantee",
+    },
+    {
+      name: "semantic correctness proof wording",
+      line: phrase("Ghost-Ark proves", "semantic", "correctness."),
+      ruleId: "truthfulness-guarantee",
+    },
+    {
+      name: "absolute risk elimination wording",
+      line: phrase("Ghost-Ark", "eliminates", "all", "risk."),
+      ruleId: "risk-elimination",
+    },
+    {
+      name: "hardware isolation wording",
+      line: phrase("Ghost-Ark provides", "hardware-enforced", "isolation."),
+      ruleId: "hardware-enforced-isolation",
+    },
+    {
+      name: "alignment guarantee wording",
+      line: phrase("Ghost-Ark can", "guarantee", "alignment."),
+      ruleId: "alignment-guarantee",
+    },
   ];
 
   for (const testCase of blockedCases) {
@@ -116,6 +161,44 @@ describe("forbidden claim scanner", () => {
       expect(result.stdout).toContain("No forbidden assurance overclaims");
     });
   }
+
+  it("rejects overclaims inside JSON and YAML files", () => {
+    const root = makeTempRoot();
+
+    writeFixture(
+      root,
+      "examples/claims.json",
+      JSON.stringify(
+        {
+          publicClaim: phrase(
+            "Ghost-Ark is",
+            "production-ready",
+            "enterprise",
+            "infrastructure.",
+          ),
+        },
+        null,
+        2,
+      ),
+    );
+
+    writeFixture(
+      root,
+      "docs/claims.yml",
+      [
+        "claim:",
+        `  text: "${phrase("Ghost-Ark", "eliminates", "all", "risk.")}"`,
+      ].join("\n"),
+    );
+
+    const result = runScanner(root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("examples/claims.json");
+    expect(result.stderr).toContain("docs/claims.yml");
+    expect(result.stderr).toContain("production-enterprise");
+    expect(result.stderr).toContain("risk-elimination");
+  });
 
   it("rejects overclaims inside TypeScript comments and constants", () => {
     const root = makeTempRoot();
