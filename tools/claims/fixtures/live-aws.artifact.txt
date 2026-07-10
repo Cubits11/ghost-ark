@@ -1,0 +1,4 @@
+Ghost-Ark live-AWS evidence fixture artifact.
+Supports Truth-Ladder level 4 (reproducible signed receipt from committed
+fixtures). It does NOT carry live-cloud evidence; it is a local synthetic
+fixture only.

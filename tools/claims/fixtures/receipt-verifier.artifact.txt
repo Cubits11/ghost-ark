@@ -1,0 +1,4 @@
+Ghost-Ark independent receipt verifier fixture artifact.
+Supports Truth-Ladder level 6 (independently checked receipt): a stdlib-only
+reimplementation recomputes receipt identity, canonical digest, and signature
+without importing the primary TypeScript verifier.

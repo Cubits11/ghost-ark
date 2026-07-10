@@ -1,0 +1,30 @@
+{
+  "schema_version": "ghost.claim_registry.v1",
+  "description": "Sample structured claim registry. Each claim asserts a Truth-Ladder level and binds evidence by path + sha256. Admissible iff every citation's bytes match and the asserted level does not exceed the minimum supported level.",
+  "claims": [
+    {
+      "id": "CLM-VERIFY-LOCAL",
+      "statement": "Ghost-Ark can independently recompute a supplied receipt's identity, canonical digest, and signature.",
+      "asserts_level": 6,
+      "cites": [
+        {
+          "path": "tools/claims/fixtures/receipt-verifier.artifact.txt",
+          "expect_sha256": "72f862c65575fc7322466c7c3a926a20f5a9474e1f21a41ae23e279c3002caec",
+          "supports_level": 6
+        }
+      ]
+    },
+    {
+      "id": "CLM-LIVE-AWS-HONEST",
+      "statement": "Ghost-Ark provides a reproducible signed-receipt fixture; it does not carry live-cloud evidence.",
+      "asserts_level": 4,
+      "cites": [
+        {
+          "path": "tools/claims/fixtures/live-aws.artifact.txt",
+          "expect_sha256": "f9251b8f350566e1c85cd89c1f189ff3a4a6b05c005f1c8f25bc013bdd25333c",
+          "supports_level": 4
+        }
+      ]
+    }
+  ]
+}
