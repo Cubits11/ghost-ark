@@ -10,6 +10,10 @@ This guide tells a skeptical external reviewer exactly what Ghost-Ark claims, wh
 - A standalone Node verifier has no Ghost-Ark package imports and agrees with the production verifier on the committed adversarial corpus (CLAIM-004, local source-boundary evidence only).
 - The enforcement runtime evaluates deterministic policy decisions, fails closed, and emits decision receipts in local tests (CLAIM-005, local path only).
 - A locally tested Draft 2020-12 contract validates supplied evidence-bundle lifecycle fields and rejects synthetic-to-live relabeling, incomplete completion claims, and enumerated leak patterns (CLAIM-018, local artifact checks only).
+- Closed local schemas and validators exist for guardrail observations, human-review decisions, incidents, checkpoints, and candidate framework mappings (CLAIM-009, CLAIM-011, CLAIM-013, CLAIM-014, CLAIM-015).
+- A local CC adapter produces deterministic co-failure tables, pairwise phi values, Wilson intervals, and Fréchet bounds from complete supplied cohorts (CLAIM-012, local mechanics only).
+- A key-manifest primitive distinguishes historical verification eligibility from ACTIVE-only new signing authorization (CLAIM-019, local policy only).
+- Local witness checkpoint consistency and signature mechanics exist for maintainer-controlled fixtures (CLAIM-020, not independent witness evidence).
 - A claim scanner blocks forbidden assurance wording on public claim surfaces (`npm run scan:claims`).
 
 Each claim maps to a row in the [Claim/Evidence Matrix](claim-evidence-matrix.md) with evidence location, command, and limitation.
@@ -50,6 +54,14 @@ To validate another already-sanitized bundle file locally:
 ```bash
 npm run validate:evidence-bundle -- path/to/bundle.json
 ```
+
+To run every locally implementable checklist gate, including Core Mode CDK synthesis but no deployment:
+
+```bash
+npm run checklist:local
+```
+
+That command covers Spines A/B, Spine C local preparation, key lifecycle, guardrail observation, CC analysis, local transparency/witness mechanics, human review/incident artifacts, and the candidate framework crosswalk.
 
 ## Receipt Verification
 
@@ -95,6 +107,8 @@ Passing the agreement test shows that two same-repository implementation paths m
 
 Passing `validate:evidence-bundle` means the supplied JSON matches the bundle schema, semantic lifecycle constraints, and enumerated leak rules. It does not independently establish that an AWS call happened, and the leak scan cannot identify every context-specific sensitive value.
 
+Passing schema and linkage tests means supplied synthetic artifacts satisfy their closed local contracts. It does not show that a guardrail ran, a human reviewed an event, an incident team responded, a witness was independent, or an organizational control operated.
+
 ## What Passing Tests Do Not Mean
 
 - They do not prove live AWS behavior (IAM, Cognito, KMS, DynamoDB, Bedrock, S3).
@@ -111,6 +125,8 @@ Passing `validate:evidence-bundle` means the supplied JSON matches the bundle sc
 - Object Lock transparency bundles (CLAIM-010).
 - Repeatable deployment evidence: deploy, smoke, capture, destroy (CLAIM-016).
 - Cost-bounded live validation lifecycle execution (CLAIM-017).
+- Deployed KMS rotation, old-key signing denial, and compromise response (CLAIM-019 deployed boundary).
+- Live guardrail capture, operating human review/incident response, and independently operated witnesses.
 
 Live evidence counts only when a human-approved, sanitized, preserved live bundle identifies a clean commit, hashed account and principal, region, stage, bounded window, stack results, scoped observations, artifact digests, applicable receipt checks, and confirmed cleanup. The checked-in synthetic sample is not live evidence.
 
@@ -126,6 +142,20 @@ Reject any claim that:
 - asserts live AWS validation without pointing to a preserved evidence bundle;
 - generalizes a single smoke run into ongoing operational assurance;
 - presents local fixtures, mocks, or CDK synthesis as live AWS proof;
+- presents a declared receipt reference as a cryptographically verified binding;
+- presents a framework crosswalk as conformity, certification, legal analysis, or a Statement of Applicability;
+- presents a synthetic review or incident example as evidence of an operating human process;
 - cannot be traced to a row in the [Claim/Evidence Matrix](claim-evidence-matrix.md).
+
+Focused non-AWS review commands:
+
+```bash
+npm run spine:d:local
+npm run spine:e:local
+npm run spine:f:local
+npm run spine:g:local
+npm run spine:h:local
+npm run spine:compliance:local
+```
 
 See also the [Risk Register](risk-register.md), [Claims Boundary](../release/CLAIMS_BOUNDARY.md), and [Non-Claims](../compliance/non-claims.md).
