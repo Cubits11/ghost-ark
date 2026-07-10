@@ -1,0 +1,16 @@
+{
+  "schema_version": "ghost.pss_digest_mode_vector.v1",
+  "updated_at": "2026-07-09T00:00:00.000Z",
+  "description": "Local synthetic test vector for the RSA-PSS digest-treatment boundary. The receipt body is identical to the kms-style-rsa reproducibility fixture, but its signature envelope was produced with OpenSSL pkeyutl over the precomputed canonical-payload digest (mHash = digest), which matches AWS KMS Sign with MessageType=DIGEST and SigningAlgorithm RSASSA_PSS_SHA_256. It does NOT verify under the digest-as-message treatment used by the Node local signing/verification path and by every other committed fixture. The throwaway RSA-2048 private key was discarded after generation; only the public key is committed.",
+  "files": {
+    "receipt": "kms-digest-mode.receipt.json",
+    "public_key": "public-key.pem"
+  },
+  "key_id_note": "The envelope keyId is a syntactically valid, fictitious immutable KMS key ARN (AWS documentation account 111122223333). It identifies no real AWS resource. No AWS call was made.",
+  "verify_commands": {
+    "expected_pass": "python3 verifiers/python/ghost_receipt_verify.py --receipt examples/reproducibility/pss-digest-mode/kms-digest-mode.receipt.json --key examples/reproducibility/pss-digest-mode/public-key.pem --pss-mode digest-as-mhash",
+    "expected_fail_default_mode": "python3 verifiers/python/ghost_receipt_verify.py --receipt examples/reproducibility/pss-digest-mode/kms-digest-mode.receipt.json --key examples/reproducibility/pss-digest-mode/public-key.pem"
+  },
+  "boundary": "The digest-as-message and digest-as-mhash treatments are not interchangeable: a signature valid under one fails under the other. Ghost-Ark's local Node public-key verification path uses digest-as-message semantics; a signature produced by real AWS KMS over a precomputed digest uses digest-as-mhash semantics. Local public-key verification of live KMS-signed receipts therefore requires the digest-as-mhash treatment. See docs/security/RECEIPT_ATTACK_CORPUS.md.",
+  "non_claim": "This vector is a LOCAL SIMULATION generated with OpenSSL. It is not AWS evidence, does not prove AWS KMS signing authorization, key custody, hardware attestation, or runtime integrity, and does not prove model safety, semantic truth, or compliance."
+}

@@ -110,6 +110,8 @@ export interface CorpusAttack {
   attack_name: string;
   base_fixture_id: string;
   verifier: CorpusVerifierKind;
+  /** "malformed-json" fixtures are unparseable by design and must be rejected at load. Default: "receipt". */
+  fixture_kind?: "receipt" | "malformed-json";
   mutated_field: string;
   mutation_description: string;
   receipt_path: string;

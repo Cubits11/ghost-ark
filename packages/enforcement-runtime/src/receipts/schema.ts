@@ -33,11 +33,18 @@ export const unsignedDecisionReceiptSchema = z.object({
   cost_estimate_usd: z.number().min(0),
   prev_receipt_hash: receiptHashSchema.nullable().default(null),
   signature_alg: z.enum(decisionReceiptSignatureAlgorithms)
-});
+})
+  // Strict: unknown top-level fields are rejected, not silently stripped.
+  // Stripping would let a caller smuggle unsigned fields alongside a valid
+  // signature and still receive a PASS verdict from verifyDecisionReceipt,
+  // because canonicalization runs on the stripped object.
+  .strict();
 
-export const signedDecisionReceiptSchema = unsignedDecisionReceiptSchema.extend({
-  receipt_signature: z.string().min(1)
-});
+export const signedDecisionReceiptSchema = unsignedDecisionReceiptSchema
+  .extend({
+    receipt_signature: z.string().min(1)
+  })
+  .strict();
 
 export type UnsignedDecisionReceipt = z.infer<typeof unsignedDecisionReceiptSchema>;
 export type SignedDecisionReceipt = z.infer<typeof signedDecisionReceiptSchema>;

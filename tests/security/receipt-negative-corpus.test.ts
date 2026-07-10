@@ -68,7 +68,18 @@ describe("malicious decision receipt corpus", () => {
     }
   });
 
-  for (const attack of corpus.attacks.filter((entry) => entry.expected_verdict === "reject")) {
+  for (const attack of corpus.attacks.filter((entry) => entry.fixture_kind === "malformed-json")) {
+    it(`rejects ${attack.attack_id} (${attack.attack_name}) at JSON parse time`, () => {
+      expect(
+        () => readJsonFile(join(corpusBaseDir, attack.receipt_path)),
+        `${attack.attack_id} must not parse as JSON`
+      ).toThrow();
+    });
+  }
+
+  for (const attack of corpus.attacks.filter(
+    (entry) => entry.expected_verdict === "reject" && entry.fixture_kind !== "malformed-json"
+  )) {
     it(`fails closed on ${attack.attack_id} (${attack.attack_name})`, async () => {
       const mutant = readJsonFile(join(corpusBaseDir, attack.receipt_path));
       const result = await verifyDecisionReceipt(mutant, verifierForAttack(attack));
@@ -117,6 +128,13 @@ describe("malicious decision receipt corpus", () => {
 
   it("never accepts any corpus mutant end-to-end under its consumer rule", async () => {
     for (const attack of corpus.attacks) {
+      if (attack.fixture_kind === "malformed-json") {
+        expect(
+          () => readJsonFile(join(corpusBaseDir, attack.receipt_path)),
+          `${attack.attack_id} must be rejected at JSON parse time`
+        ).toThrow();
+        continue;
+      }
       const mutant = readJsonFile(join(corpusBaseDir, attack.receipt_path));
       const result = await verifyDecisionReceipt(mutant, verifierForAttack(attack));
 
