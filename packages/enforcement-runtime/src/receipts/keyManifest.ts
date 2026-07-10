@@ -13,13 +13,13 @@ export const keyManifestEntrySchema = z.object({
   status: z.enum(keyManifestStatuses),
   revokedAt: z.string().datetime().optional(),
   reason: z.string().optional()
-});
+}).strict();
 
 export const keyManifestSchema = z.object({
   schemaVersion: z.literal(keyManifestSchemaVersion),
   generatedAt: z.string().datetime(),
   keys: z.array(keyManifestEntrySchema).min(1)
-}).superRefine((manifest, ctx) => {
+}).strict().superRefine((manifest, ctx) => {
   const seen = new Set<string>();
   for (const [index, entry] of manifest.keys.entries()) {
     const identity = `${entry.keyId}:${entry.algorithm}`;
