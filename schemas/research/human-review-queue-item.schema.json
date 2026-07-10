@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/research/human-review-queue-item.schema.json",
+  "title": "Ghost-Ark Human Review Queue Item",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "queue_item_id",
+    "created_at",
+    "status",
+    "priority",
+    "trigger",
+    "receipt_references",
+    "evidence_references",
+    "assignment",
+    "privacy",
+    "audit",
+    "non_claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ghostark.research.human_review_queue_item.v1"
+    },
+    "queue_item_id": {
+      "type": "string",
+      "pattern": "^hrq_[A-Za-z0-9_-]+$"
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "status": {
+      "enum": ["pending", "in_review", "resolved", "escalated", "cancelled"]
+    },
+    "priority": { "enum": ["low", "medium", "high", "critical"] },
+    "trigger": {
+      "type": "object",
+      "required": [
+        "type",
+        "observation_id",
+        "observation_digest",
+        "reason_codes"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "guardrail_flag",
+            "policy_exception",
+            "receipt_verification_failure",
+            "operator_report",
+            "automated_alert"
+          ]
+        },
+        "observation_id": {
+          "oneOf": [
+            { "type": "string", "pattern": "^gobs_[A-Za-z0-9_-]+$" },
+            { "type": "null" }
+          ]
+        },
+        "observation_digest": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256_digest" },
+            { "type": "null" }
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "observation_id": { "type": "null" },
+                "observation_digest": { "type": "null" }
+              }
+            },
+            {
+              "properties": {
+                "observation_id": {
+                  "type": "string",
+                  "pattern": "^gobs_[A-Za-z0-9_-]+$"
+                },
+                "observation_digest": { "$ref": "#/$defs/sha256_digest" }
+              }
+            }
+          ]
+        },
+        {
+          "if": { "properties": { "type": { "const": "guardrail_flag" } } },
+          "then": {
+            "properties": {
+              "observation_id": {
+                "type": "string",
+                "pattern": "^gobs_[A-Za-z0-9_-]+$"
+              },
+              "observation_digest": { "$ref": "#/$defs/sha256_digest" }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "receipt_references": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/receipt_reference" }
+    },
+    "evidence_references": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/evidence_reference" }
+    },
+    "assignment": {
+      "type": "object",
+      "required": ["reviewer_role", "reviewer_id_hash", "review_due_at"],
+      "properties": {
+        "reviewer_role": { "type": "string", "minLength": 1 },
+        "reviewer_id_hash": {
+          "oneOf": [
+            { "$ref": "#/$defs/hmac_sha256_digest" },
+            { "type": "null" }
+          ]
+        },
+        "review_due_at": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "privacy": { "$ref": "#/$defs/privacy" },
+    "audit": { "$ref": "#/$defs/audit_link" },
+    "non_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "hmac_sha256_digest": {
+      "type": "string",
+      "pattern": "^hmac-sha256:[a-f0-9]{64}$"
+    },
+    "receipt_reference": {
+      "type": "object",
+      "required": ["receipt_id", "receipt_digest"],
+      "properties": {
+        "receipt_id": { "type": "string", "minLength": 1 },
+        "receipt_digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "evidence_reference": {
+      "type": "object",
+      "required": ["artifact_type", "artifact_id", "artifact_digest"],
+      "properties": {
+        "artifact_type": {
+          "enum": [
+            "guardrail_observation",
+            "receipt",
+            "policy",
+            "verifier_report",
+            "review_queue_item",
+            "review_decision",
+            "review_attachment",
+            "incident_timeline"
+          ]
+        },
+        "artifact_id": { "type": "string", "minLength": 1 },
+        "artifact_digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "required": [
+        "raw_content_included",
+        "notes_storage",
+        "redaction_policy_digest"
+      ],
+      "properties": {
+        "raw_content_included": { "const": false },
+        "notes_storage": { "const": "digest_only" },
+        "redaction_policy_digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "audit_link": {
+      "type": "object",
+      "required": ["event_id", "event_digest", "previous_event_digest"],
+      "properties": {
+        "event_id": { "type": "string", "pattern": "^audit_[A-Za-z0-9_-]+$" },
+        "event_digest": { "$ref": "#/$defs/sha256_digest" },
+        "previous_event_digest": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256_digest" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

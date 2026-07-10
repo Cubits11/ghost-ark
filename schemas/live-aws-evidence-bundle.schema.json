@@ -1,0 +1,626 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/live-aws-evidence-bundle.schema.json",
+  "title": "Ghost-Ark bounded live AWS evidence bundle",
+  "description": "Schema-bound lifecycle record for a bounded AWS validation window. Conformance to this schema is L2 local evidence only; it does not establish that any AWS call, deployment, runtime check, or cleanup occurred.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "bundleId",
+    "evidenceClassification",
+    "maturity",
+    "lifecycleStatus",
+    "liveAwsCallsPerformed",
+    "generatedAt",
+    "sourceRevision",
+    "window",
+    "scope",
+    "preflight",
+    "deployment",
+    "observations",
+    "receiptVerifications",
+    "cleanup",
+    "sanitization",
+    "limitations",
+    "nonClaims"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "ghost-ark.live-aws-evidence-bundle.v1"
+    },
+    "bundleId": {
+      "type": "string",
+      "pattern": "^ga-eb-[a-z0-9][a-z0-9._-]{2,127}$"
+    },
+    "evidenceClassification": {
+      "enum": ["synthetic-non-live", "live-aws-validation"]
+    },
+    "maturity": {
+      "enum": ["L2-schema-bound", "L5-cloud-observed"]
+    },
+    "lifecycleStatus": {
+      "enum": ["synthetic", "complete", "incomplete"]
+    },
+    "liveAwsCallsPerformed": {
+      "type": "boolean"
+    },
+    "generatedAt": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "sourceRevision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "worktreeDirty"],
+      "properties": {
+        "repository": {
+          "const": "ghost-ark"
+        },
+        "commitSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "fixtureRevision": {
+          "type": "string",
+          "pattern": "^synthetic-[a-z0-9][a-z0-9._-]{2,63}$"
+        },
+        "worktreeDirty": {
+          "type": "boolean"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["commitSha"],
+          "not": { "required": ["fixtureRevision"] }
+        },
+        {
+          "required": ["fixtureRevision"],
+          "not": { "required": ["commitSha"] }
+        }
+      ]
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startedAt", "endedAt", "authorizedMinutes"],
+      "properties": {
+        "startedAt": { "$ref": "#/$defs/timestamp" },
+        "endedAt": { "$ref": "#/$defs/timestamp" },
+        "authorizedMinutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 480
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environmentClass",
+        "stage",
+        "region",
+        "awsAccountIdHash",
+        "costMode",
+        "searchEnabled",
+        "stackNames",
+        "claimIds"
+      ],
+      "properties": {
+        "environmentClass": {
+          "const": "isolated-dev"
+        },
+        "stage": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,31}$"
+        },
+        "region": {
+          "type": "string",
+          "pattern": "^[a-z]{2}(?:-gov)?-[a-z]+-\\d+$"
+        },
+        "awsAccountIdHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "principalArnHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "costMode": {
+          "enum": ["core", "search"]
+        },
+        "searchEnabled": {
+          "type": "boolean"
+        },
+        "stackNames": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9-]{2,127}$"
+          }
+        },
+        "claimIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "CLAIM-006",
+              "CLAIM-007",
+              "CLAIM-008",
+              "CLAIM-010",
+              "CLAIM-016",
+              "CLAIM-017"
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "costMode": { "const": "core" } },
+            "required": ["costMode"]
+          },
+          "then": {
+            "properties": { "searchEnabled": { "const": false } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "costMode": { "const": "search" } },
+            "required": ["costMode"]
+          },
+          "then": {
+            "properties": { "searchEnabled": { "const": true } }
+          }
+        }
+      ]
+    },
+    "preflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operatorAuthorizationRecorded",
+        "costBoundaryAcknowledged",
+        "searchModeReviewed",
+        "cleanupPlanReviewed",
+        "checks"
+      ],
+      "properties": {
+        "operatorAuthorizationRecorded": { "type": "boolean" },
+        "costBoundaryAcknowledged": { "type": "boolean" },
+        "searchModeReviewed": { "type": "boolean" },
+        "cleanupPlanReviewed": { "type": "boolean" },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/preflightCheck" }
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "stackResults"],
+      "properties": {
+        "status": {
+          "enum": ["NOT_RUN", "SUCCEEDED", "FAILED", "BLOCKED"]
+        },
+        "startedAt": { "$ref": "#/$defs/timestamp" },
+        "endedAt": { "$ref": "#/$defs/timestamp" },
+        "stackResults": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deploymentStackResult" }
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/observation" }
+    },
+    "receiptVerifications": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/receiptVerification" }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "resourceChecks", "residualResources"],
+      "properties": {
+        "status": {
+          "enum": ["NOT_APPLICABLE", "CONFIRMED", "FAILED", "UNCONFIRMED"]
+        },
+        "startedAt": { "$ref": "#/$defs/timestamp" },
+        "endedAt": { "$ref": "#/$defs/timestamp" },
+        "resourceChecks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cleanupResourceCheck" }
+        },
+        "residualResources": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        }
+      }
+    },
+    "sanitization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "toolVersion",
+        "sanitizedAt",
+        "sourceDigest",
+        "redactedPaths",
+        "redactionLabels",
+        "leakScanStatus"
+      ],
+      "properties": {
+        "status": { "const": "PASS" },
+        "toolVersion": { "const": "ghost-ark-evidence-sanitizer/1.0.0" },
+        "sanitizedAt": { "$ref": "#/$defs/timestamp" },
+        "sourceDigest": { "$ref": "#/$defs/sha256" },
+        "redactedPaths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^\\$"
+          }
+        },
+        "redactionLabels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          }
+        },
+        "leakScanStatus": { "const": "PASS" }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 500
+      }
+    },
+    "nonClaims": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 500
+      },
+      "allOf": [
+        {
+          "contains": {
+            "const": "This bundle does not prove AI safety, model safety, alignment, semantic correctness, empirical truth, legal compliance, or production readiness."
+          }
+        },
+        {
+          "contains": {
+            "const": "This bundle records only the bounded checks explicitly listed for one window and does not generalize beyond them."
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "checkStatus": {
+      "enum": ["PASS", "FAIL", "BLOCKED", "NOT_RUN"]
+    },
+    "preflightCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status", "command"],
+      "properties": {
+        "name": {
+          "enum": [
+            "local-validation",
+            "claim-boundary-review",
+            "cdk-synth",
+            "identity-confirmation",
+            "cost-review",
+            "cleanup-plan"
+          ]
+        },
+        "status": { "$ref": "#/$defs/checkStatus" },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "observedAt": { "$ref": "#/$defs/timestamp" },
+        "evidenceDigest": { "$ref": "#/$defs/sha256" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      }
+    },
+    "deploymentStackResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stackName", "status"],
+      "properties": {
+        "stackName": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9-]{2,127}$"
+        },
+        "status": {
+          "enum": ["CREATE_COMPLETE", "UPDATE_COMPLETE", "FAILED", "NOT_RUN"]
+        },
+        "templateDigest": { "$ref": "#/$defs/sha256" },
+        "observedAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observationId", "claimId", "check", "status", "observedAt", "summary", "artifactDigests"],
+      "properties": {
+        "observationId": {
+          "type": "string",
+          "pattern": "^obs-[a-z0-9][a-z0-9._-]{2,63}$"
+        },
+        "claimId": {
+          "enum": [
+            "CLAIM-006",
+            "CLAIM-007",
+            "CLAIM-008",
+            "CLAIM-010",
+            "CLAIM-016",
+            "CLAIM-017"
+          ]
+        },
+        "check": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "status": { "$ref": "#/$defs/checkStatus" },
+        "observedAt": { "$ref": "#/$defs/timestamp" },
+        "summary": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "artifactDigests": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "receiptVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verifier", "receiptIdHash", "keyIdHash", "verdict", "checks", "observedAt"],
+      "properties": {
+        "verifier": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "receiptIdHash": { "$ref": "#/$defs/sha256" },
+        "keyIdHash": { "$ref": "#/$defs/sha256" },
+        "policyHash": { "$ref": "#/$defs/sha256" },
+        "checkpointHash": { "$ref": "#/$defs/sha256" },
+        "verdict": {
+          "enum": ["PASS", "FAIL", "NOT_RUN"]
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "passed"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "passed": { "type": "boolean" }
+            }
+          }
+        },
+        "observedAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "cleanupResourceCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceType", "status", "observedAt"],
+      "properties": {
+        "resourceType": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "status": {
+          "enum": ["ABSENT", "RETAINED_APPROVED", "RESIDUAL"]
+        },
+        "observedAt": { "$ref": "#/$defs/timestamp" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "evidenceClassification": { "const": "synthetic-non-live" }
+        },
+        "required": ["evidenceClassification"]
+      },
+      "then": {
+        "properties": {
+          "maturity": { "const": "L2-schema-bound" },
+          "lifecycleStatus": { "const": "synthetic" },
+          "liveAwsCallsPerformed": { "const": false },
+          "sourceRevision": { "required": ["fixtureRevision"] },
+          "preflight": {
+            "properties": {
+              "operatorAuthorizationRecorded": { "const": false },
+              "costBoundaryAcknowledged": { "const": false },
+              "searchModeReviewed": { "const": false },
+              "cleanupPlanReviewed": { "const": false },
+              "checks": {
+                "items": {
+                  "properties": { "status": { "const": "NOT_RUN" } }
+                }
+              }
+            }
+          },
+          "deployment": {
+            "properties": {
+              "status": { "const": "NOT_RUN" },
+              "stackResults": { "maxItems": 0 }
+            }
+          },
+          "observations": {
+            "items": {
+              "properties": { "status": { "const": "NOT_RUN" } }
+            }
+          },
+          "receiptVerifications": { "maxItems": 0 },
+          "cleanup": {
+            "properties": {
+              "status": { "const": "NOT_APPLICABLE" },
+              "resourceChecks": { "maxItems": 0 },
+              "residualResources": { "maxItems": 0 }
+            }
+          },
+          "nonClaims": {
+            "contains": {
+              "const": "This fixture is synthetic, made no AWS calls, and is not a live AWS evidence bundle."
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidenceClassification": { "const": "live-aws-validation" }
+        },
+        "required": ["evidenceClassification"]
+      },
+      "then": {
+        "properties": {
+          "maturity": { "const": "L5-cloud-observed" },
+          "lifecycleStatus": { "enum": ["complete", "incomplete"] },
+          "liveAwsCallsPerformed": { "const": true },
+          "sourceRevision": { "required": ["commitSha"] },
+          "scope": { "required": ["principalArnHash"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidenceClassification": { "const": "live-aws-validation" },
+          "lifecycleStatus": { "const": "complete" }
+        },
+        "required": ["evidenceClassification", "lifecycleStatus"]
+      },
+      "then": {
+        "properties": {
+          "preflight": {
+            "properties": {
+              "operatorAuthorizationRecorded": { "const": true },
+              "costBoundaryAcknowledged": { "const": true },
+              "searchModeReviewed": { "const": true },
+              "cleanupPlanReviewed": { "const": true },
+              "checks": {
+                "items": {
+                  "properties": { "status": { "const": "PASS" } }
+                }
+              }
+            }
+          },
+          "deployment": {
+            "properties": {
+              "status": { "const": "SUCCEEDED" },
+              "stackResults": { "minItems": 1 }
+            },
+            "required": ["startedAt", "endedAt"]
+          },
+          "observations": {
+            "items": {
+              "properties": { "status": { "const": "PASS" } }
+            }
+          },
+          "cleanup": {
+            "properties": {
+              "status": { "const": "CONFIRMED" },
+              "resourceChecks": {
+                "minItems": 1,
+                "items": {
+                  "properties": {
+                    "status": { "enum": ["ABSENT", "RETAINED_APPROVED"] }
+                  }
+                }
+              },
+              "residualResources": { "maxItems": 0 }
+            },
+            "required": ["startedAt", "endedAt"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidenceClassification": { "const": "live-aws-validation" },
+          "lifecycleStatus": { "const": "complete" },
+          "scope": {
+            "properties": {
+              "claimIds": { "contains": { "const": "CLAIM-007" } }
+            },
+            "required": ["claimIds"]
+          }
+        },
+        "required": ["evidenceClassification", "lifecycleStatus", "scope"]
+      },
+      "then": {
+        "properties": {
+          "receiptVerifications": {
+            "minItems": 1,
+            "items": {
+              "properties": { "verdict": { "const": "PASS" } }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

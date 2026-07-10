@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/compliance/control-mapping.schema.json",
+  "title": "Ghost-Ark Framework Control Mapping",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "snapshot_date", "scope", "sources", "controls", "non_claims"],
+  "properties": {
+    "schema_version": { "const": "ghost.framework_control_mapping.v1" },
+    "snapshot_date": { "type": "string", "format": "date" },
+    "scope": { "type": "string", "minLength": 1 },
+    "sources": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["framework", "version", "url", "note"],
+        "properties": {
+          "framework": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "url": { "type": "string", "format": "uri" },
+          "note": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "controls": {
+      "type": "array",
+      "minItems": 11,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mapping_id",
+          "framework",
+          "reference",
+          "title",
+          "status",
+          "evidence_artifacts",
+          "limitation",
+          "reviewer_caveat"
+        ],
+        "properties": {
+          "mapping_id": { "type": "string", "minLength": 1 },
+          "framework": { "enum": ["NIST AI RMF", "ISO/IEC 42001"] },
+          "reference": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "status": {
+            "enum": ["local-evidence", "local-partial", "aws-required", "organizational-gap", "external-review-required"]
+          },
+          "evidence_artifacts": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
+          "limitation": { "type": "string", "minLength": 1 },
+          "reviewer_caveat": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "non_claims": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

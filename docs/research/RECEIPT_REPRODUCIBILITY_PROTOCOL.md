@@ -1,163 +1,183 @@
 # Receipt Reproducibility Protocol
+
 ## Purpose
 
-This protocol defines how Ghost-Ark decision receipt fixtures are independently replayed from committed artifacts.
-
-The goal is not to trust the README, the author, or a runtime log. The goal is to let a reviewer recompute the core receipt commitments:
+This protocol defines how a reviewer can replay Ghost-Ark decision-receipt fixtures from committed artifacts. The replay recomputes:
 
 - `receipt_id`
-- canonical unsigned receipt payload
-- `digestSha256`
-- signature envelope binding
-- signature verification result where supported
+- the canonical unsigned receipt payload
+- the envelope `digestSha256`
+- strict signature-envelope parsing and binding
+- the supported signature verification result
+- an optional tenant expectation
 
 ## Scope
 
-This protocol applies to Ghost-Ark decision receipts using:
+The reproducibility corpus uses:
 
 - `schema_version = ghost.receipt.v1`
 - `receipt_id` prefix `grct_`
-- snake_case receipt fields
-- `receipt_signature` as base64url-encoded canonical JSON envelope
+- snake-case receipt fields
+- `receipt_signature` as unpadded base64url-encoded canonical JSON
 
-This protocol does not cover the older evidence receipt family using `ghost-ark.receipt.v1` and `rct_`.
+The standalone Node verifier also accepts the older `ghost-ark.receipt.v1` record family used by `examples/sample-receipts/valid-receipt.json`, but that record family is not part of the decision-receipt reproducibility corpus.
 
 ## Claim Boundary
 
-A passing reproducibility report proves internal receipt consistency under Ghost-Ark verifier rules.
+A passing report is local evidence that the selected artifact is internally consistent under the documented verifier rules.
 
 It does not prove:
 
-- model safety
-- semantic truth
-- compliance
-- alignment
+- model safety, alignment, or semantic truth
+- regulatory compliance or certification
 - production readiness
-- AWS-live execution
-- KMS key custody
-- runtime integrity
-- hardware attestation
-- ledger completeness
-- dataset representativeness
+- live AWS execution
+- KMS key custody or signing authorization
+- runtime integrity or hardware attestation
+- ledger completeness or the absence of withheld receipts
+- complete resistance to malformed-receipt attacks
+
+## Canonical JSON Contract
+
+The receipt commitment uses deterministic JSON serialization:
+
+- `null`, booleans, strings, and finite JSON numbers retain their JSON meaning
+- negative zero serializes as `0`
+- arrays preserve order and multiplicity
+- object keys are sorted by ECMAScript UTF-16 lexicographic order
+- no insignificant whitespace is emitted
+- undefined values, sparse arrays, non-finite numbers, binary objects, and other non-JSON host values fail closed
+- Unicode strings are not normalized; canonically equivalent NFC and NFD spellings remain different signed bytes
 
 ## Receipt Identity Algorithm
 
 For a signed decision receipt:
 
-1. Validate the signed receipt against `ghost.receipt.v1`.
-2. Remove `receipt_signature`.
-3. Let the result be the unsigned receipt.
-4. Remove `receipt_id` from the unsigned receipt.
-5. Canonicalize the unsigned-without-id object.
-6. Compute:
+1. Validate the exact `ghost.receipt.v1` field contract.
+2. Remove `receipt_signature` to obtain the unsigned receipt.
+3. Remove `receipt_id` from the unsigned receipt.
+4. Canonicalize the remaining object.
+5. Compute:
 
 ```text
 receipt_id = "grct_" + sha256hex(canonicalize(unsigned_without_receipt_id))
-
-The receipt identity therefore binds the unsigned decision receipt fields except receipt_id itself.
 ```
 
+The identity binds every unsigned receipt field except `receipt_id` itself.
 
-# Digest Algorithm
+## Digest Algorithm
+
 For the same signed decision receipt:
 
-1. Remove receipt_signature.
-2. Canonicalize the unsigned receipt, including receipt_id.
-3. Compute: digestSha256 = sha256hex(canonicalize(unsigned_receipt))
+1. Remove `receipt_signature`.
+2. Canonicalize the unsigned receipt, including `receipt_id`.
+3. Compute:
 
-This digest is expected to equal the digestSha256 field embedded inside the decoded signature envelope.
+```text
+digestSha256 = sha256hex(canonicalize(unsigned_receipt))
+```
 
-# Signature Envelope
+The result must equal `digestSha256` inside the decoded signature envelope.
 
-The receipt_signature field is expected to be base64url-encoded JSON containing exactly:
+## Signature Envelope
+
+`receipt_signature` must decode to canonical JSON with exactly these fields:
+
+```json
 {
-  "schemaVersion": "ghost.decision_receipt_signature.v1",
-  "keyId": "...",
   "algorithm": "...",
   "digestSha256": "...",
+  "keyId": "...",
+  "schemaVersion": "ghost.decision_receipt_signature.v1",
   "signature": "..."
 }
+```
 
-The verifier must reject:
+The verifier rejects unsupported versions or algorithms, missing or extra fields, malformed or alternate base64 encodings, mutable KMS aliases, key-identity mismatch, algorithm mismatch, and digest mismatch.
 
-* unsupported schemaVersion
-* missing fields
-* extra fields
-* malformed base64url
-* standard base64 where base64url is required
-* algorithm mismatch between envelope and receipt
-* digest mismatch between envelope and recomputed unsigned receipt digest
+## Signature Treatments
 
-# Fixture Classes
-Dev-only HMAC Fixtures
-Dev-only HMAC fixtures use published test vectors committed in the manifest.
-These are not credentials.
-They exist only to make deterministic reproducibility tests possible.
-They do not represent production signing.
-KMS-style RSA Fixture
-The KMS-style RSA fixture is signed locally with a throwaway RSA key using the RSASSA_PSS_SHA_256 verification path.
-It is a local simulation only.
-It is not AWS KMS evidence, not AWS-live validation, not hardware attestation, and not proof of key custody.
-Tools
+Dev-only HMAC fixtures use a published test vector from the reproducibility manifest. The value is not a credential and the signing mode is not a production mode.
 
-Run: 
-npx ts-node tools/repro/verify-repro-manifest.ts \
-  --manifest examples/reproducibility/manifest.json
+The committed KMS-style RSA fixture is a local simulation produced with a throwaway RSA key. It exercises RSA-PSS verification but is not AWS KMS evidence.
 
-Expected Result : "verdict: PASS"
+RSA-PSS verification has two explicit digest treatments:
 
-Run the Integration Test : npx vitest run tests/integration/repro/receipt-reproducibility.test.ts
+- `digest-as-message`: the canonical-payload digest bytes are supplied as a message and hashed inside RSA-PSS. This matches the committed local Node-generated fixtures.
+- `digest-as-mhash`: the canonical-payload digest is the RSA-PSS message hash. This matches AWS KMS `MessageType=DIGEST` semantics.
 
-Independent Python Verifier
+The modes are not interchangeable. `examples/reproducibility/pss-digest-mode/` is a local synthetic vector that must pass only with `digest-as-mhash`.
 
-Ghost-Ark also includes a stdlib-only Python verifier skeleton:
-python3 verifiers/python/ghost_receipt_verify.py \
-  --receipt examples/reproducibility/receipts/hmac-baseline.receipt.json \
-  --hmac-secret ghost-ark-repro-signing-dev-only-test-vector-v1
+## Verification Paths
 
-The Python verifier recomputes the receipt identity, digest, strict envelope checks, and dev-only HMAC signature without importing Ghost-Ark TypeScript.
+The repository has distinct local paths:
 
-Limitations:
+- `tools/repro/verify-repro-manifest.ts` uses the production TypeScript schema and verifier code to replay all declared fixtures.
+- `verifiers/node/ghost_receipt_verify.mjs` imports Node built-ins only. It independently implements receipt/schema checks, canonicalization, envelope parsing, identity/digest recomputation, tenant expectation, key identity, HMAC verification, and RSA-PSS verification.
+- `verifiers/python/ghost_receipt_verify.py` is a stdlib-only cross-language implementation used by additional differential tests when Python is available.
 
-* no RSA-PSS verification
-* integer-only number canonicalization
-* ASCII-only object keys
-* no key manifest checks
-* no chain completeness checks
-* no checkpoint verification
-* no tenant-expectation checks
+The standalone Node path is independent at the source-import boundary, not organizationally independent: it is maintained in the same repository and follows the same protocol. Agreement between these paths is local differential evidence, not an external audit or formal proof.
 
-Deterministic Report Contract
+## Commands
 
-Reproducibility reports should be deterministic for the same committed fixtures.
+Replay the production-path manifest:
 
-They must include:
+```bash
+npm run receipt:verify:repro
+```
 
-* schema version
-* manifest path
-* fixture count
-* per-fixture checks
-* final verdict
-* explicit non-claim
+Run the standalone verifier directly:
 
-Current Status
+```bash
+npm run receipt:verify:independent
+```
 
-Current Spine B implementation status:
+Replay the malicious corpus through the production verifier and compare it with the standalone verifier:
 
-* reproducibility manifest exists
-* expected digests exist
-* TypeScript repro verifier exists
-* integration test passes
-* Python verifier smoke test passes
-* malicious corpus test passes
+```bash
+npm run receipt:verify:corpus
+npm run receipt:verify:agreement
+```
 
-Future Work
+Run the complete local Spine B gate:
 
-To reach a stronger independent-verifier level:
+```bash
+npm run spine:b
+```
 
-* add full Python RSA-PSS verification using a reviewed crypto dependency
-* validate manifest shape against JSON Schema
-* add key-manifest epoch checking
-* add checkpoint/root verification
-* add chain completeness checks
-* add differential testing across TypeScript and Python for every fixture
+These commands perform no AWS calls and require no AWS credentials.
+
+## Report Contract
+
+For the same input and verifier options, reports must be deterministic except for operating-system text embedded in loader failures. A successful report includes:
+
+- verifier report schema version
+- verifier implementation path
+- final `PASS` or `FAIL` verdict
+- named checks with boolean results and details
+- recomputed receipt identity and digest where parsing reached that phase
+- RSA-PSS digest treatment
+- explicit limitations and non-claims
+
+## Current Local Evidence
+
+The current Spine B artifacts include:
+
+- a reproducibility manifest and committed expected digests
+- three valid decision-receipt fixtures covering dev-only HMAC, chaining, and local KMS-style RSA-PSS
+- a 26-case manifest-driven malicious corpus
+- production-path reproducibility and adversarial tests
+- a standalone Node verifier with no Ghost-Ark package imports
+- standalone-versus-production agreement tests across the full malicious corpus
+- local tests for both RSA-PSS digest treatments
+- a separate Python implementation and cross-language tests when Python is available
+
+This evidence remains local. It does not advance live AWS claims.
+
+## Future Work
+
+- validate the reproducibility and corpus manifests against versioned JSON Schemas
+- add key-manifest epoch and retired/revoked-key adversarial cases
+- add chain-fork, duplicate-id, checkpoint-root, and inclusion-proof cases
+- export a minimal replay bundle for reviewers who do not run the full repository
+- obtain external review of the protocol and standalone implementations

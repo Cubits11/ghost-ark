@@ -41,12 +41,14 @@ Test:
 
 ```text
 tests/security/receipt-negative-corpus.test.ts
+tests/differential/nodeIndependentVerifier.test.ts
 ```
 
 Run:
 
 ```bash
-npx vitest run tests/security/receipt-negative-corpus.test.ts
+npm run receipt:verify:corpus
+npm run receipt:verify:agreement
 ```
 
 ## Attack Classes
@@ -73,6 +75,14 @@ The current corpus covers at least:
 | MAL-016 | signature over wrong canonical payload | verifier |
 | MAL-017 | input digest mutation | verifier |
 | MAL-018 | retrieved context digest mutation | verifier |
+| MAL-019 | required policy hash removed | schema |
+| MAL-020 | execution nonce mutation | verifier |
+| MAL-021 | timestamp mutation | verifier |
+| MAL-022 | non-ASCII canonicalization mutation | verifier |
+| MAL-023 | unsigned top-level field smuggling | schema |
+| MAL-024 | malformed JSON | loader |
+| MAL-025 | missing signature | schema |
+| MAL-026 | unsupported receipt schema version | schema |
 
 ## Expected Behavior
 
@@ -107,6 +117,9 @@ The current corpus test asserts that:
 - every untampered base fixture is accepted
 - every mutant fails closed under its expected rule
 - cross-tenant mismatch is rejected at the consumer boundary
+- the standalone Node verifier rejects every manifest case at the declared boundary
+- the standalone and production verifier paths agree on end-to-end acceptance for every manifest case
+- local RSA-PSS and AWS KMS `MessageType=DIGEST` signature treatments are tested as distinct modes
 - the corpus carries an explicit non-claim
 
 ## Minimum Expansion Targets
@@ -126,12 +139,12 @@ Future Spine B hardening should add or confirm fixtures for:
 | EXP-009 | JSON numeric edge cases | future work |
 | EXP-010 | Unicode key ordering edge cases | future work |
 | EXP-011 | sparse array or non-JSON host object attacks where applicable | future work |
-| EXP-012 | wrong verifier tenant using a valid signature | future work |
-| EXP-013 | wrong public key | future work |
-| EXP-014 | unsupported receipt version | future work |
-| EXP-015 | malformed JSON | future work |
-| EXP-016 | missing signature | future work |
-| EXP-017 | missing policy hash or equivalent policy binding | future work |
+| EXP-012 | wrong verifier tenant using a valid signature | covered by MAL-014 |
+| EXP-013 | wrong public key | covered by standalone-verifier differential test; not yet a manifest fixture |
+| EXP-014 | unsupported receipt version | covered by MAL-026 |
+| EXP-015 | malformed JSON | covered by MAL-024 |
+| EXP-016 | missing signature | covered by MAL-025 |
+| EXP-017 | missing policy hash or equivalent policy binding | covered by MAL-019 |
 | EXP-018 | replayed receipt under a different invocation/session boundary | future work |
 | EXP-019 | signer/key manifest mismatch | future work |
 | EXP-020 | receipt generated under deprecated canonicalization version | future work |
@@ -163,11 +176,14 @@ The corpus may be evaluated by one or more verifier implementations.
 
 Current verifier boundaries should be documented separately:
 
-- Node verifier: primary local verifier path
-- Python verifier: independent or partially independent verifier path, if present
+- Production TypeScript verifier: the repository runtime path used by receipt consumers
+- Standalone Node verifier: `verifiers/node/ghost_receipt_verify.mjs`, which imports Node built-ins only and does not import Ghost-Ark emitter, schema, or verifier packages
+- Python verifier: a separate stdlib-only cross-language path; it is not required by the Node-based Spine B gate
 - Consumer-boundary tests: checks that may reject a cryptographically valid receipt because it violates tenant or runtime expectations
 
 A verifier should not mark an attack as covered unless the test asserts the expected rejection condition.
+
+The standalone Node verifier is implementation-independent from the production verifier at the source-import boundary. It remains maintained in the same repository and follows the same written protocol, so agreement is local differential evidence, not external review or formal correctness evidence.
 
 ## Acceptance Criteria
 
@@ -182,30 +198,26 @@ A reviewer should consider this corpus useful only if:
 - the corpus documentation does not claim complete attack coverage
 - the corpus can be run locally without AWS credentials
 - failures are deterministic and reproducible
+- the standalone verifier does not import the emitter or production verifier
 
 ## Suggested Spine B Completion Gate
 
-A stronger Spine B gate should eventually include:
+A reviewer can run the current Spine B gate with:
 
 ```bash
-npm run scan:claims
-npx vitest run tests/security/receipt-negative-corpus.test.ts
-npm run ghost-verify -- \
-  --receipt examples/sample-receipts/valid-receipt.json \
-  --key examples/sample-receipts/public-key.pem \
-  --tenant acme-lab
+npm run spine:b
 ```
 
-If a Python verifier is added:
+The standalone verifier can also be exercised directly without `ts-node` or Ghost-Ark package imports:
 
 ```bash
-python3 tools/verifiers/ghost_verify.py \
-  --receipt examples/sample-receipts/valid-receipt.json \
-  --key examples/sample-receipts/public-key.pem \
-  --tenant acme-lab
+node verifiers/node/ghost_receipt_verify.mjs \
+  --receipt examples/reproducibility/receipts/hmac-baseline.receipt.json \
+  --hmac-secret ghost-ark-repro-signing-dev-only-test-vector-v1 \
+  --expected-key-id local-dev-hmac
 ```
 
-The Python verifier should not be described as fully independent unless it avoids importing production Ghost-Ark TypeScript packages and independently implements the relevant canonicalization and signature checks.
+`spine:b` includes Spine A, deterministic reproducibility replay, the legacy sample verifier, the standalone verifier smoke command, the production-verifier corpus replay, and standalone-versus-production agreement tests. It is local-only and performs no AWS calls.
 
 ## Non-Claims
 
@@ -229,8 +241,7 @@ The next improvement is not to claim broader security. The next improvement is t
 
 Recommended next steps:
 
-1. Normalize every malicious fixture into a manifest-driven test.
-2. Add unsupported-version, malformed-JSON, missing-signature, wrong-public-key, and wrong-tenant cases if not already present.
-3. Add a Python verifier agreement test if the Python verifier exists.
-4. Add an exported adversarial replay bundle for reviewers who do not want to run the full repository.
-5. Keep the claim/evidence matrix synchronized with the actual corpus coverage.
+1. Add key-manifest epoch, key retirement/revocation, chain-fork, checkpoint-root, and duplicate-id cases as those protocols mature.
+2. Add an exported adversarial replay bundle for reviewers who do not want to run the full repository.
+3. Obtain external review of the written protocol and standalone verifier instead of treating same-repository agreement as full independence.
+4. Keep the claim/evidence matrix synchronized with the actual corpus coverage.

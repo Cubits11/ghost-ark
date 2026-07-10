@@ -156,3 +156,65 @@ export function verifyKeyManifestEpoch(input: {
         : `Key ${entry.keyId} is ${entry.status} for the receipt timestamp.`
   };
 }
+
+/**
+ * Authorizes a signing operation against the current manifest snapshot.
+ * Verification and signing intentionally have different rules: historical
+ * receipts may remain verifiable after succession or revocation, while only an
+ * ACTIVE key may create a new signature.
+ */
+export function verifyKeyManifestSigningAuthorization(input: {
+  manifest: KeyManifest;
+  keyId: string;
+  algorithm: string;
+  signingTime: string;
+}): KeyManifestCheck {
+  const epochCheck = verifyKeyManifestEpoch({
+    manifest: input.manifest,
+    keyId: input.keyId,
+    algorithm: input.algorithm,
+    timestamp: input.signingTime
+  });
+  if (!epochCheck.passed) {
+    return {
+      name: "key_manifest_signing",
+      passed: false,
+      detail: `Signing is not authorized: ${epochCheck.detail}`
+    };
+  }
+
+  let manifest: KeyManifest;
+  try {
+    manifest = validateKeyManifest(input.manifest);
+  } catch (error) {
+    return {
+      name: "key_manifest_signing",
+      passed: false,
+      detail: `Signing is not authorized because the key manifest is invalid: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    };
+  }
+
+  const entry = findManifestEntryForKey(manifest, input.keyId, input.algorithm);
+  if (!entry || entry.algorithm !== input.algorithm) {
+    return {
+      name: "key_manifest_signing",
+      passed: false,
+      detail: `Signing is not authorized for keyId ${input.keyId} and algorithm ${input.algorithm}.`
+    };
+  }
+  if (entry.status !== "ACTIVE") {
+    return {
+      name: "key_manifest_signing",
+      passed: false,
+      detail: `Key ${entry.keyId} is ${entry.status}; only ACTIVE keys may sign new receipts.`
+    };
+  }
+
+  return {
+    name: "key_manifest_signing",
+    passed: true,
+    detail: `Key ${entry.keyId} is ACTIVE for signing at ${input.signingTime}.`
+  };
+}

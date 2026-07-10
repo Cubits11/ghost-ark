@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "ghost-ark.live-aws-evidence-bundle.v1",
+  "bundleId": "ga-eb-synthetic-example-v1",
+  "evidenceClassification": "synthetic-non-live",
+  "maturity": "L2-schema-bound",
+  "lifecycleStatus": "synthetic",
+  "liveAwsCallsPerformed": false,
+  "generatedAt": "2026-07-09T12:05:00.000Z",
+  "sourceRevision": {
+    "repository": "ghost-ark",
+    "fixtureRevision": "synthetic-example-v1",
+    "worktreeDirty": false
+  },
+  "window": {
+    "startedAt": "2026-07-09T12:00:00.000Z",
+    "endedAt": "2026-07-09T12:05:00.000Z",
+    "authorizedMinutes": 15
+  },
+  "scope": {
+    "environmentClass": "isolated-dev",
+    "stage": "synthetic",
+    "region": "us-east-1",
+    "awsAccountIdHash": "sha256:50a5ee17cb005388e7f31e1ed28043dda745bb3d2b65d8042afaead6fd4af575",
+    "costMode": "core",
+    "searchEnabled": false,
+    "stackNames": [
+      "GhostArk-synthetic-Api",
+      "GhostArk-synthetic-Orchestration",
+      "GhostArk-synthetic-Observatory"
+    ],
+    "claimIds": [
+      "CLAIM-006",
+      "CLAIM-007",
+      "CLAIM-008",
+      "CLAIM-010",
+      "CLAIM-016",
+      "CLAIM-017"
+    ]
+  },
+  "preflight": {
+    "operatorAuthorizationRecorded": false,
+    "costBoundaryAcknowledged": false,
+    "searchModeReviewed": false,
+    "cleanupPlanReviewed": false,
+    "checks": [
+      {
+        "name": "local-validation",
+        "status": "NOT_RUN",
+        "command": "not run; synthetic field example only"
+      },
+      {
+        "name": "claim-boundary-review",
+        "status": "NOT_RUN",
+        "command": "not run; synthetic field example only"
+      },
+      {
+        "name": "cdk-synth",
+        "status": "NOT_RUN",
+        "command": "not run; synthetic field example only"
+      },
+      {
+        "name": "identity-confirmation",
+        "status": "NOT_RUN",
+        "command": "not run; synthetic field example only"
+      },
+      {
+        "name": "cost-review",
+        "status": "NOT_RUN",
+        "command": "not run; synthetic field example only"
+      },
+      {
+        "name": "cleanup-plan",
+        "status": "NOT_RUN",
+        "command": "not run; synthetic field example only"
+      }
+    ]
+  },
+  "deployment": {
+    "status": "NOT_RUN",
+    "stackResults": []
+  },
+  "observations": [
+    {
+      "observationId": "obs-synthetic-tenant-isolation",
+      "claimId": "CLAIM-006",
+      "check": "tenant isolation",
+      "status": "NOT_RUN",
+      "observedAt": "2026-07-09T12:01:00.000Z",
+      "summary": "Synthetic placeholder only; no deployed tenant-boundary check occurred.",
+      "artifactDigests": []
+    },
+    {
+      "observationId": "obs-synthetic-kms-provenance",
+      "claimId": "CLAIM-007",
+      "check": "KMS signing provenance",
+      "status": "NOT_RUN",
+      "observedAt": "2026-07-09T12:01:30.000Z",
+      "summary": "Synthetic placeholder only; no KMS signing or verification call occurred.",
+      "artifactDigests": []
+    },
+    {
+      "observationId": "obs-synthetic-dynamodb-persistence",
+      "claimId": "CLAIM-008",
+      "check": "DynamoDB receipt persistence",
+      "status": "NOT_RUN",
+      "observedAt": "2026-07-09T12:02:00.000Z",
+      "summary": "Synthetic placeholder only; no DynamoDB write or read occurred.",
+      "artifactDigests": []
+    },
+    {
+      "observationId": "obs-synthetic-object-lock",
+      "claimId": "CLAIM-010",
+      "check": "Object Lock transparency bundle",
+      "status": "NOT_RUN",
+      "observedAt": "2026-07-09T12:02:30.000Z",
+      "summary": "Synthetic placeholder only; no Object Lock configuration or retention check occurred.",
+      "artifactDigests": []
+    },
+    {
+      "observationId": "obs-synthetic-repeatable-deployment",
+      "claimId": "CLAIM-016",
+      "check": "deploy smoke capture destroy lifecycle",
+      "status": "NOT_RUN",
+      "observedAt": "2026-07-09T12:03:00.000Z",
+      "summary": "Synthetic placeholder only; no deployment lifecycle occurred.",
+      "artifactDigests": []
+    },
+    {
+      "observationId": "obs-synthetic-cost-window",
+      "claimId": "CLAIM-017",
+      "check": "cost-bounded validation window",
+      "status": "NOT_RUN",
+      "observedAt": "2026-07-09T12:03:30.000Z",
+      "summary": "Synthetic placeholder only; no AWS cost window was opened or measured.",
+      "artifactDigests": []
+    }
+  ],
+  "receiptVerifications": [],
+  "cleanup": {
+    "status": "NOT_APPLICABLE",
+    "resourceChecks": [],
+    "residualResources": []
+  },
+  "sanitization": {
+    "status": "PASS",
+    "toolVersion": "ghost-ark-evidence-sanitizer/1.0.0",
+    "sanitizedAt": "2026-07-09T12:05:00.000Z",
+    "sourceDigest": "sha256:b18720f427555f3cba5c83629683da8efbf2d08ff881e9fd30ed53959d10d05c",
+    "redactedPaths": [],
+    "redactionLabels": [],
+    "leakScanStatus": "PASS"
+  },
+  "limitations": [
+    "All timestamps, identifiers, statuses, and summaries in this file are illustrative fixture values.",
+    "This sample demonstrates the bundle shape and local validator behavior, not AWS runtime behavior."
+  ],
+  "nonClaims": [
+    "This fixture is synthetic, made no AWS calls, and is not a live AWS evidence bundle.",
+    "This bundle does not prove AI safety, model safety, alignment, semantic correctness, empirical truth, legal compliance, or production readiness.",
+    "This bundle records only the bounded checks explicitly listed for one window and does not generalize beyond them."
+  ]
+}

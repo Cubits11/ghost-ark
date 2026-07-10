@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/research/incident-report.schema.json",
+  "title": "Ghost-Ark Incident Report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "incident_id",
+    "opened_at",
+    "status",
+    "severity",
+    "category",
+    "source",
+    "receipt_references",
+    "evidence_references",
+    "impact",
+    "escalation",
+    "timeline",
+    "closure",
+    "privacy",
+    "audit",
+    "non_claims"
+  ],
+  "properties": {
+    "schema_version": { "const": "ghostark.research.incident_report.v1" },
+    "incident_id": {
+      "type": "string",
+      "pattern": "^inc_[A-Za-z0-9_-]+$"
+    },
+    "opened_at": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["open", "triaged", "contained", "resolved", "closed"] },
+    "severity": { "enum": ["sev1", "sev2", "sev3", "sev4"] },
+    "category": {
+      "enum": [
+        "guardrail_failure",
+        "receipt_integrity",
+        "privacy",
+        "policy_bypass",
+        "availability",
+        "other"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "required": ["queue_item_id", "review_decision_id"],
+      "properties": {
+        "queue_item_id": {
+          "type": "string",
+          "pattern": "^hrq_[A-Za-z0-9_-]+$"
+        },
+        "review_decision_id": {
+          "type": "string",
+          "pattern": "^hrd_[A-Za-z0-9_-]+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "receipt_references": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/receipt_reference" }
+    },
+    "evidence_references": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/evidence_reference" }
+    },
+    "impact": {
+      "type": "object",
+      "required": [
+        "assessment",
+        "affected_receipt_count",
+        "tenant_scope_hashes"
+      ],
+      "properties": {
+        "assessment": { "enum": ["under_investigation", "bounded"] },
+        "affected_receipt_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tenant_scope_hashes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hmac_sha256_digest" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "escalation": {
+      "type": "object",
+      "required": ["level", "owner_role", "response_due_at"],
+      "properties": {
+        "level": { "enum": ["team", "security", "governance", "executive"] },
+        "owner_role": { "type": "string", "minLength": 1 },
+        "response_due_at": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "timeline": {
+      "type": "array",
+      "minItems": 1,
+      "prefixItems": [
+        {
+          "allOf": [
+            { "$ref": "#/$defs/timeline_event" },
+            { "properties": { "event_type": { "const": "opened" } } }
+          ]
+        }
+      ],
+      "items": { "$ref": "#/$defs/timeline_event" }
+    },
+    "closure": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["closed_at", "resolution_code", "postmortem_digest"],
+          "properties": {
+            "closed_at": { "type": "string", "format": "date-time" },
+            "resolution_code": {
+              "enum": ["false_alarm", "mitigated", "accepted_risk", "unresolved"]
+            },
+            "postmortem_digest": { "$ref": "#/$defs/sha256_digest" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["closed_at", "resolution_code", "postmortem_digest"],
+          "properties": {
+            "closed_at": { "type": "null" },
+            "resolution_code": { "type": "null" },
+            "postmortem_digest": { "type": "null" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "privacy": { "$ref": "#/$defs/privacy" },
+    "audit": { "$ref": "#/$defs/audit_link" },
+    "non_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["resolved", "closed"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "closure": {
+            "properties": {
+              "closed_at": { "type": "string", "format": "date-time" },
+              "resolution_code": {
+                "enum": ["false_alarm", "mitigated", "accepted_risk", "unresolved"]
+              },
+              "postmortem_digest": { "$ref": "#/$defs/sha256_digest" }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "closure": {
+            "properties": {
+              "closed_at": { "type": "null" },
+              "resolution_code": { "type": "null" },
+              "postmortem_digest": { "type": "null" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "hmac_sha256_digest": {
+      "type": "string",
+      "pattern": "^hmac-sha256:[a-f0-9]{64}$"
+    },
+    "receipt_reference": {
+      "type": "object",
+      "required": ["receipt_id", "receipt_digest"],
+      "properties": {
+        "receipt_id": { "type": "string", "minLength": 1 },
+        "receipt_digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "evidence_reference": {
+      "type": "object",
+      "required": ["artifact_type", "artifact_id", "artifact_digest"],
+      "properties": {
+        "artifact_type": {
+          "enum": [
+            "guardrail_observation",
+            "receipt",
+            "policy",
+            "verifier_report",
+            "review_queue_item",
+            "review_decision",
+            "review_attachment",
+            "incident_timeline"
+          ]
+        },
+        "artifact_id": { "type": "string", "minLength": 1 },
+        "artifact_digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "timeline_event": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "occurred_at",
+        "event_type",
+        "actor_role",
+        "evidence_digest"
+      ],
+      "properties": {
+        "event_id": { "type": "string", "pattern": "^inctl_[A-Za-z0-9_-]+$" },
+        "occurred_at": { "type": "string", "format": "date-time" },
+        "event_type": {
+          "enum": [
+            "opened",
+            "triaged",
+            "evidence_added",
+            "contained",
+            "resolved",
+            "closed"
+          ]
+        },
+        "actor_role": { "type": "string", "minLength": 1 },
+        "evidence_digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "required": [
+        "raw_content_included",
+        "notes_storage",
+        "redaction_policy_digest"
+      ],
+      "properties": {
+        "raw_content_included": { "const": false },
+        "notes_storage": { "const": "digest_only" },
+        "redaction_policy_digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "audit_link": {
+      "type": "object",
+      "required": ["event_id", "event_digest", "previous_event_digest"],
+      "properties": {
+        "event_id": { "type": "string", "pattern": "^audit_[A-Za-z0-9_-]+$" },
+        "event_digest": { "$ref": "#/$defs/sha256_digest" },
+        "previous_event_digest": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256_digest" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

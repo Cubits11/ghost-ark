@@ -4,7 +4,11 @@ import {
   privateHmacDigest,
   publicSha256Digest
 } from "../../../../packages/enforcement-runtime/src/receipts/canonical";
-import { KeyManifest, validateKeyManifest } from "../../../../packages/enforcement-runtime/src/receipts/keyManifest";
+import {
+  KeyManifest,
+  validateKeyManifest,
+  verifyKeyManifestSigningAuthorization
+} from "../../../../packages/enforcement-runtime/src/receipts/keyManifest";
 import { LocalDevHmacReceiptSigner, signDecisionReceipt } from "../../../../packages/enforcement-runtime/src/receipts/signer";
 import { verifyDecisionReceipt } from "../../../../packages/enforcement-runtime/src/receipts/verifier";
 
@@ -115,5 +119,77 @@ describe("key transparency manifest verification", () => {
     });
     expect(result.verdict).toBe(false);
     expect(result.checks.find((check) => check.name === "key_manifest")?.detail).toMatch(/invalid/u);
+  });
+
+  it("permits only the active epoch to sign while old-key receipts remain verifiable", async () => {
+    const oldSigner = signer;
+    const newSigner = new LocalDevHmacReceiptSigner({ keyId: "local-dev-hmac-next", secret: "next-secret" });
+    const manifest: KeyManifest = {
+      schemaVersion: "ghost.key_manifest.v1",
+      generatedAt: "2026-07-08T00:00:00.000Z",
+      keys: [
+        {
+          keyId: oldSigner.keyId,
+          algorithm: oldSigner.algorithm,
+          validFrom: "2026-07-01T00:00:00.000Z",
+          validUntil: "2026-07-08T00:00:00.000Z",
+          status: "DEPRECATED",
+          reason: "verifying-only rotation epoch"
+        },
+        {
+          keyId: newSigner.keyId,
+          algorithm: newSigner.algorithm,
+          validFrom: "2026-07-08T00:00:00.000Z",
+          status: "ACTIVE"
+        }
+      ]
+    };
+
+    const oldReceipt = await verifyDecisionReceipt(receiptAt("2026-07-07T12:00:00.000Z"), oldSigner, {
+      keyManifest: manifest
+    });
+    const oldKeySigning = verifyKeyManifestSigningAuthorization({
+      manifest,
+      keyId: oldSigner.keyId,
+      algorithm: oldSigner.algorithm,
+      signingTime: "2026-07-07T12:00:00.000Z"
+    });
+    const newKeySigning = verifyKeyManifestSigningAuthorization({
+      manifest,
+      keyId: newSigner.keyId,
+      algorithm: newSigner.algorithm,
+      signingTime: "2026-07-08T12:00:00.000Z"
+    });
+
+    expect(oldReceipt.verdict).toBe(true);
+    expect(oldKeySigning).toMatchObject({ passed: false });
+    expect(oldKeySigning.detail).toMatch(/only ACTIVE keys/u);
+    expect(newKeySigning).toMatchObject({ passed: true });
+  });
+
+  it("fails closed for compromised, unknown, mismatched, and missing-time signing context", () => {
+    const manifest: KeyManifest = {
+      schemaVersion: "ghost.key_manifest.v1",
+      generatedAt: "2026-07-08T00:00:00.000Z",
+      keys: [
+        {
+          keyId: signer.keyId,
+          algorithm: signer.algorithm,
+          validFrom: "2026-07-01T00:00:00.000Z",
+          status: "REVOKED",
+          revokedAt: "2026-07-08T00:00:00.000Z",
+          reason: "compromise response drill"
+        }
+      ]
+    };
+
+    for (const request of [
+      { keyId: signer.keyId, algorithm: signer.algorithm, signingTime: "2026-07-08T00:00:00.000Z" },
+      { keyId: "unknown-key", algorithm: signer.algorithm, signingTime: "2026-07-07T00:00:00.000Z" },
+      { keyId: signer.keyId, algorithm: "KMS_SIGN_RSASSA_PSS_SHA_256", signingTime: "2026-07-07T00:00:00.000Z" },
+      { keyId: signer.keyId, algorithm: signer.algorithm, signingTime: "" }
+    ]) {
+      expect(verifyKeyManifestSigningAuthorization({ manifest, ...request })).toMatchObject({ passed: false });
+    }
   });
 });

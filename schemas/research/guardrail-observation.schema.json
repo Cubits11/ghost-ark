@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/research/guardrail-observation.schema.json",
+  "title": "Ghost-Ark Guardrail Observation",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "observation_id",
+    "observed_at",
+    "scope",
+    "guardrail",
+    "result",
+    "content_evidence",
+    "privacy",
+    "receipt_binding",
+    "telemetry",
+    "non_claims"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ghostark.research.guardrail_observation.v1"
+    },
+    "observation_id": {
+      "type": "string",
+      "pattern": "^gobs_[A-Za-z0-9_-]+$"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scope": {
+      "type": "object",
+      "required": ["tenant_id_hash", "request_id_hash"],
+      "properties": {
+        "tenant_id_hash": {
+          "type": "string",
+          "pattern": "^hmac-sha256:[a-f0-9]{64}$"
+        },
+        "request_id_hash": {
+          "type": "string",
+          "pattern": "^hmac-sha256:[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "guardrail": {
+      "type": "object",
+      "required": ["guardrail_id", "guardrail_version", "evaluation_stage"],
+      "properties": {
+        "guardrail_id": { "type": "string", "minLength": 1 },
+        "guardrail_version": { "type": "string", "minLength": 1 },
+        "evaluation_stage": {
+          "enum": [
+            "pre_model",
+            "retrieval",
+            "post_model",
+            "tool_input",
+            "tool_output"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": ["outcome", "action", "scores", "findings"],
+      "properties": {
+        "outcome": {
+          "enum": ["pass", "block", "redact", "flag", "error"]
+        },
+        "action": {
+          "enum": ["allow", "block", "redact", "queue_review", "fail_closed"]
+        },
+        "scores": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/score" }
+        },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding" }
+        }
+      },
+      "anyOf": [
+        { "properties": { "scores": { "minItems": 1 } } },
+        { "properties": { "findings": { "minItems": 1 } } }
+      ],
+      "additionalProperties": false
+    },
+    "content_evidence": {
+      "type": "object",
+      "required": ["input_digest", "output_digest", "raw_content_included"],
+      "properties": {
+        "input_digest": { "$ref": "#/$defs/sha256_digest" },
+        "output_digest": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256_digest" },
+            { "type": "null" }
+          ]
+        },
+        "raw_content_included": { "const": false }
+      },
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "required": [
+        "classification",
+        "redaction_applied",
+        "redaction_policy_id",
+        "redaction_policy_digest",
+        "suppressed_fields"
+      ],
+      "properties": {
+        "classification": { "enum": ["metadata_only", "pseudonymous"] },
+        "redaction_applied": { "const": true },
+        "redaction_policy_id": { "type": "string", "minLength": 1 },
+        "redaction_policy_digest": { "$ref": "#/$defs/sha256_digest" },
+        "suppressed_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "prompt",
+              "completion",
+              "retrieved_context",
+              "tool_arguments",
+              "tool_result",
+              "user_identifier"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "receipt_binding": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["status", "receipt_id", "receipt_digest"],
+          "properties": {
+            "status": { "const": "unbound" },
+            "receipt_id": { "type": "null" },
+            "receipt_digest": { "type": "null" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["status", "receipt_id", "receipt_digest"],
+          "properties": {
+            "status": { "const": "declared_reference" },
+            "receipt_id": { "type": "string", "minLength": 1 },
+            "receipt_digest": { "$ref": "#/$defs/sha256_digest" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "telemetry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["trace_id", "span_id"],
+          "properties": {
+            "trace_id": { "type": "null" },
+            "span_id": { "type": "null" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["trace_id", "span_id"],
+          "properties": {
+            "trace_id": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            },
+            "span_id": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{16}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "non_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "score": {
+      "type": "object",
+      "required": ["name", "value", "lower_bound", "upper_bound"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" },
+        "lower_bound": { "type": "number" },
+        "upper_bound": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "finding": {
+      "type": "object",
+      "required": ["category", "severity"],
+      "properties": {
+        "category": { "type": "string", "minLength": 1 },
+        "severity": {
+          "enum": ["info", "low", "medium", "high", "critical"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

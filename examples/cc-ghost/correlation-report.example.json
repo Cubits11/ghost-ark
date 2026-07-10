@@ -1,0 +1,68 @@
+{
+  "schema_version": "ghost.cc_correlation_report.v1",
+  "generated_at": "2026-07-09T12:00:00.000Z",
+  "cohort_id": "cc-ghost-local-example",
+  "sample_size": 4,
+  "variable_summaries": [
+    {
+      "variable_id": "Z_pii",
+      "failure_count": 2,
+      "failure_rate": 0.5,
+      "failure_rate_interval": {
+        "method": "wilson-score",
+        "confidence_level": 0.95,
+        "lower": 0.150038989152,
+        "upper": 0.849961010848
+      }
+    },
+    {
+      "variable_id": "Z_toxicity",
+      "failure_count": 2,
+      "failure_rate": 0.5,
+      "failure_rate_interval": {
+        "method": "wilson-score",
+        "confidence_level": 0.95,
+        "lower": 0.150038989152,
+        "upper": 0.849961010848
+      }
+    }
+  ],
+  "pairwise_summaries": [
+    {
+      "left_variable_id": "Z_pii",
+      "right_variable_id": "Z_toxicity",
+      "co_failure_table": {
+        "n00": 1,
+        "n01": 1,
+        "n10": 1,
+        "n11": 1
+      },
+      "observed_joint_failure_rate": 0.25,
+      "joint_failure_interval": {
+        "method": "wilson-score",
+        "confidence_level": 0.95,
+        "lower": 0.04558726081,
+        "upper": 0.699358157418
+      },
+      "frechet_bounds": {
+        "lower": 0,
+        "upper": 0.5,
+        "interpretation": "These are logical bounds from the observed marginals; they do not identify the true dependence structure."
+      },
+      "phi_correlation": 0
+    }
+  ],
+  "dependence_model": {
+    "kind": "empirical-pairwise",
+    "missingness_policy": "complete-grid-required",
+    "stationarity_declaration": "fixed four-row local fixture"
+  },
+  "warnings": [
+    "Stationarity is declared by the producer and is not statistically established by this report.",
+    "Wilson intervals describe finite-sample proportion uncertainty only; they do not cover upstream scoring, sampling, or dependence-model error."
+  ],
+  "non_claims": [
+    "This report does not establish causal dependence, calibration validity, cohort representativeness, threshold quality, AI safety, or compliance.",
+    "Frechet bounds constrain possible joint rates under the observed marginals; they do not choose a copula or predict future behavior."
+  ]
+}

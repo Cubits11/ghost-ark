@@ -28,6 +28,7 @@ This checklist tracks evidence maturity, not personal goals or certification sta
 | Non-claim scanner | In progress | Spine A | Local enforcement |
 | Receipt reproducibility harness | Complete | Spine B | Local tests and fixtures |
 | Malicious receipt corpus | Complete | Spine B | Local negative tests |
+| Evidence bundle schema, sanitizer, and local gate | Complete | Spine C local | L2 schema plus L3 local validator tests; synthetic fixture only |
 | Live AWS evidence bundles | Not complete | Spine C | Requires bounded live AWS window |
 | Key lifecycle and rotation protocol | Not complete | Spine D | Requires design and AWS validation |
 | Guardrail observation schema | Not complete | Spine E | Requires schema and examples |
@@ -163,7 +164,15 @@ A live evidence window should follow this lifecycle:
 7. Destroy the dev stacks.
 8. Confirm cleanup.
 
-Live AWS validation should be bounded, documented, and destroyed after evidence capture. Ghost Ark does not need to be always live; it needs to be reproducibly deployable, verifiably testable, and honestly evidenced.
+Local Spine C preparation is available without AWS credentials:
+
+```bash
+npm run spine:c:local
+```
+
+This validates an explicitly synthetic, non-live fixture and synthesizes Core Mode infrastructure without deployment. See the dedicated [preflight](docs/operations/runbooks/live-aws-evidence-preflight.md), [evidence-window](docs/operations/runbooks/live-aws-evidence-window.md), and [cleanup](docs/operations/runbooks/live-aws-evidence-cleanup.md) runbooks.
+
+No preserved complete live bundle is added by the local gate. A future live validation must stay within its approved scope, preserve sanitized artifact bindings, destroy the scoped development stacks, and record any retained or residual resources honestly.
 
 Getting Started
 
@@ -277,4 +286,3 @@ A reviewer should reject broad claims that imply:
 - live AWS validation exists without a preserved live AWS evidence bundle
 
 Passing local tests means local artifacts behave as expected under the implemented verifier rules. It does not prove live AWS behavior, production security, regulatory compliance, or AI safety.
-

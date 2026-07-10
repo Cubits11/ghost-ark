@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist coverage cdk.out",
-    "docs:check": "node -e \"const fs=require('fs'); const required=['docs/architecture/system-overview.md','docs/compliance/non-claims.md','docs/governance/claim-evidence-matrix.md','docs/governance/risk-register.md','docs/governance/external-reviewer-guide.md','README.md']; for (const f of required) { if (!fs.existsSync(f)) throw new Error('Missing '+f); }\"",
+    "docs:check": "node -e \"const fs=require('fs'); const required=['docs/architecture/system-overview.md','docs/compliance/non-claims.md','docs/governance/claim-evidence-matrix.md','docs/governance/risk-register.md','docs/governance/external-reviewer-guide.md','docs/operations/runbooks/live-aws-evidence-preflight.md','docs/operations/runbooks/live-aws-evidence-window.md','docs/operations/runbooks/live-aws-evidence-cleanup.md','schemas/live-aws-evidence-bundle.schema.json','examples/evidence/live-aws-evidence-bundle.sample.json','README.md']; for (const f of required) { if (!fs.existsSync(f)) throw new Error('Missing '+f); }\"",
     "test:research": "vitest run tests/unit/research-frontier",
     "validate:claims": "node tools/research/check-forbidden-claims.mjs",
     "validate:fast": "npm run test:research && npm run validate:claims",
@@ -34,7 +34,10 @@
     "ghost-verify": "node tools/ghost-verify.mjs",
     "receipt:verify": "ts-node tools/scripts/receiptVerify.ts",
     "receipt:verify:sample": "npm run ghost-verify -- --receipt examples/sample-receipts/valid-receipt.json --key examples/sample-receipts/public-key.pem --tenant acme-lab",
+    "receipt:verify:independent": "node verifiers/node/ghost_receipt_verify.mjs --receipt examples/reproducibility/receipts/hmac-baseline.receipt.json --hmac-secret ghost-ark-repro-signing-dev-only-test-vector-v1 --expected-key-id local-dev-hmac",
+    "receipt:verify:repro": "ts-node tools/repro/verify-repro-manifest.ts --manifest examples/reproducibility/manifest.json",
     "receipt:verify:corpus": "npx vitest run tests/security/receipt-negative-corpus.test.ts",
+    "receipt:verify:agreement": "npx vitest run tests/differential/nodeIndependentVerifier.test.ts",
     "receipt:checkpoint": "ts-node tools/scripts/checkpointReceipts.ts",
     "receipt-proof:local": "ts-node tools/scripts/createLocalReceiptProof.ts",
     "policy:counterexamples": "ts-node tools/scripts/verifyTenantPolicyCounterexamples.ts",
@@ -42,9 +45,13 @@
     "smoke:governed-invoke": "ts-node tools/scripts/smokeGovernedInvoke.ts",
     "supervised:aws-runtime-validation": "ts-node tools/scripts/supervisedAwsRuntimeValidation.ts",
     "research:witness-bundle": "ts-node tools/scripts/createResearchWitnessBundle.ts",
+    "validate:evidence-bundle": "ts-node tools/evidence/validate-live-aws-evidence-bundle.ts",
+    "sanitize:evidence-bundle": "ts-node tools/evidence/sanitize-live-aws-evidence.ts",
+    "infra:synth": "npm run build && GHOST_ARK_ENABLE_SEARCH=false cdk synth -c stage=dev -c enableSearch=false",
     "scan:claims": "node tools/research/check-forbidden-claims.mjs",
     "spine:a": "npm run lint && npm run validate:claims && npm run scan:claims && npm test && npm run docs:check",
-    "spine:b": "npm run spine:a && npm run receipt:verify:sample && npm run receipt:verify:corpus"
+    "spine:b": "npm run spine:a && npm run receipt:verify:repro && npm run receipt:verify:sample && npm run receipt:verify:independent && npm run receipt:verify:corpus && npm run receipt:verify:agreement",
+    "spine:c:local": "npm run spine:b && npm run validate:evidence-bundle && npm run infra:synth"
   },
   "dependencies": {
     "@aws-sdk/client-athena": "^3.1080.0",
@@ -75,6 +82,8 @@
     "@types/node": "^24.0.10",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "aws-cdk": "^2.1129.0",
     "esbuild": "^0.25.5",
     "ts-node": "^10.9.2",

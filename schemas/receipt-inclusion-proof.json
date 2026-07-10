@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/receipt-inclusion-proof.json",
+  "title": "Ghost-Ark Receipt Chain-Head Inclusion Proof",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["leaf", "leafHash", "proof", "root"],
+  "properties": {
+    "leaf": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenantId", "headHash"],
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "pattern": "^(sha256|hmac-sha256):[a-f0-9]{64}$"
+        },
+        "headHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "leafHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "proof": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["position", "hash"],
+        "properties": {
+          "position": { "enum": ["left", "right"] },
+          "hash": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "root": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}
