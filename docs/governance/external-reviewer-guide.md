@@ -7,7 +7,9 @@ This guide tells a skeptical external reviewer exactly what Ghost-Ark claims, wh
 - Receipt payloads canonicalize deterministically under Ghost-Ark canonicalization rules (CLAIM-001).
 - A local verifier checks canonical receipt identity, payload digest, tenant expectation, and RSA-PSS signature validity for supplied artifacts (CLAIM-002).
 - A corpus of tampered receipts is rejected by local negative tests (CLAIM-003).
+- A standalone Node verifier has no Ghost-Ark package imports and agrees with the production verifier on the committed adversarial corpus (CLAIM-004, local source-boundary evidence only).
 - The enforcement runtime evaluates deterministic policy decisions, fails closed, and emits decision receipts in local tests (CLAIM-005, local path only).
+- A locally tested Draft 2020-12 contract validates supplied evidence-bundle lifecycle fields and rejects synthetic-to-live relabeling, incomplete completion claims, and enumerated leak patterns (CLAIM-018, local artifact checks only).
 - A claim scanner blocks forbidden assurance wording on public claim surfaces (`npm run scan:claims`).
 
 Each claim maps to a row in the [Claim/Evidence Matrix](claim-evidence-matrix.md) with evidence location, command, and limitation.
@@ -33,6 +35,22 @@ npm run spine:a
 
 `spine:a` runs, in order: `lint`, `validate:claims`, `scan:claims`, `test`, `docs:check`. A failure in any step fails the gate.
 
+For the full local receipt-evidence gate, run `npm run spine:b`. It first runs Spine A, then replays the reproducibility manifest, sample receipt, standalone verifier, malicious corpus, and standalone-versus-production agreement tests. It performs no AWS calls.
+
+For the full local Spine C preparation gate, run:
+
+```bash
+npm run spine:c:local
+```
+
+This runs Spine B, validates the explicitly synthetic evidence-bundle fixture, builds the repository, and synthesizes CDK with Search Mode disabled. It performs no deployment and creates no live evidence. The sample must report `synthetic-non-live`, `liveAwsCallsPerformed: false`, and `NOT_RUN` observations.
+
+To validate another already-sanitized bundle file locally:
+
+```bash
+npm run validate:evidence-bundle -- path/to/bundle.json
+```
+
 ## Receipt Verification
 
 ```bash
@@ -44,13 +62,20 @@ npm run ghost-verify -- \
 
 Then tamper with any of the payload, tenant, digest, algorithm, or signature fields and re-run. The verdict must change to FAIL.
 
+To exercise the implementation that imports Node built-ins only:
+
+```bash
+npm run receipt:verify:independent
+```
+
 ## Malicious Corpus Verification
 
 ```bash
-npm test
+npm run receipt:verify:corpus
+npm run receipt:verify:agreement
 ```
 
-The suite includes negative tests that mutate receipts and assert rejection. See `docs/security/RECEIPT_ATTACK_CORPUS.md` for the corpus rationale.
+The first command replays the manifest through the production verifier. The second replays it through the standalone verifier and checks end-to-end agreement. See `docs/security/RECEIPT_ATTACK_CORPUS.md` for the corpus rationale.
 
 ## Claim Scanner
 
@@ -65,6 +90,10 @@ The scanner walks the repository, skips generated directories, and fails closed 
 A passing local verifier result means the supplied artifacts are internally consistent under Ghost-Ark verifier rules. It does not prove model safety, deployment correctness, compliance, or production security.
 
 Passing `npm test` means the implemented canonicalization, signing envelope, policy, retrieval, and verifier rules behave as specified against local fixtures and mocks.
+
+Passing the agreement test shows that two same-repository implementation paths make the same acceptance decision on the committed corpus. It is not evidence of external audit, organizational independence, or formal correctness.
+
+Passing `validate:evidence-bundle` means the supplied JSON matches the bundle schema, semantic lifecycle constraints, and enumerated leak rules. It does not independently establish that an AWS call happened, and the leak scan cannot identify every context-specific sensitive value.
 
 ## What Passing Tests Do Not Mean
 
@@ -83,7 +112,9 @@ Passing `npm test` means the implemented canonicalization, signing envelope, pol
 - Repeatable deployment evidence: deploy, smoke, capture, destroy (CLAIM-016).
 - Cost-bounded live validation lifecycle execution (CLAIM-017).
 
-Live evidence counts only when a sanitized, preserved evidence bundle exists in the repository with the run's command, scope, region, and timestamp.
+Live evidence counts only when a human-approved, sanitized, preserved live bundle identifies a clean commit, hashed account and principal, region, stage, bounded window, stack results, scoped observations, artifact digests, applicable receipt checks, and confirmed cleanup. The checked-in synthetic sample is not live evidence.
+
+Use the dedicated [preflight](../operations/runbooks/live-aws-evidence-preflight.md), [window](../operations/runbooks/live-aws-evidence-window.md), and [cleanup](../operations/runbooks/live-aws-evidence-cleanup.md) runbooks when reviewing a proposed live capture. Their existence is documentation, not an execution record.
 
 ## Reviewer Rejection Rules
 

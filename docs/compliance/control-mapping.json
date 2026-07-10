@@ -1,0 +1,195 @@
+{
+  "schema_version": "ghost.framework_control_mapping.v1",
+  "snapshot_date": "2026-07-09",
+  "scope": "Function- and clause-level candidate crosswalk from repository artifacts to NIST AI RMF 1.0 and ISO/IEC 42001:2023. It is not a subcategory audit, Statement of Applicability, or conformity assessment.",
+  "sources": [
+    {
+      "framework": "NIST AI RMF",
+      "version": "1.0",
+      "url": "https://www.nist.gov/itl/ai-risk-management-framework",
+      "note": "NIST states that AI RMF 1.0 is voluntary and is being revised; this mapping freezes the named 1.0 functions as of the snapshot date."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "version": "1.0 Core",
+      "url": "https://airc.nist.gov/airmf-resources/airmf/5-sec-core/",
+      "note": "The Core organizes outcomes into Govern, Map, Measure, and Manage; NIST says the outcomes are not an ordered checklist."
+    },
+    {
+      "framework": "ISO/IEC 42001",
+      "version": "2023 edition 1",
+      "url": "https://www.iso.org/standard/42001",
+      "note": "The official standard page describes requirements for establishing, implementing, maintaining, and continually improving an AI management system."
+    },
+    {
+      "framework": "ISO/IEC 42001",
+      "version": "2023 official preview",
+      "url": "https://webstore.iec.ch/en/publication/90574",
+      "note": "The official IEC publication and preview identify the clause 4-10 management-system structure used by this crosswalk."
+    }
+  ],
+  "controls": [
+    {
+      "mapping_id": "NIST-1.0-GOVERN",
+      "framework": "NIST AI RMF",
+      "reference": "GOVERN",
+      "title": "Cross-cutting policies, accountability, and risk governance",
+      "status": "local-partial",
+      "evidence_artifacts": [
+        "docs/governance/claim-evidence-matrix.md",
+        "docs/governance/risk-register.md",
+        "docs/governance/external-reviewer-guide.md",
+        "tools/research/check-forbidden-claims.mjs"
+      ],
+      "limitation": "The repository governs public claim wording and technical evidence boundaries; it does not establish an organization's approved AI policies, risk tolerance, legal obligations, resources, or accountable executives.",
+      "reviewer_caveat": "Inspect the named local gate and documents only as software-project evidence. Obtain organizational records and role-owner attestations separately."
+    },
+    {
+      "mapping_id": "NIST-1.0-MAP",
+      "framework": "NIST AI RMF",
+      "reference": "MAP",
+      "title": "Context, actors, impacts, and risk identification",
+      "status": "local-partial",
+      "evidence_artifacts": [
+        "docs/architecture/system-overview.md",
+        "docs/security/THREAT_MODEL.md",
+        "docs/architecture/tenancy-model.md",
+        "docs/architecture/CLAIM_BOUNDARIES.md"
+      ],
+      "limitation": "Architecture and threat-boundary documents describe the reference implementation, not a complete use-case inventory, affected-party analysis, impact assessment, deployment context, or empirically observed harm profile.",
+      "reviewer_caveat": "Treat these artifacts as inputs to context mapping, not completion of MAP outcomes for any deploying organization."
+    },
+    {
+      "mapping_id": "NIST-1.0-MEASURE",
+      "framework": "NIST AI RMF",
+      "reference": "MEASURE",
+      "title": "Assessment, monitoring, and documented measurement",
+      "status": "local-partial",
+      "evidence_artifacts": [
+        "packages/research-frontier/src/guardrailObservation.ts",
+        "packages/research-frontier/src/ccCorrelation.ts",
+        "packages/enforcement-runtime/src/receipts/verifier.ts",
+        "tests/security/receipt-negative-corpus.test.ts"
+      ],
+      "limitation": "Local schemas, fixtures, receipt checks, and correlation mechanics do not establish guardrail validity, representative sampling, calibrated thresholds, live performance, causal dependence, or independent evaluation.",
+      "reviewer_caveat": "Reproduce the local tests and separately assess measurement validity, data quality, uncertainty, and deployment monitoring."
+    },
+    {
+      "mapping_id": "NIST-1.0-MANAGE",
+      "framework": "NIST AI RMF",
+      "reference": "MANAGE",
+      "title": "Risk prioritization, treatment, response, and improvement",
+      "status": "local-partial",
+      "evidence_artifacts": [
+        "packages/enforcement-runtime/src/runtime/governedInvoke.ts",
+        "docs/research/HUMAN_REVIEW_INCIDENT_WORKFLOW.md",
+        "docs/operations/runbooks/rotate-kms-key.md",
+        "docs/operations/runbooks/incident-receipt-gap.md"
+      ],
+      "limitation": "Deterministic local enforcement and documented workflows do not show an operating review team, accepted risk-treatment decisions, executed incident response, recovery, or continuous monitoring.",
+      "reviewer_caveat": "Require live operating records, named owners, service-level objectives, incident exercises, and deployment-specific risk acceptance before crediting organizational outcomes."
+    },
+    {
+      "mapping_id": "ISO-42001-4",
+      "framework": "ISO/IEC 42001",
+      "reference": "Clause 4",
+      "title": "Context of the organization",
+      "status": "local-partial",
+      "evidence_artifacts": [
+        "docs/architecture/system-overview.md",
+        "docs/architecture/governance-model.md",
+        "docs/product/roadmap.md"
+      ],
+      "limitation": "Repository scope and architecture are documented, but no organization has approved an AIMS scope or supplied its internal/external context and interested-party requirements.",
+      "reviewer_caveat": "A deploying organization must define and approve its own scope; the reference implementation cannot do so on its behalf."
+    },
+    {
+      "mapping_id": "ISO-42001-5",
+      "framework": "ISO/IEC 42001",
+      "reference": "Clause 5",
+      "title": "Leadership",
+      "status": "organizational-gap",
+      "evidence_artifacts": [
+        "docs/governance/risk-register.md",
+        "docs/governance/external-reviewer-guide.md"
+      ],
+      "limitation": "Technical governance documents are not evidence of leadership commitment, an approved AI policy, delegated authorities, or management accountability.",
+      "reviewer_caveat": "Obtain signed organizational policy, responsibility assignments, leadership review records, and authority evidence outside this repository."
+    },
+    {
+      "mapping_id": "ISO-42001-6",
+      "framework": "ISO/IEC 42001",
+      "reference": "Clause 6",
+      "title": "Planning",
+      "status": "local-partial",
+      "evidence_artifacts": [
+        "docs/governance/risk-register.md",
+        "docs/governance/claim-evidence-matrix.md",
+        "docs/research/RESEARCH_FRONTIER_ROADMAP.md"
+      ],
+      "limitation": "The project tracks technical evidence risks and future work; it does not contain an organization-approved AI risk assessment methodology, impact assessment, objectives, treatment plan, or controlled plan for organizational change.",
+      "reviewer_caveat": "Do not convert roadmap or engineering-risk entries into organizational risk acceptance without accountable review."
+    },
+    {
+      "mapping_id": "ISO-42001-7",
+      "framework": "ISO/IEC 42001",
+      "reference": "Clause 7",
+      "title": "Support",
+      "status": "local-partial",
+      "evidence_artifacts": [
+        "docs/governance/external-reviewer-guide.md",
+        "docs/operations/runbooks/sandbox-validation.md",
+        "AGENTS.md"
+      ],
+      "limitation": "Reviewer instructions and contribution rules do not prove adequate resources, competence, awareness, communications, or controlled organizational records.",
+      "reviewer_caveat": "Assess training, competence, resourcing, communication, retention, approval, and document-control systems separately."
+    },
+    {
+      "mapping_id": "ISO-42001-8",
+      "framework": "ISO/IEC 42001",
+      "reference": "Clause 8",
+      "title": "Operation",
+      "status": "aws-required",
+      "evidence_artifacts": [
+        "packages/enforcement-runtime/src/runtime/governedInvoke.ts",
+        "tests/integration/test_governedInvokeLifecycle.test.ts",
+        "docs/operations/runbooks/sandbox-validation.md"
+      ],
+      "limitation": "Local enforcement tests and a deployment runbook do not evidence operational planning, deployed risk treatment, or completed impact assessment in a named environment.",
+      "reviewer_caveat": "A bounded live bundle can support only the named run and controls; it cannot establish organization-wide conformity."
+    },
+    {
+      "mapping_id": "ISO-42001-9",
+      "framework": "ISO/IEC 42001",
+      "reference": "Clause 9",
+      "title": "Performance evaluation",
+      "status": "organizational-gap",
+      "evidence_artifacts": [
+        "package.json",
+        "docs/governance/external-reviewer-guide.md",
+        "docs/governance/claim-evidence-matrix.md"
+      ],
+      "limitation": "Automated validation and an external-review guide are not an internal audit programme, management review, monitoring plan, or evaluated organizational objective.",
+      "reviewer_caveat": "Require audit independence, audit scope/results, management-review inputs/decisions, metrics, and follow-up records."
+    },
+    {
+      "mapping_id": "ISO-42001-10",
+      "framework": "ISO/IEC 42001",
+      "reference": "Clause 10",
+      "title": "Improvement",
+      "status": "local-partial",
+      "evidence_artifacts": [
+        "docs/research/HUMAN_REVIEW_INCIDENT_WORKFLOW.md",
+        "schemas/research/incident-report.schema.json",
+        "docs/operations/runbooks/incident-receipt-gap.md"
+      ],
+      "limitation": "The repository defines incident and corrective-action artifact shapes, but contains no organizational nonconformity records, root-cause evidence, effectiveness review, or continual-improvement decisions.",
+      "reviewer_caveat": "Schema-valid examples are simulations; inspect executed corrective actions and management decisions separately."
+    }
+  ],
+  "non_claims": [
+    "This candidate crosswalk does not certify or demonstrate conformity with NIST AI RMF or ISO/IEC 42001.",
+    "Repository evidence cannot replace organization-specific scope, legal analysis, risk acceptance, operational records, internal audit, management review, or accredited conformity assessment.",
+    "NIST states that AI RMF 1.0 is voluntary and under revision; mappings must be re-reviewed when the framework changes."
+  ]
+}

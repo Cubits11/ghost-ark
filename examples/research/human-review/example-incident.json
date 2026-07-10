@@ -1,0 +1,77 @@
+{
+  "schema_version": "ghostark.research.incident_report.v1",
+  "incident_id": "inc_fixture_receipt_integrity_001",
+  "opened_at": "2026-07-09T14:11:00.000Z",
+  "status": "triaged",
+  "severity": "sev2",
+  "category": "receipt_integrity",
+  "source": {
+    "queue_item_id": "hrq_fixture_escalation_001",
+    "review_decision_id": "hrd_fixture_escalation_001"
+  },
+  "receipt_references": [
+    {
+      "receipt_id": "rct_292264b449c853481a45c4df9ceff87641f53cf0fc982dc013987f9ab696ba15",
+      "receipt_digest": "sha256:67bad9140ee958eda4639cefe7a3ef84645a748db1005e6a40bf3368aa94c812"
+    }
+  ],
+  "evidence_references": [
+    {
+      "artifact_type": "review_decision",
+      "artifact_id": "hrd_fixture_escalation_001",
+      "artifact_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+      "artifact_type": "verifier_report",
+      "artifact_id": "verifier_report_fixture_failed_001",
+      "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "impact": {
+    "assessment": "under_investigation",
+    "affected_receipt_count": 1,
+    "tenant_scope_hashes": [
+      "hmac-sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ]
+  },
+  "escalation": {
+    "level": "security",
+    "owner_role": "incident_commander",
+    "response_due_at": "2026-07-09T15:00:00.000Z"
+  },
+  "timeline": [
+    {
+      "event_id": "inctl_fixture_opened_001",
+      "occurred_at": "2026-07-09T14:11:00.000Z",
+      "event_type": "opened",
+      "actor_role": "security_reviewer",
+      "evidence_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    {
+      "event_id": "inctl_fixture_triaged_001",
+      "occurred_at": "2026-07-09T14:15:00.000Z",
+      "event_type": "triaged",
+      "actor_role": "incident_commander",
+      "evidence_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    }
+  ],
+  "closure": {
+    "closed_at": null,
+    "resolution_code": null,
+    "postmortem_digest": null
+  },
+  "privacy": {
+    "raw_content_included": false,
+    "notes_storage": "digest_only",
+    "redaction_policy_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "audit": {
+    "event_id": "audit_incident_triaged_001",
+    "event_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+    "previous_event_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "non_claims": [
+    "This is a schema-valid incident fixture, not evidence of an actual production incident.",
+    "The declared impact and severity are fixture assertions and are not independently verified."
+  ]
+}

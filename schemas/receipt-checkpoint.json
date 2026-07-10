@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/receipt-checkpoint.json",
+  "title": "Ghost-Ark Signed Receipt Checkpoint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "epochId",
+    "createdAt",
+    "leafCount",
+    "merkleRoot",
+    "leavesHash",
+    "signatureAlg",
+    "signerKeyId",
+    "signature"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "ghost.receipt_checkpoint.v1" },
+    "epochId": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "leafCount": { "type": "integer", "minimum": 0 },
+    "merkleRoot": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "leavesHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "signatureAlg": { "type": "string", "minLength": 1 },
+    "signerKeyId": { "type": "string", "minLength": 1 },
+    "signature": { "type": "string", "minLength": 1 }
+  }
+}

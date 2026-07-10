@@ -124,3 +124,5 @@ Bridge Doctrine
 CC-Framework must not trust naked binary labels.
 
 It should only consume binary labels whose discretization rule, threshold, comparator, calibration context, scoring digest, validity window, and parent evidence lineage are receipt-bound and replayable.
+
+Implemented local correlation mechanics, co-failure tables, uncertainty intervals, Fréchet-bound interpretation, and reviewer steps are specified in `docs/research/CC_CORRELATION_ANALYSIS.md`. This upgrades the bridge from a document-only interface to a tested local adapter and report primitive; it does not evidence live guardrail capture or validate the statistical assumptions.

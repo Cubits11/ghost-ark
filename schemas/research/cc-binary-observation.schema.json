@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/research/cc-binary-observation.schema.json",
+  "title": "Ghost-Ark CC Binary Observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "observation_id",
+    "execution_receipt_id",
+    "discretization_rule_id",
+    "discretization_rule_digest",
+    "variable_id",
+    "score_name",
+    "score_value",
+    "binary_value",
+    "failure_semantics",
+    "observed_at",
+    "parent_trace_digest",
+    "cohort_id",
+    "copula_stationarity",
+    "non_claim"
+  ],
+  "properties": {
+    "schema_version": { "const": "ghost.cc_binary_observation.v1" },
+    "observation_id": { "type": "string", "minLength": 1 },
+    "execution_receipt_id": { "type": "string", "minLength": 1 },
+    "execution_receipt_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "source_guardrail_observation_id": { "type": "string", "minLength": 1 },
+    "discretization_rule_id": { "type": "string", "minLength": 1 },
+    "discretization_rule_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "variable_id": { "type": "string", "minLength": 1 },
+    "score_name": { "type": "string", "minLength": 1 },
+    "score_value": { "type": "number" },
+    "binary_value": { "enum": [0, 1] },
+    "failure_semantics": { "const": "1 means guardrail failure or unsafe pass" },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "parent_trace_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "cohort_id": { "type": "string", "minLength": 1 },
+    "copula_stationarity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared", "scope", "non_claim"],
+      "properties": {
+        "declared": { "const": true },
+        "scope": { "type": "string", "minLength": 1 },
+        "non_claim": { "type": "string", "minLength": 1 }
+      }
+    },
+    "non_claim": { "type": "string", "minLength": 1 }
+  }
+}

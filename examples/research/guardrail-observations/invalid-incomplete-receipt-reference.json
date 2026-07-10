@@ -1,0 +1,49 @@
+{
+  "schema_version": "ghostark.research.guardrail_observation.v1",
+  "observation_id": "gobs_invalid_reference_001",
+  "observed_at": "2026-07-09T12:15:00.000Z",
+  "scope": {
+    "tenant_id_hash": "hmac-sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "request_id_hash": "hmac-sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "guardrail": {
+    "guardrail_id": "toxicity-filter",
+    "guardrail_version": "fixture-v1",
+    "evaluation_stage": "post_model"
+  },
+  "result": {
+    "outcome": "pass",
+    "action": "allow",
+    "scores": [
+      {
+        "name": "toxicity_score",
+        "value": 0.12,
+        "lower_bound": 0,
+        "upper_bound": 1
+      }
+    ],
+    "findings": []
+  },
+  "content_evidence": {
+    "input_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "output_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "raw_content_included": false
+  },
+  "privacy": {
+    "classification": "pseudonymous",
+    "redaction_applied": true,
+    "redaction_policy_id": "guardrail-observation-export-v1",
+    "redaction_policy_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "suppressed_fields": ["prompt", "completion"]
+  },
+  "receipt_binding": {
+    "status": "declared_reference",
+    "receipt_id": "rct_fixture_missing_digest",
+    "receipt_digest": null
+  },
+  "telemetry": {
+    "trace_id": null,
+    "span_id": null
+  },
+  "non_claims": ["This deliberately invalid fixture tests incomplete reference rejection."]
+}

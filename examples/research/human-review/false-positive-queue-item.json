@@ -1,0 +1,45 @@
+{
+  "schema_version": "ghostark.research.human_review_queue_item.v1",
+  "queue_item_id": "hrq_fixture_false_positive_001",
+  "created_at": "2026-07-09T13:00:00.000Z",
+  "status": "in_review",
+  "priority": "medium",
+  "trigger": {
+    "type": "guardrail_flag",
+    "observation_id": "gobs_fixture_unbound_001",
+    "observation_digest": "sha256:c6c96a98e0861de6023607ccb7a6d553cdfc2614ec495cb19e0bbc890e934d66",
+    "reason_codes": ["high_toxicity_score"]
+  },
+  "receipt_references": [
+    {
+      "receipt_id": "rct_292264b449c853481a45c4df9ceff87641f53cf0fc982dc013987f9ab696ba15",
+      "receipt_digest": "sha256:67bad9140ee958eda4639cefe7a3ef84645a748db1005e6a40bf3368aa94c812"
+    }
+  ],
+  "evidence_references": [
+    {
+      "artifact_type": "guardrail_observation",
+      "artifact_id": "gobs_fixture_unbound_001",
+      "artifact_digest": "sha256:c6c96a98e0861de6023607ccb7a6d553cdfc2614ec495cb19e0bbc890e934d66"
+    }
+  ],
+  "assignment": {
+    "reviewer_role": "governance_reviewer",
+    "reviewer_id_hash": "hmac-sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "review_due_at": "2026-07-09T17:00:00.000Z"
+  },
+  "privacy": {
+    "raw_content_included": false,
+    "notes_storage": "digest_only",
+    "redaction_policy_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "audit": {
+    "event_id": "audit_false_positive_queue_001",
+    "event_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "previous_event_digest": null
+  },
+  "non_claims": [
+    "This fixture represents a review queue record, not an operating review service.",
+    "A queued item does not establish that the guardrail finding is correct."
+  ]
+}
