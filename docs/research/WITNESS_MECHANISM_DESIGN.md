@@ -24,13 +24,29 @@ GOVERNANCE mode does not close this: a principal with the bypass permission can
 rewrite. Without independent witnesses and gossip, the transparency layer is
 decorative.
 
-## The enforcement primitive: split-view fraud proofs
+## The enforcement primitive: single-witness split-view fraud proofs
 
-If a witness signs two checkpoints that assert the same `(log_id, tree_size)` but
-different `root_hash`, that pair is offline-verifiable evidence — under the witness's
-own key — that the log equivocated. The proof is self-contained: a checker needs only
-the two signed heads and the witness key manifest. It does not need to trust the log,
-the operator, or a third party.
+If a **single** witness signs two checkpoints that assert the same
+`(log_id, tree_size)` but different `root_hash`, that pair is offline-verifiable
+evidence — under the witness's own key — that the log equivocated. The proof is
+self-contained: a checker needs only the two signed heads and the witness key
+manifest. It does not need to trust the log, the operator, or a third party.
+
+### Scope and assumptions (deliberately narrow)
+
+- **Single-witness only.** The motivating "auditor sees one root, user sees another"
+  scenario is detected by this primitive *only when the same witness co-signs both
+  views*. If the operator partitions witnesses across views (disjoint signer sets),
+  the primitive returns null. Cross-witness split views are an open problem, not a
+  covered case.
+- **Same tree size only.** A fork at different tree sizes is a non-append-only
+  rewrite that surfaces as a *broken consistency proof*, not as this fraud proof.
+  It is deferred to Open problems.
+- **`log_id` names one append-only incarnation.** Reusing a `log_id` across a reset
+  or re-initialization is itself a governance violation and is out of scope. Under
+  this assumption, two heads at the same `(log_id, tree_size)` with different roots
+  are equivocation regardless of their `integrated_time` — an append-only tree of
+  size N has exactly one root, forever.
 
 `packages/research-frontier/src/witnessFraudProof.ts` implements:
 
@@ -52,15 +68,21 @@ ejection** (and whatever external consequences the federation attaches to ejecti
 
 - The cost of equivocating is bounded below by the value of continued membership,
   because a fraud proof is permanent and publicly checkable.
-- Detection does not require a majority. It requires exactly **one** honest party to
-  hold and gossip a conflicting head. A rational witness that cannot control which
-  observers are honest must assume the worst case.
+- Detection does not require a majority. It requires at least **one** honest party
+  to hold a conflicting head **and** gossip reachability such that both conflicting
+  heads converge at a common verifier — a single honest holder whose gossip never
+  reaches a party holding the other head produces no proof. So the load-bearing
+  assumption is honest-party existence *plus* topology reachability.
 - Therefore, for any witness whose membership is worth more than a single successful
-  equivocation, honest signing dominates.
+  equivocation, honest signing dominates **for the equivocation shape this primitive
+  detects** (same witness, same tree size). A rational adversary that partitions
+  witnesses or forks at different tree sizes evades the current detector; those cases
+  are open problems below, and the deterrent does not yet bind them.
 
-This is a mechanism-design argument, not a live guarantee. Its assumptions are
-explicit: at least one honest gossiping party, an out-of-band ejection consequence,
-and witness key manifests that bind identities.
+This is a mechanism-design argument, not a live claim. Its assumptions are explicit:
+at least one honest gossiping party with reachability to a holder of the conflicting
+head, an out-of-band ejection consequence, witness key manifests that bind
+identities, and `log_id` non-reuse.
 
 ## Why not a cryptoeconomic / token layer
 
