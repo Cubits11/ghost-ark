@@ -164,6 +164,18 @@ describe("live AWS evidence bundle validation", () => {
     expect(result.issues.filter((entry) => entry.keyword === "sensitive-value").length).toBeGreaterThanOrEqual(3);
   });
 
+  it("does not let a leading redaction marker bypass the rest of a string", () => {
+    const leaked = clone(sampleBundle) as Record<string, any>;
+    leaked.observations[0].summary = "[REDACTED:tenant] was reviewed by operator@example.test.";
+
+    const result = validateLiveAwsEvidenceBundle(leaked);
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ keyword: "sensitive-value", path: "$.observations[0].summary" })
+    );
+  });
+
   it("accepts a complete live lifecycle shape only when deployment, claims, receipts, and cleanup are linked", () => {
     const complete = liveCompleteBundle();
     expect(validateLiveAwsEvidenceBundle(complete)).toEqual({ valid: true, issues: [] });
