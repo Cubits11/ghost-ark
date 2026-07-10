@@ -284,8 +284,8 @@ const fixtureD: Scenario = {
     severity: "institutional",
     uiImpression: "Two 'documented' claims in the table, visually identical to any evidenced claim.",
     groundTruth:
-      "Both cited documents are committed at 0 bytes. The shipped ClaimsTable renders receiptCount and state with no signal that the underlying evidence file is empty — it masks a hollow claim as a normal one. There is no 'empty evidence' state anywhere in the component contract.",
-    citation: "docs/research/AUDITABILITY_SAFETY_SEPARATION.md (0 bytes) · docs/research/NON_CLAIM_ENGINEERING.md (0 bytes)",
+      "Illustrative: each claim cites a 0-byte stub document. The shipped ClaimsTable renders receiptCount and state with no signal that the underlying evidence file is empty — it masks a hollow claim as a normal one. There is no 'empty evidence' state anywhere in the component contract. (This pattern was real at review time for two research docs that have since been written; the fixture uses synthetic stub paths so it never asserts a false fact about the live repo.)",
+    citation: "synthetic stub artifacts — see evidenceDocs below",
   },
   receipt: {
     receiptId: "rct_0000000000000000000000000000000000000000000000000000000000000000",
@@ -302,15 +302,15 @@ const fixtureD: Scenario = {
   },
   claims: [
     {
-      claimId: "clm_audsep",
-      statement: "Auditability and safety are orthogonal dimensions (see AUDITABILITY_SAFETY_SEPARATION.md).",
+      claimId: "clm_stub_a",
+      statement: "A doctrine claim whose only evidence is a stub document (see docs/example/STUB_DOCTRINE_A.md).",
       state: "documented",
       receiptCount: 0,
       updatedAt: "2026-07-10T01:37:50Z",
     },
     {
-      claimId: "clm_nonclaim",
-      statement: "Non-claim engineering discipline governs public wording (see NON_CLAIM_ENGINEERING.md).",
+      claimId: "clm_stub_b",
+      statement: "A second doctrine claim whose cited file is an empty placeholder (see docs/example/STUB_DOCTRINE_B.md).",
       state: "documented",
       receiptCount: 0,
       updatedAt: "2026-07-10T01:37:50Z",
@@ -326,8 +326,8 @@ const fixtureD: Scenario = {
     timeAnchored: null,
   },
   evidenceDocs: [
-    { path: "docs/research/AUDITABILITY_SAFETY_SEPARATION.md", bytes: 0, referencedBy: "clm_audsep" },
-    { path: "docs/research/NON_CLAIM_ENGINEERING.md", bytes: 0, referencedBy: "clm_nonclaim" },
+    { path: "docs/example/STUB_DOCTRINE_A.md", bytes: 0, referencedBy: "clm_stub_a" },
+    { path: "docs/example/STUB_DOCTRINE_B.md", bytes: 0, referencedBy: "clm_stub_b" },
   ],
 };
 

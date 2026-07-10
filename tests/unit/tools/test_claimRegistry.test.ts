@@ -94,4 +94,36 @@ describe("structured claim registry", () => {
     const results = checkRegistry(registry, ROOT);
     expect(results.every((r) => r.ok)).toBe(true);
   });
+
+  it("returns a structured result for null/undefined input instead of throwing", () => {
+    for (const bad of [null, undefined, "x", 7, []]) {
+      const result = checkClaim(bad, ROOT);
+      expect(result.ok).toBe(false);
+      expect(result.supported_level).toBe(-1);
+    }
+  });
+
+  it("rejects a citation that escapes the reviewed tree (reproducibility)", () => {
+    for (const escaping of ["../../../etc/hosts", "/etc/hosts"]) {
+      const result = checkClaim(
+        {
+          id: "CLM-ESCAPE",
+          statement: "cites outside the tree",
+          asserts_level: 3,
+          cites: [{ path: escaping, expect_sha256: "a".repeat(64), supports_level: 10 }],
+        },
+        ROOT,
+      );
+      expect(result.ok).toBe(false);
+    }
+  });
+
+  it("normalizes asserts_level to number|null even for untrusted input", () => {
+    const result = checkClaim(
+      { id: "CLM-TYPE", statement: "s", asserts_level: "9", cites: [] },
+      ROOT,
+    );
+    expect(result.asserts_level).toBeNull();
+    expect(result.ok).toBe(false);
+  });
 });

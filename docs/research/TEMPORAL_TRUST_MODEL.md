@@ -33,9 +33,16 @@ defense must replace it with an **order** claim the signer cannot forge:
   revocation index.
 
 Inclusion position is not a value the signer writes; it is the log's answer to
-"when did this first appear?" Merkle append-only structure plus consistency proofs
-make retroactive insertion detectable, so the order cannot be rewritten after the
-fact without breaking a proof.
+"when did this first appear?" A receipt cannot claim an earlier epoch than the one
+its Merkle inclusion proof actually reconstructs, so the caller-named inclusion
+epoch is bound by the proof, not trusted.
+
+Scope: this primitive assumes the checkpoint sequence it is handed has been
+independently established as an append-only order. It does not itself verify
+consistency proofs between checkpoints — that is the separate mechanism (Merkle
+consistency proofs, and the witness layer in [[witness-mechanism-design]]) that a
+caller must use to establish the sequence before passing it here. The verdict is
+only as strong as that upstream append-only property.
 
 A Verifiable Delay Function is the wrong instrument here: a VDF attests *elapsed
 time* (a duration). The threat is *sequence*. What is needed is the log's order,
