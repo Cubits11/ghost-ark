@@ -103,4 +103,31 @@ describe("witness split-view fraud proofs", () => {
     expect(result.valid).toBe(false);
     expect(result.checks.find((c) => c.name === "roots_differ")?.passed).toBe(false);
   });
+
+  it("SCOPE: does NOT detect a cross-witness split view (documented limitation)", () => {
+    // Two DIFFERENT witnesses co-sign conflicting roots. This is a real split
+    // view, but the single-witness primitive returns null by design.
+    const witnessB = createDevWitnessKeyPair("witness-beta");
+    const manifestAB: WitnessKeyManifest = {
+      schema_version: "ghostark.research.witness_key_manifest.v1",
+      generated_at: "2026-07-09T00:00:00Z",
+      witnesses: [
+        ...manifest().witnesses,
+        { witness_id: witnessB.witnessId, signature_algorithm: "ecdsa-p256-sha256", public_key_pem: witnessB.publicKeyPem, valid_from: "2026-07-01T00:00:00Z", status: "ACTIVE" },
+      ],
+    };
+    const signedByAlpha = createWitnessCheckpoint({ logId: "ghost-ark-receipts", receiptPayloads: ["r1", "r2", "r3"], integratedTime, witness });
+    const signedByBeta = createWitnessCheckpoint({ logId: "ghost-ark-receipts", receiptPayloads: ["r1", "r2", "EVIL"], integratedTime, witness: witnessB });
+    expect(detectSplitView([signedByAlpha, signedByBeta], manifestAB)).toBeNull();
+  });
+
+  it("treats same-(log,size) different-root as equivocation regardless of integrated_time (log_id non-reuse assumption)", () => {
+    // Under the documented assumption that a log_id is a single append-only
+    // incarnation, two heads at tree_size 3 with different roots are an
+    // equivocation even if signed at different times.
+    const later = createWitnessCheckpoint({ logId: "ghost-ark-receipts", receiptPayloads: ["r1", "r2", "LATER"], integratedTime: "2026-07-20T14:00:00Z", witness });
+    const proof = detectSplitView([viewToAuditor, later], manifest());
+    expect(proof).not.toBeNull();
+    expect(verifySplitViewFraudProof(proof!, manifest()).valid).toBe(true);
+  });
 });
