@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist coverage cdk.out",
-    "docs:check": "node -e \"const fs=require('fs'); const required=['docs/architecture/system-overview.md','docs/compliance/non-claims.md','docs/governance/claim-evidence-matrix.md','docs/governance/risk-register.md','docs/governance/external-reviewer-guide.md','docs/operations/runbooks/live-aws-evidence-preflight.md','docs/operations/runbooks/live-aws-evidence-window.md','docs/operations/runbooks/live-aws-evidence-cleanup.md','schemas/live-aws-evidence-bundle.schema.json','examples/evidence/live-aws-evidence-bundle.sample.json','README.md']; for (const f of required) { if (!fs.existsSync(f)) throw new Error('Missing '+f); }\"",
+    "docs:check": "node -e \"const fs=require('fs'); const required=['docs/architecture/system-overview.md','docs/architecture/transparency-witness-model.md','docs/compliance/non-claims.md','docs/compliance/control-mapping.json','docs/governance/claim-evidence-matrix.md','docs/governance/risk-register.md','docs/governance/external-reviewer-guide.md','docs/operations/runbooks/live-aws-evidence-preflight.md','docs/operations/runbooks/live-aws-evidence-window.md','docs/operations/runbooks/live-aws-evidence-cleanup.md','docs/operations/runbooks/object-lock-transparency-window.md','docs/research/GUARDRAIL_OBSERVATION_MODEL.md','docs/research/CC_CORRELATION_ANALYSIS.md','docs/research/HUMAN_REVIEW_INCIDENT_WORKFLOW.md','schemas/live-aws-evidence-bundle.schema.json','examples/evidence/live-aws-evidence-bundle.sample.json','README.md']; for (const f of required) { if (!fs.existsSync(f)) throw new Error('Missing '+f); }\"",
     "test:research": "vitest run tests/unit/research-frontier",
     "validate:claims": "node tools/research/check-forbidden-claims.mjs",
     "validate:fast": "npm run test:research && npm run validate:claims",
@@ -38,6 +38,7 @@
     "receipt:verify:repro": "ts-node tools/repro/verify-repro-manifest.ts --manifest examples/reproducibility/manifest.json",
     "receipt:verify:corpus": "npx vitest run tests/security/receipt-negative-corpus.test.ts",
     "receipt:verify:agreement": "npx vitest run tests/differential/nodeIndependentVerifier.test.ts",
+    "receipt:verify:replay": "node verifiers/node/replay_receipt_manifests.mjs",
     "receipt:checkpoint": "ts-node tools/scripts/checkpointReceipts.ts",
     "receipt-proof:local": "ts-node tools/scripts/createLocalReceiptProof.ts",
     "policy:counterexamples": "ts-node tools/scripts/verifyTenantPolicyCounterexamples.ts",
@@ -50,8 +51,15 @@
     "infra:synth": "npm run build && GHOST_ARK_ENABLE_SEARCH=false cdk synth -c stage=dev -c enableSearch=false",
     "scan:claims": "node tools/research/check-forbidden-claims.mjs",
     "spine:a": "npm run lint && npm run validate:claims && npm run scan:claims && npm test && npm run docs:check",
-    "spine:b": "npm run spine:a && npm run receipt:verify:repro && npm run receipt:verify:sample && npm run receipt:verify:independent && npm run receipt:verify:corpus && npm run receipt:verify:agreement",
-    "spine:c:local": "npm run spine:b && npm run validate:evidence-bundle && npm run infra:synth"
+    "spine:b": "npm run spine:a && npm run receipt:verify:repro && npm run receipt:verify:sample && npm run receipt:verify:independent && npm run receipt:verify:corpus && npm run receipt:verify:agreement && npm run receipt:verify:replay",
+    "spine:c:local": "npm run spine:b && npm run validate:evidence-bundle && npm run infra:synth",
+    "spine:d:local": "npx vitest run tests/unit/enforcement-runtime/receipts/test_key_manifest.test.ts",
+    "spine:e:local": "npx vitest run tests/unit/research-frontier/guardrailObservation.test.ts",
+    "spine:f:local": "npx vitest run tests/unit/research-frontier/ccCorrelation.test.ts",
+    "spine:g:local": "npx vitest run tests/unit/enforcement-runtime/receipts/test_checkpoint.test.ts tests/unit/research-frontier/merkle.test.ts tests/unit/research-frontier/witnessCheckpoint.test.ts tests/unit/research-frontier/transparencyArtifacts.test.ts tests/integration/tools/phase567Verify.test.ts",
+    "spine:h:local": "npx vitest run tests/unit/research-frontier/humanReview.test.ts",
+    "spine:compliance:local": "npx vitest run tests/unit/research-frontier/complianceControlMapping.test.ts",
+    "checklist:local": "npm run spine:c:local && npm run spine:d:local && npm run spine:e:local && npm run spine:f:local && npm run spine:g:local && npm run spine:h:local && npm run spine:compliance:local"
   },
   "dependencies": {
     "@aws-sdk/client-athena": "^3.1080.0",

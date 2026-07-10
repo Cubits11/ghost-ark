@@ -267,7 +267,7 @@ function sensitiveMaterialIssues(value: unknown, path = "$", issues: EvidenceBun
     }
     return issues;
   }
-  if (typeof value !== "string" || value.startsWith("[REDACTED:")) {
+  if (typeof value !== "string") {
     return issues;
   }
   for (const { label, pattern } of sensitiveStringPatterns) {

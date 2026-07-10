@@ -6,7 +6,7 @@ Cryptographic receipts, not safety claims: Ghost Ark verifies what was recorded,
 
 ## Claim Discipline / Evidence Status
 
-Ghost Ark is an AWS-runtime-validation candidate and certification-supporting evidence prototype. It is not certified, not production-hardened, and not a guarantee of AI safety.
+Ghost Ark is an AWS-runtime-validation candidate and bounded governance-evidence prototype. It is not certified, not production-hardened, and not a guarantee of AI safety.
 
 Every public claim should map to local evidence, live AWS evidence, or an explicit limitation.
 
@@ -24,24 +24,28 @@ This checklist tracks evidence maturity, not personal goals or certification sta
 
 | Item | Status | Spine | Evidence status |
 |---|---:|---|---|
-| Claim/evidence matrix | In progress | Spine A | Local documentation |
-| Non-claim scanner | In progress | Spine A | Local enforcement |
+| Claim/evidence matrix | Complete | Spine A | Versioned local documentation and claim boundaries |
+| Non-claim scanner | Complete | Spine A | Local enforcement with exact-path quarantine |
 | Receipt reproducibility harness | Complete | Spine B | Local tests and fixtures |
 | Malicious receipt corpus | Complete | Spine B | Local negative tests |
+| Standalone verifier and replay | Complete locally | Spine B | Built-ins-only verifier, differential agreement, manifest replay; no external audit |
 | Evidence bundle schema, sanitizer, and local gate | Complete | Spine C local | L2 schema plus L3 local validator tests; synthetic fixture only |
 | Live AWS evidence bundles | Not complete | Spine C | Requires bounded live AWS window |
-| Key lifecycle and rotation protocol | Not complete | Spine D | Requires design and AWS validation |
-| Guardrail observation schema | Not complete | Spine E | Requires schema and examples |
-| CC-Framework correlation analysis | Not complete | Spine F | Requires integration evidence |
-| Human review workflow | Not complete | Spine H | Requires workflow and evidence trail |
-| Incident/failure reporting workflow | Not complete | Spine H | Requires workflow and examples |
-| Risk register | In progress | Spine A | Local documentation |
-| Control mapping to NIST AI RMF / ISO IEC 42001 | Not complete | Compliance spine | Requires mapping and review |
-| External reviewer instructions | In progress | Spine A | Local documentation |
-| Repeatable deployment evidence | Not complete | Spine C | Requires deploy, smoke, evidence, destroy |
-| Independent verifier implementation | Partial | Spine B | Local verifier exists; independence boundary needs review |
+| Key lifecycle and rotation protocol | Complete locally | Spine D | Epoch/signing policy and runbook tested; live KMS rotation remains AWS-required |
+| Guardrail observation schema | Complete locally | Spine E | Closed schema, examples, privacy rules, and telemetry mapper; no runtime capture |
+| CC-Framework correlation analysis | Complete locally | Spine F | Adapter, co-failure report, Fréchet bounds, and intervals; no live/external integration |
+| Checkpoint/inclusion/witness model | Partial | Spine G | Local schemas and verifier mechanics; no independent witness or immutable anchor |
+| Object Lock retention/denial evidence | Not complete | Spine G / C | Requires approved live AWS evidence window |
+| Human review workflow | Complete locally | Spine H | Schema, false-positive/escalation examples, and linkage tests; no operating queue |
+| Incident/failure reporting workflow | Complete locally | Spine H | Schema, synthetic incident, and audit linkage; no operational response evidence |
+| Risk register | Complete | Spine A | Local risk inventory with residual evidence gaps |
+| Control mapping to NIST AI RMF / ISO IEC 42001 | Complete locally | Compliance spine | Candidate evidence crosswalk; not conformity or certification |
+| External reviewer instructions | Complete | Spine A | Local commands, rejection rules, and AWS boundaries |
+| Repeatable deployment evidence | Local preparation complete | Spine C | Schema, sanitizer, synth gate, and runbooks; live deploy/destroy bundle absent |
 
 A completed item means the repository contains evidence for that narrow item. It does not mean Ghost Ark is certified, production-hardened, or safe for unsupervised deployment.
+
+`Complete locally` means the schema, deterministic primitive, examples, and focused tests exist in this repository. It does not mean the corresponding AWS service, human process, external witness, or organizational control operates in a deployed environment.
 
 ## Verify A Receipt In 60 Seconds
 
@@ -133,19 +137,30 @@ A PASS verdict means internal consistency under Ghost-Ark verifier rules for the
 
 Use this mode for zero-cost local research and reviewer checks.
 
+```bash
 npm ci
 npm run lint
 npm run validate:claims
 npm test
 npm run spine:a
+```
+
+Run every locally implementable checklist gate, including CDK synthesis but no deployment:
+
+```bash
+npm run checklist:local
+```
 
 Local validation can check schemas, canonicalization, fixtures, receipt verification, policy logic, scanner discipline, and unit/integration behavior. It cannot prove live AWS behavior.
 
-AWS Synth Validation
+## AWS Synth Validation
 
 Use this mode to check generated infrastructure templates without deployment.
+
+```bash
 npx cdk synth
 npm test
+```
 
 CDK synthesis does not create live infrastructure and does not prove runtime behavior. It is useful for template review, IAM shape inspection, and pre-deployment validation.
 
