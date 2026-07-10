@@ -12,8 +12,9 @@ import type { EvidenceDoc, VerifierBadges } from "../../../../mockData";
  */
 
 const VERDICT_COPY = {
-  verified: { label: "VERIFIED", tone: "ok", blurb: "All critical checks recomputed and passed." },
+  verified: { label: "VERIFIED", tone: "ok", blurb: "Every critical check was recomputed and passed." },
   compromised: { label: "COMPROMISED SEAM", tone: "bad", blurb: "The receipt is self-reported as issued, but a critical check failed." },
+  incomplete: { label: "INCOMPLETE", tone: "muted", blurb: "Not verified — one or more critical checks were not evaluated." },
   documentation_only: { label: "DOCUMENTATION ONLY", tone: "muted", blurb: "No verifiable receipt backs this row." },
 } as const;
 
@@ -38,6 +39,17 @@ export function VerifiedReceiptPanel(props: {
           <div className="vfp-k">Failed checks the shipped view hides</div>
           <ul>
             {info.failing.map((check) => (
+              <li key={check.key}>{check.label}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {info.unevaluated.length > 0 ? (
+        <div className="vfp-failing">
+          <div className="vfp-k">Critical checks not evaluated</div>
+          <ul>
+            {info.unevaluated.map((check) => (
               <li key={check.key}>{check.label}</li>
             ))}
           </ul>

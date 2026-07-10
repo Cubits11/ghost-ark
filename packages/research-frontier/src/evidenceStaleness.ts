@@ -141,7 +141,9 @@ export function evaluateEvidenceStanding(input: {
   }
 
   for (const event of events) {
-    if (!(event.kind in KIND_TO_STANDING)) {
+    // hasOwnProperty, not the `in` operator: `in` walks the prototype chain, so
+    // "toString"/"constructor"/"__proto__" would bypass this guard and fail OPEN.
+    if (!Object.prototype.hasOwnProperty.call(KIND_TO_STANDING, event.kind)) {
       throw new Error(`Unsupported downgrade kind: ${String(event.kind)}`);
     }
     if (typeof event.reason !== "string" || event.reason.length === 0) {
@@ -150,13 +152,21 @@ export function evaluateEvidenceStanding(input: {
     if (typeof event.source !== "string" || event.source.length === 0) {
       throw new Error("Every downgrade event requires a provenance source");
     }
+    if (event.ledgerIndex !== undefined && (!Number.isSafeInteger(event.ledgerIndex) || event.ledgerIndex < 0)) {
+      throw new Error("Downgrade event ledgerIndex must be a non-negative safe integer when present");
+    }
   }
 
+  // Total order over events so the emitted trail is fully deterministic — not
+  // only the final standing. Ties on (rank, kind, source) are broken by reason
+  // then ledgerIndex, so two events differing only in reason cannot reorder.
   const ordered = [...events].sort((a, b) => {
     const rankDelta = STANDING_RANK[KIND_TO_STANDING[a.kind]] - STANDING_RANK[KIND_TO_STANDING[b.kind]];
     if (rankDelta !== 0) return rankDelta;
     if (a.kind !== b.kind) return a.kind < b.kind ? -1 : 1;
-    return a.source < b.source ? -1 : a.source > b.source ? 1 : 0;
+    if (a.source !== b.source) return a.source < b.source ? -1 : 1;
+    if (a.reason !== b.reason) return a.reason < b.reason ? -1 : 1;
+    return (a.ledgerIndex ?? -1) - (b.ledgerIndex ?? -1);
   });
 
   let standing: EvidenceStanding = "current";
