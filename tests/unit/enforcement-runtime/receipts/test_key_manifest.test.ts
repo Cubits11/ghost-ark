@@ -192,4 +192,37 @@ describe("key transparency manifest verification", () => {
       expect(verifyKeyManifestSigningAuthorization({ manifest, ...request })).toMatchObject({ passed: false });
     }
   });
+
+  it("rejects manifest downgrade and undeclared-field smuggling", () => {
+    const valid: KeyManifest = {
+      schemaVersion: "ghost.key_manifest.v1",
+      generatedAt: "2026-07-08T00:00:00.000Z",
+      keys: [
+        {
+          keyId: signer.keyId,
+          algorithm: signer.algorithm,
+          validFrom: "2026-07-01T00:00:00.000Z",
+          status: "ACTIVE"
+        }
+      ]
+    };
+    const downgraded = { ...valid, schemaVersion: "ghost.key_manifest.v0" };
+    const smuggledTopLevel = { ...valid, signingOverride: true };
+    const smuggledEntry = {
+      ...valid,
+      keys: [{ ...valid.keys[0], allowDeprecatedSigning: true }]
+    };
+
+    expect(() => validateKeyManifest(downgraded)).toThrow(/schemaVersion/u);
+    expect(() => validateKeyManifest(smuggledTopLevel)).toThrow(/unrecognized_key/u);
+    expect(() => validateKeyManifest(smuggledEntry)).toThrow(/unrecognized_key/u);
+    expect(
+      verifyKeyManifestSigningAuthorization({
+        manifest: smuggledTopLevel as KeyManifest,
+        keyId: signer.keyId,
+        algorithm: signer.algorithm,
+        signingTime: "2026-07-08T12:00:00.000Z"
+      })
+    ).toMatchObject({ passed: false });
+  });
 });
