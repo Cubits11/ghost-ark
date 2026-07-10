@@ -1,0 +1,50 @@
+{
+  "schema_version": "ghostark.research.human_review_decision.v1",
+  "decision_id": "hrd_fixture_false_positive_001",
+  "queue_item_id": "hrq_fixture_false_positive_001",
+  "decided_at": "2026-07-09T13:20:00.000Z",
+  "reviewer": {
+    "reviewer_role": "governance_reviewer",
+    "reviewer_id_hash": "hmac-sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "disposition": "false_positive",
+  "rationale_codes": ["known_calibration_edge_case", "no_policy_violation_observed"],
+  "rationale_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "receipt_references": [
+    {
+      "receipt_id": "rct_292264b449c853481a45c4df9ceff87641f53cf0fc982dc013987f9ab696ba15",
+      "receipt_digest": "sha256:67bad9140ee958eda4639cefe7a3ef84645a748db1005e6a40bf3368aa94c812"
+    }
+  ],
+  "evidence_references": [
+    {
+      "artifact_type": "review_queue_item",
+      "artifact_id": "hrq_fixture_false_positive_001",
+      "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "artifact_type": "review_attachment",
+      "artifact_id": "attachment_fixture_redacted_context_001",
+      "artifact_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    }
+  ],
+  "escalation": {
+    "required": false,
+    "incident_id": null,
+    "reason_code": null
+  },
+  "privacy": {
+    "raw_content_included": false,
+    "notes_storage": "digest_only",
+    "redaction_policy_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "audit": {
+    "event_id": "audit_false_positive_decision_001",
+    "event_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "previous_event_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "non_claims": [
+    "False positive is the recorded reviewer disposition for this fixture, not independently established ground truth.",
+    "This fixture does not demonstrate reviewer availability, correctness, independence, or service-level performance."
+  ]
+}

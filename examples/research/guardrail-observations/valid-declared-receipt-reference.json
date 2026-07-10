@@ -1,0 +1,52 @@
+{
+  "schema_version": "ghostark.research.guardrail_observation.v1",
+  "observation_id": "gobs_fixture_reference_001",
+  "observed_at": "2026-07-09T12:05:00.000Z",
+  "scope": {
+    "tenant_id_hash": "hmac-sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "request_id_hash": "hmac-sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "guardrail": {
+    "guardrail_id": "toxicity-filter",
+    "guardrail_version": "fixture-v1",
+    "evaluation_stage": "post_model"
+  },
+  "result": {
+    "outcome": "pass",
+    "action": "allow",
+    "scores": [
+      {
+        "name": "toxicity_score",
+        "value": 0.12,
+        "lower_bound": 0,
+        "upper_bound": 1
+      }
+    ],
+    "findings": []
+  },
+  "content_evidence": {
+    "input_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "output_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "raw_content_included": false
+  },
+  "privacy": {
+    "classification": "pseudonymous",
+    "redaction_applied": true,
+    "redaction_policy_id": "guardrail-observation-export-v1",
+    "redaction_policy_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "suppressed_fields": ["prompt", "completion", "user_identifier"]
+  },
+  "receipt_binding": {
+    "status": "declared_reference",
+    "receipt_id": "rct_292264b449c853481a45c4df9ceff87641f53cf0fc982dc013987f9ab696ba15",
+    "receipt_digest": "sha256:67bad9140ee958eda4639cefe7a3ef84645a748db1005e6a40bf3368aa94c812"
+  },
+  "telemetry": {
+    "trace_id": null,
+    "span_id": null
+  },
+  "non_claims": [
+    "The receipt identifier and digest are a declared fixture reference, not a verified runtime binding.",
+    "Schema validation does not verify the referenced receipt, guardrail execution, or application integration."
+  ]
+}

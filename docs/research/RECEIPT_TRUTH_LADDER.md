@@ -180,11 +180,13 @@ Does not support:
 
 Ghost-Ark status:
 
-- partially achieved with the stdlib-only Python verifier skeleton for receipt id, digest, strict envelope, and dev-only HMAC checks
+- achieved for the bounded single-receipt fixture and malicious-corpus scope by `verifiers/node/ghost_receipt_verify.mjs`, which imports Node built-ins only and verifies strict schema/envelope rules, receipt identity, digest binding, tenant expectation, dev-only HMAC, and both documented RSA-PSS digest treatments
+- separately exercised by the stdlib-only Python verifier when Python is available
+- not externally reviewed and not parity-complete for key manifests, receipt chains, checkpoints, attestations, or ledger completeness
 
-Artifact required to advance:
+Artifact required to strengthen this level:
 
-- full independent verifier parity, including RSA-PSS verification and key-manifest checks
+- external review or reimplementation plus parity tests for key manifests, chains, checkpoints, and inclusion proofs
 
 ## Level 7 — Cloud Evidence-Bound Receipt
 
