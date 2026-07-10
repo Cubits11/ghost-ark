@@ -323,14 +323,46 @@ export function analyzeCcBinaryCohort(input: {
   if (cohortIds.size !== 1) {
     throw new Error("All CC binary observations must belong to one cohort");
   }
+  const stationarityScopes = new Set(
+    input.observations.map((observation) => observation.copula_stationarity.scope)
+  );
+  if (stationarityScopes.size !== 1) {
+    throw new Error("All CC binary observations in a cohort must use one stationarity scope");
+  }
   const variableIds = [...new Set(input.observations.map((observation) => observation.variable_id))].sort();
   if (variableIds.length < 2) {
     throw new Error("CC correlation analysis requires at least two variables");
   }
 
+  for (const variableId of variableIds) {
+    const members = input.observations.filter((observation) => observation.variable_id === variableId);
+    const first = members[0];
+    for (const member of members.slice(1)) {
+      if (
+        member.discretization_rule_id !== first.discretization_rule_id ||
+        member.discretization_rule_digest !== first.discretization_rule_digest ||
+        member.score_name !== first.score_name
+      ) {
+        throw new Error(`Variable ${variableId} mixes discretization rule or score identities within one cohort`);
+      }
+    }
+  }
+
   const executions = new Map<string, Map<string, CcBinaryObservation>>();
   for (const observation of input.observations) {
     const variables = executions.get(observation.execution_receipt_id) ?? new Map<string, CcBinaryObservation>();
+    const existing = variables.values().next().value as CcBinaryObservation | undefined;
+    if (
+      existing !== undefined &&
+      (existing.execution_receipt_digest === undefined ||
+        observation.execution_receipt_digest === undefined ||
+        existing.execution_receipt_digest !== observation.execution_receipt_digest ||
+        existing.parent_trace_digest !== observation.parent_trace_digest)
+    ) {
+      throw new Error(
+        `Execution ${observation.execution_receipt_id} has inconsistent or missing receipt-digest lineage`
+      );
+    }
     if (variables.has(observation.variable_id)) {
       throw new Error(
         `Duplicate variable ${observation.variable_id} for execution ${observation.execution_receipt_id}`
@@ -401,7 +433,6 @@ export function analyzeCcBinaryCohort(input: {
     }
   }
 
-  const stationarityScopes = [...new Set(input.observations.map((item) => item.copula_stationarity.scope))].sort();
   return {
     schema_version: "ghost.cc_correlation_report.v1",
     generated_at: input.generatedAt,
@@ -412,7 +443,7 @@ export function analyzeCcBinaryCohort(input: {
     dependence_model: {
       kind: "empirical-pairwise",
       missingness_policy: "complete-grid-required",
-      stationarity_declaration: stationarityScopes.join("; ")
+      stationarity_declaration: [...stationarityScopes][0]
     },
     warnings: [
       "Stationarity is declared by the producer and is not statistically established by this report.",

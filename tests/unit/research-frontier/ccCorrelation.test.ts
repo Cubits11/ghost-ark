@@ -171,4 +171,37 @@ describe("CC correlation adapter", () => {
       })
     ).toThrow(/missing variables/u);
   });
+
+  it("rejects inconsistent receipt lineage, mixed rules, and mixed stationarity scopes", () => {
+    const cohort = buildCohort();
+    const inconsistentDigest = structuredClone(cohort);
+    inconsistentDigest[1].execution_receipt_digest = digest("f");
+    expect(() =>
+      analyzeCcBinaryCohort({
+        observations: inconsistentDigest,
+        generatedAt: "2026-07-09T12:00:00.000Z"
+      })
+    ).toThrow(/receipt-digest lineage/u);
+
+    const missingDigest = structuredClone(cohort);
+    delete missingDigest[1].execution_receipt_digest;
+    expect(() =>
+      analyzeCcBinaryCohort({
+        observations: missingDigest,
+        generatedAt: "2026-07-09T12:00:00.000Z"
+      })
+    ).toThrow(/receipt-digest lineage/u);
+
+    const mixedRule = structuredClone(cohort);
+    mixedRule[2].discretization_rule_digest = digest("e");
+    expect(() =>
+      analyzeCcBinaryCohort({ observations: mixedRule, generatedAt: "2026-07-09T12:00:00.000Z" })
+    ).toThrow(/mixes discretization rule/u);
+
+    const mixedScope = structuredClone(cohort);
+    mixedScope[1].copula_stationarity.scope = "different scope";
+    expect(() =>
+      analyzeCcBinaryCohort({ observations: mixedScope, generatedAt: "2026-07-09T12:00:00.000Z" })
+    ).toThrow(/one stationarity scope/u);
+  });
 });
