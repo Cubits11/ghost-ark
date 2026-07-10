@@ -3,6 +3,7 @@ import { ReceiptPanel } from "./pages/components/features/receipts/ReceiptPanel"
 import { LineageTrace } from "./pages/components/features/lineage/LineageTrace";
 import { GovernanceSummary } from "./pages/components/features/governance/GovernanceSummary";
 import { ClaimsTable } from "./pages/components/features/claims/ClaimsTable";
+import { VerifiedReceiptPanel } from "./pages/components/features/receipts/VerifiedReceiptPanel";
 import {
   scenarios,
   scenarioOrder,
@@ -10,6 +11,8 @@ import {
   type SeamSeverity,
   type VerifierBadges,
 } from "./mockData";
+
+type ConsoleView = "shipped" | "faithful";
 
 const badgeRows: Array<{ key: keyof VerifierBadges; label: string }> = [
   { key: "digestRecomputed", label: "Digest recomputed" },
@@ -39,7 +42,7 @@ function Badge({ value }: { value: boolean | null }): React.ReactElement {
   );
 }
 
-function ScenarioView({ scenario }: { scenario: Scenario }): React.ReactElement {
+function ScenarioView({ scenario, view }: { scenario: Scenario; view: ConsoleView }): React.ReactElement {
   const { seam } = scenario;
   const hasFailingBadge = badgeRows.some(({ key }) => scenario.badges[key] === false);
 
@@ -108,22 +111,42 @@ function ScenarioView({ scenario }: { scenario: Scenario }): React.ReactElement 
 
       <div className="components">
         <div className="component-note">
-          Below: the shipped console components, unmodified, rendered on this fixture.
+          {view === "faithful"
+            ? "Below: the verifier-faithful receipt — the same fixture, rendered with the verdict and attestation scope the shipped components omit."
+            : "Below: the shipped console components, unmodified — note that a compromised seam still reads as a normal receipt."}
         </div>
-        <div className="component-grid">
-          <div className="card">
-            <ReceiptPanel {...scenario.receipt} />
+        {view === "faithful" ? (
+          <div className="component-grid">
+            <div className="card card-wide">
+              <VerifiedReceiptPanel
+                receipt={scenario.receipt}
+                badges={scenario.badges}
+                evidenceDocs={scenario.evidenceDocs}
+              />
+            </div>
+            <div className="card">
+              <LineageTrace nodes={scenario.lineage.nodes} edges={scenario.lineage.edges} />
+            </div>
+            <div className="card">
+              <GovernanceSummary {...scenario.governance} />
+            </div>
           </div>
-          <div className="card">
-            <LineageTrace nodes={scenario.lineage.nodes} edges={scenario.lineage.edges} />
+        ) : (
+          <div className="component-grid">
+            <div className="card">
+              <ReceiptPanel {...scenario.receipt} />
+            </div>
+            <div className="card">
+              <LineageTrace nodes={scenario.lineage.nodes} edges={scenario.lineage.edges} />
+            </div>
+            <div className="card">
+              <GovernanceSummary {...scenario.governance} />
+            </div>
+            <div className="card card-wide">
+              <ClaimsTable claims={scenario.claims} />
+            </div>
           </div>
-          <div className="card">
-            <GovernanceSummary {...scenario.governance} />
-          </div>
-          <div className="card card-wide">
-            <ClaimsTable claims={scenario.claims} />
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -131,6 +154,7 @@ function ScenarioView({ scenario }: { scenario: Scenario }): React.ReactElement 
 
 export function App(): React.ReactElement {
   const [active, setActive] = useState<Scenario["seam"]["id"]>("A");
+  const [view, setView] = useState<ConsoleView>("faithful");
   const scenario = scenarios[active];
 
   return (
@@ -140,6 +164,24 @@ export function App(): React.ReactElement {
         <div className="brand">Ghost-Ark Console</div>
         <div className="subtitle">
           Adversarial preview harness — the honest core and the compromised seams, side by side
+        </div>
+        <div className="viewtoggle" role="group" aria-label="Render mode">
+          <button
+            type="button"
+            className={view === "shipped" ? "vt vt-active" : "vt"}
+            aria-pressed={view === "shipped"}
+            onClick={() => setView("shipped")}
+          >
+            Shipped view <span className="vt-note">(masks the seam)</span>
+          </button>
+          <button
+            type="button"
+            className={view === "faithful" ? "vt vt-active" : "vt"}
+            aria-pressed={view === "faithful"}
+            onClick={() => setView("faithful")}
+          >
+            Verifier-faithful view <span className="vt-note">(shows the verdict)</span>
+          </button>
         </div>
       </header>
 
@@ -162,7 +204,7 @@ export function App(): React.ReactElement {
       </nav>
 
       <main>
-        <ScenarioView scenario={scenario} />
+        <ScenarioView scenario={scenario} view={view} />
       </main>
 
       <footer className="foot">
@@ -243,6 +285,50 @@ const styles = `
 .card td p { margin: 4px 0 0; opacity: 0.8; }
 
 .foot { margin-top: 28px; padding-top: 14px; border-top: 1px solid rgba(120,130,150,0.3); font-size: 11.5px; opacity: 0.65; }
+
+.viewtoggle { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.vt { cursor: pointer; font: inherit; color: inherit; border: 1px solid rgba(120,130,150,0.4); background: rgba(130,140,160,0.06); border-radius: 6px; padding: 7px 12px; font-size: 13px; }
+.vt:hover { border-color: rgba(120,130,150,0.8); }
+.vt-active { border-color: #2b4c74; background: rgba(43,76,116,0.12); box-shadow: inset 0 -2px 0 #2b4c74; }
+.vt-note { opacity: 0.6; font-size: 11px; }
+.vt:focus-visible { outline: 2px solid #2b4c74; outline-offset: 2px; }
+
+.vfp { border: 1px solid rgba(120,130,150,0.35); border-radius: 8px; padding: 0; overflow: hidden; }
+.vfp-ok { border-color: #1f6e57; }
+.vfp-bad { border-color: #9c3a2c; }
+.vfp-muted { border-color: rgba(120,130,150,0.5); }
+.vfp-banner { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid rgba(120,130,150,0.25); }
+.vfp-ok .vfp-banner { background: rgba(31,110,87,0.12); }
+.vfp-bad .vfp-banner { background: rgba(156,58,44,0.13); }
+.vfp-muted .vfp-banner { background: rgba(130,140,160,0.08); }
+.vfp-verdict { font-family: var(--mono); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; }
+.vfp-ok .vfp-verdict { color: #1f6e57; }
+.vfp-bad .vfp-verdict { color: #9c3a2c; }
+.vfp-muted .vfp-verdict { color: #6a7484; }
+.vfp-blurb { font-size: 12.5px; opacity: 0.8; }
+.vfp-failing { padding: 12px 16px 4px; }
+.vfp-failing ul { margin: 6px 0 8px; padding-left: 18px; font-size: 13px; }
+.vfp-bad .vfp-failing li { color: #9c3a2c; }
+.vfp-k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; opacity: 0.6; }
+.vfp-k-ok { color: #1f6e57; opacity: 0.9; }
+.vfp-k-bad { color: #9c3a2c; opacity: 0.9; }
+.vfp-panel-wrap { padding: 4px 16px 8px; }
+.vfp-panel-wrap h2 { font-size: 15px; margin: 8px 0; }
+.vfp-panel-wrap dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; font-size: 13px; }
+.vfp-panel-wrap dt { opacity: 0.6; } .vfp-panel-wrap dd { margin: 0; word-break: break-all; }
+.vfp-scope { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: rgba(120,130,150,0.25); border-top: 1px solid rgba(120,130,150,0.25); }
+.vfp-scope-col { background: var(--vfp-scope-bg, rgba(255,255,255,0.4)); padding: 12px 16px; }
+.vfp-scope-col ul { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
+.vfp-scope-col li { margin-bottom: 4px; opacity: 0.85; }
+
+@media (prefers-color-scheme: dark) {
+  .vfp-ok .vfp-verdict { color: #4cb392; }
+  .vfp-bad .vfp-verdict { color: #de7766; }
+  .vfp-bad .vfp-failing li { color: #de7766; }
+  .vfp-k-ok { color: #4cb392; } .vfp-k-bad { color: #de7766; }
+  .vfp-scope-col { --vfp-scope-bg: rgba(255,255,255,0.03); }
+  .vt-active { border-color: #82a8d8; box-shadow: inset 0 -2px 0 #82a8d8; }
+}
 
 @media (max-width: 720px) {
   .seam-grid, .component-grid { grid-template-columns: 1fr; }
