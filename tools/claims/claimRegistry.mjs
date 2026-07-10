@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
+import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -16,14 +16,16 @@ import { fileURLToPath } from "node:url";
  *   - a claim asserts an assurance level L_c (a Truth-Ladder rung, 0..10);
  *   - each citation binds an artifact by path + expected sha256 and declares the
  *     level L_a that artifact supports;
- *   - the claim is admissible iff every citation's artifact EXISTS, its bytes
- *     hash to the recorded digest (so you cannot cite-then-mutate), and
- *     L_c <= min(L_a over citations).
+ *   - the claim is admissible iff every citation's artifact EXISTS inside the
+ *     reviewed tree, its bytes hash to the recorded digest (so you cannot
+ *     cite-then-mutate), and L_c <= min(L_a over citations).
  *
  * "Does the evidence entail the claim?" is thereby reduced to an integer
- * comparison over cryptographically-bound artifacts — reproducible and
- * adversary-resistant. It does NOT establish semantic truth; it establishes that
- * a claim does not assert a higher assurance rung than its bound evidence.
+ * comparison over cryptographically-bound artifacts — reproducible and resistant
+ * to cite-then-mutate of a bound artifact. It is NOT resistant to a lying
+ * registry author, who controls the assigned support levels; and it does NOT
+ * establish semantic truth. It establishes only that a claim does not assert a
+ * higher assurance rung than its bound evidence.
  */
 
 export const CLAIM_REGISTRY_SCHEMA_VERSION = "ghost.claim_registry.v1";
@@ -36,7 +38,14 @@ export function computeArtifactDigest(absolutePath) {
 export function checkClaim(claim, rootDir = process.cwd()) {
   const reasons = [];
 
-  if (!claim || typeof claim.id !== "string" || claim.id.length === 0) {
+  // Fail closed on a non-object claim rather than dereferencing null/undefined.
+  if (!claim || typeof claim !== "object" || Array.isArray(claim)) {
+    return { id: "(unnamed)", ok: false, asserts_level: null, supported_level: -1, reasons: ["claim must be a JSON object"] };
+  }
+
+  const rootResolved = resolve(rootDir);
+
+  if (typeof claim.id !== "string" || claim.id.length === 0) {
     reasons.push("claim.id must be a non-empty string");
   }
   if (typeof claim.statement !== "string" || claim.statement.length === 0) {
@@ -56,9 +65,27 @@ export function checkClaim(claim, rootDir = process.cwd()) {
       supported = -1;
       continue;
     }
-    const absolute = resolve(rootDir, cite.path);
-    if (!existsSync(absolute) || !statSync(absolute).isFile()) {
+    const absolute = resolve(rootResolved, cite.path);
+    // Containment: a citation must resolve inside the reviewed tree. Absolute
+    // paths and '../' escapes make admissibility machine-dependent and break the
+    // reproducibility the model rests on.
+    if (absolute !== rootResolved && !absolute.startsWith(rootResolved + sep)) {
+      reasons.push(`cited artifact escapes the reviewed tree: ${cite.path}`);
+      supported = -1;
+      continue;
+    }
+    if (!existsSync(absolute)) {
       reasons.push(`cited artifact does not exist: ${cite.path}`);
+      supported = -1;
+      continue;
+    }
+    if (lstatSync(absolute).isSymbolicLink()) {
+      reasons.push(`cited artifact is a symlink (may escape the tree): ${cite.path}`);
+      supported = -1;
+      continue;
+    }
+    if (!statSync(absolute).isFile()) {
+      reasons.push(`cited artifact is not a regular file: ${cite.path}`);
       supported = -1;
       continue;
     }
@@ -92,9 +119,9 @@ export function checkClaim(claim, rootDir = process.cwd()) {
   }
 
   return {
-    id: typeof claim?.id === "string" ? claim.id : "(unnamed)",
+    id: typeof claim.id === "string" ? claim.id : "(unnamed)",
     ok: reasons.length === 0,
-    asserts_level: claim?.asserts_level ?? null,
+    asserts_level: typeof claim.asserts_level === "number" ? claim.asserts_level : null,
     supported_level: supported,
     reasons,
   };

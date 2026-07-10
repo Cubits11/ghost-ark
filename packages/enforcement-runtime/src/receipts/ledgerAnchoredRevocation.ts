@@ -91,6 +91,11 @@ export interface LedgerAnchoredRevocationResult {
   standing: LedgerAnchoredStanding;
   inclusionIndex: number | null;
   revocationIndex: number | null;
+  /**
+   * Positive-only signal. `true` means a clock-vs-ledger contradiction was
+   * observed; `false` asserts nothing (absence of evidence, not evidence of
+   * absence). It never affects the verdict, which is decided by ledger order.
+   */
   backdatingSuspected: boolean;
   checks: LedgerAnchoredCheck[];
   detail: string;
@@ -129,8 +134,11 @@ export function assertMonotonicLedgerSequence(sequence: LedgerSequence): void {
         epochId: epoch.epochId,
       });
     }
-    if (!/^sha256:[a-f0-9]{64}$/.test(epoch.merkleRoot) && !/^[a-f0-9]{64}$/.test(epoch.merkleRoot)) {
-      throw new ValidationError("Epoch merkleRoot must be a sha256 digest", {
+    // Must be the `sha256:`-prefixed form the checkpoint Merkle functions emit;
+    // a bare-hex root can never equal a computed root, so accepting it would only
+    // convert a real format error into a silent rejected_unprovable.
+    if (!/^sha256:[a-f0-9]{64}$/.test(epoch.merkleRoot)) {
+      throw new ValidationError("Epoch merkleRoot must be a sha256: -prefixed digest", {
         domain: ledgerAnchoredRevocationSchemaVersion,
         epochId: epoch.epochId,
       });

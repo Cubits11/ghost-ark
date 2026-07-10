@@ -72,4 +72,34 @@ describe("evidence staleness lattice", () => {
     const report = evaluateEvidenceStanding({ receiptId: "rct_1" });
     expect(report.non_claims.some((n) => n.toLowerCase().includes("not a probability"))).toBe(true);
   });
+
+  it("fails closed on a prototype-name kind (no `in`-operator fail-open)", () => {
+    for (const bogus of ["toString", "constructor", "__proto__", "hasOwnProperty", "valueOf"]) {
+      expect(() =>
+        evaluateEvidenceStanding({
+          receiptId: "rct_1",
+          events: [{ kind: bogus as unknown as DowngradeEvent["kind"], reason: "x", source: "s" }],
+        }),
+      ).toThrow();
+    }
+  });
+
+  it("emits an order-independent trail for same-kind/same-source ties", () => {
+    const events: DowngradeEvent[] = [
+      { kind: "drift_observed", reason: "reasonA", source: "cloudtrail:abc", ledgerIndex: 1 },
+      { kind: "drift_observed", reason: "reasonB", source: "cloudtrail:abc", ledgerIndex: 2 },
+    ];
+    const a = evaluateEvidenceStanding({ receiptId: "rct_1", events });
+    const b = evaluateEvidenceStanding({ receiptId: "rct_1", events: [...events].reverse() });
+    expect(a).toStrictEqual(b);
+  });
+
+  it("rejects a malformed ledgerIndex", () => {
+    expect(() =>
+      evaluateEvidenceStanding({
+        receiptId: "rct_1",
+        events: [{ kind: "key_revoked", reason: "x", source: "s", ledgerIndex: Number.NaN }],
+      }),
+    ).toThrow();
+  });
 });
