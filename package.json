@@ -33,6 +33,8 @@
     "validate": "npm run lint && npm test && npm run docs:check && npm run claims:check",
     "ghost-verify": "node tools/ghost-verify.mjs",
     "receipt:verify": "ts-node tools/scripts/receiptVerify.ts",
+    "receipt:verify:sample": "npm run ghost-verify -- --receipt examples/sample-receipts/valid-receipt.json --key examples/sample-receipts/public-key.pem --tenant acme-lab",
+    "receipt:verify:corpus": "npx vitest run tests/security/receipt-negative-corpus.test.ts",
     "receipt:checkpoint": "ts-node tools/scripts/checkpointReceipts.ts",
     "receipt-proof:local": "ts-node tools/scripts/createLocalReceiptProof.ts",
     "policy:counterexamples": "ts-node tools/scripts/verifyTenantPolicyCounterexamples.ts",
@@ -41,7 +43,8 @@
     "supervised:aws-runtime-validation": "ts-node tools/scripts/supervisedAwsRuntimeValidation.ts",
     "research:witness-bundle": "ts-node tools/scripts/createResearchWitnessBundle.ts",
     "scan:claims": "node tools/research/check-forbidden-claims.mjs",
-    "spine:a": "npm run lint && npm run validate:claims && npm run scan:claims && npm test && npm run docs:check"
+    "spine:a": "npm run lint && npm run validate:claims && npm run scan:claims && npm test && npm run docs:check",
+    "spine:b": "npm run spine:a && npm run receipt:verify:sample && npm run receipt:verify:corpus"
   },
   "dependencies": {
     "@aws-sdk/client-athena": "^3.1080.0",
