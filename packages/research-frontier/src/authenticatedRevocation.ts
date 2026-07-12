@@ -30,11 +30,14 @@
  *   verification; fabricated positions fail Merkle inclusion; two unrelated trees
  *   fail the consistency check.
  *
- * Residual assumption (NOT defended here — see ASSUMPTIONS / Phase II): a
- * colluding or equivocating witness quorum that signs a split view of the log can
- * still lie about order. Defeating that requires checkpoint gossip + fork
- * detection + split-view proofs (witnessFraudProof.ts), tracked as
- * A_WITNESS_QUORUM_HONEST.
+ * Residual assumption (PARTIALLY enforced — see ASSUMPTIONS): a colluding or
+ * equivocating witness quorum that signs a split view of the log can lie about
+ * order. This module now runs single-witness split-view detection
+ * (witnessFraudProof.ts / detectSplitView) over the decision checkpoints plus an
+ * optional gossip pool and fails closed (`rejected_equivocation`) on a detectable
+ * fork, emitting an offline-verifiable fraud proof. It does NOT yet catch a fork
+ * co-signed by DIFFERENT witnesses across the two views, nor a fork at different
+ * tree sizes — so A_WITNESS_QUORUM_HONEST is weakened, not eliminated.
  *
  * NON-CLAIM: binds revocation to authenticated append-only ledger position under
  * the honest-witness-quorum assumption. Does not prove key custody, semantic
@@ -56,6 +59,7 @@ import {
   type WitnessCheckpoint,
   type WitnessKeyManifest,
 } from "./witnessCheckpoint";
+import { detectSplitView, type SplitViewFraudProof } from "./witnessFraudProof";
 
 // --- Maturity / assumption metadata (Phase III/IV convention) --------------
 
@@ -162,13 +166,20 @@ export interface AuthenticatedRevocationInput {
    * when they use the same checkpoint, pass a trivial equal-size proof.
    */
   consistency: MerkleConsistencyProof;
+  /**
+   * Optional gossip pool of other observed checkpoints for the same log. Scanned
+   * (together with the decision checkpoints) for single-witness equivocation; a
+   * detectable fork fails the decision closed with `rejected_equivocation`.
+   */
+  observedCheckpoints?: WitnessCheckpoint[];
 }
 
 export type AuthenticatedRevocationStanding =
   | "valid_pre_revocation"
   | "rejected_post_revocation"
   | "rejected_unauthenticated"
-  | "rejected_unprovable";
+  | "rejected_unprovable"
+  | "rejected_equivocation";
 
 export interface AuthenticatedRevocationCheck {
   name: string;
@@ -182,6 +193,11 @@ export interface AuthenticatedRevocationResult {
   standing: AuthenticatedRevocationStanding;
   receiptLeafIndex: number | null;
   revocationLeafIndex: number | null;
+  /**
+   * Offline-verifiable single-witness split-view proof when the checkpoint set
+   * revealed a fork; null otherwise. Present regardless of verdict.
+   */
+  equivocationProof: SplitViewFraudProof | null;
   /**
    * Positive-only signal. `true` means a clock-vs-ledger contradiction was
    * observed; `false` asserts nothing. It never affects the verdict.
@@ -208,6 +224,7 @@ function reject(
     standing,
     receiptLeafIndex: null,
     revocationLeafIndex: null,
+    equivocationProof: null,
     backdatingSuspected: false,
     checks,
     detail,
@@ -323,6 +340,26 @@ export function enforceAuthenticatedLedgerRevocation(
     detail: `Both checkpoints meet quorum ${input.witnessQuorum} (inclusion ${inclusionWitnesses}, revocation ${revocationWitnesses}).`,
   });
 
+  // 3b. Equivocation / split-view: if any witness signed two different roots for
+  //     the same (log_id, tree_size), the log has forked and its order cannot be
+  //     trusted. Fail closed with an offline-verifiable fraud proof. This checks
+  //     (rather than assumes) the honest-quorum property for the detectable case.
+  const equivocationProof = detectSplitView(
+    [inclusionCp, revocationCp, ...(input.observedCheckpoints ?? [])],
+    input.trustRoot,
+  );
+  if (equivocationProof !== null && equivocationProof.log_id === inclusionCp.log_id) {
+    checks.push({
+      name: "no_equivocation",
+      passed: false,
+      detail: `Witness ${equivocationProof.witness_id} equivocated at tree_size ${equivocationProof.tree_size} on log ${equivocationProof.log_id}.`,
+    });
+    return reject("rejected_equivocation", "Log equivocation detected; authenticated order is untrustworthy.", checks, {
+      equivocationProof,
+    });
+  }
+  checks.push({ name: "no_equivocation", passed: true, detail: "No single-witness split view detected in the checkpoint set." });
+
   // 4. Receipt inclusion proof against the (now authenticated) inclusion root.
   const receiptIncluded =
     input.inclusion.proof.root_hash === inclusionCp.root_hash &&
@@ -426,6 +463,7 @@ export function enforceAuthenticatedLedgerRevocation(
     standing: pre ? "valid_pre_revocation" : "rejected_post_revocation",
     receiptLeafIndex,
     revocationLeafIndex,
+    equivocationProof: null,
     backdatingSuspected,
     checks,
     detail: pre
