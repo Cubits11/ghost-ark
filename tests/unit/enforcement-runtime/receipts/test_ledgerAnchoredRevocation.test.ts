@@ -146,3 +146,42 @@ describe("ledger-anchored revocation", () => {
     expect(() => assertMonotonicLedgerSequence(bad)).toThrow();
   });
 });
+
+// CHARACTERIZATION TEST (exploit E1 — fabricated ledger bypass).
+//
+// This documents WHY enforceLedgerAnchoredRevocation is NON-AUTHORITATIVE: its
+// `sequence` argument is unauthenticated, so a caller who controls no keys can
+// still mint a `valid_pre_revocation` verdict. This is expected, checked-in
+// evidence of the weakness — NOT an endorsement. The authenticated replacement
+// (enforceAuthenticatedLedgerRevocation, research-frontier) rejects the same
+// attack as `rejected_unauthenticated`.
+describe("ledger-anchored revocation — E1 fabricated-ledger weakness (characterization)", () => {
+  it("accepts a fully fabricated sequence, proving ordering is caller-controlled", () => {
+    // A since-revoked key holder mints a fresh receipt (its chain-head leaf) and
+    // fabricates an entire ledger around it: an "inclusion" epoch at a low index
+    // holding the attacker's own tree root, and a "revocation" epoch at a higher
+    // index. Nothing here is signed or witnessed.
+    const attackerLeaf: ReceiptChainHeadLeaf = { tenantId: "attacker", headHash: "sha256:" + "7".repeat(64) };
+    const forgedRoot = merkleRootForLeaves([attackerLeaf]);
+    const forgedProof = buildMerkleInclusionProof([attackerLeaf], attackerLeaf);
+    const fabricated: LedgerSequence = {
+      logId: "totally-made-up-log",
+      epochs: [
+        { epochId: "FAKE_INCL", index: 10, createdAt: "2001-01-01T00:00:00Z", merkleRoot: forgedRoot },
+        { epochId: "FAKE_REVOC", index: 20, createdAt: "2001-01-02T00:00:00Z", merkleRoot: "sha256:" + "3".repeat(64) },
+      ],
+    };
+
+    const result = enforceLedgerAnchoredRevocation({
+      keyId: KEY,
+      inclusionEpochId: "FAKE_INCL",
+      inclusionProof: forgedProof,
+      sequence: fabricated,
+      revocation: { keyId: KEY, revocationEpochId: "FAKE_REVOC" },
+    });
+
+    // The unauthenticated path is fooled. This is the defect, made executable.
+    expect(result.verdict).toBe(true);
+    expect(result.standing).toBe("valid_pre_revocation");
+  });
+});
