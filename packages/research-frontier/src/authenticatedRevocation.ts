@@ -59,7 +59,12 @@ import {
   type WitnessCheckpoint,
   type WitnessKeyManifest,
 } from "./witnessCheckpoint";
-import { detectSplitView, type SplitViewFraudProof } from "./witnessFraudProof";
+import {
+  detectFederationSplitView,
+  detectSplitView,
+  type FederationSplitViewProof,
+  type SplitViewFraudProof,
+} from "./witnessFraudProof";
 
 // --- Maturity / assumption metadata (Phase III/IV convention) --------------
 
@@ -199,6 +204,12 @@ export interface AuthenticatedRevocationResult {
    */
   equivocationProof: SplitViewFraudProof | null;
   /**
+   * Offline-verifiable federation-level (disjoint-signer) split-view proof when
+   * two quorum-signed conflicting heads at the same size were observed but no
+   * single witness was guilty; null otherwise.
+   */
+  federationEquivocationProof: FederationSplitViewProof | null;
+  /**
    * Positive-only signal. `true` means a clock-vs-ledger contradiction was
    * observed; `false` asserts nothing. It never affects the verdict.
    */
@@ -225,6 +236,7 @@ function reject(
     receiptLeafIndex: null,
     revocationLeafIndex: null,
     equivocationProof: null,
+    federationEquivocationProof: null,
     backdatingSuspected: false,
     checks,
     detail,
@@ -344,21 +356,32 @@ export function enforceAuthenticatedLedgerRevocation(
   //     the same (log_id, tree_size), the log has forked and its order cannot be
   //     trusted. Fail closed with an offline-verifiable fraud proof. This checks
   //     (rather than assumes) the honest-quorum property for the detectable case.
-  const equivocationProof = detectSplitView(
-    [inclusionCp, revocationCp, ...(input.observedCheckpoints ?? [])],
-    input.trustRoot,
-  );
-  if (equivocationProof !== null && equivocationProof.log_id === inclusionCp.log_id) {
+  const checkpointSet = [inclusionCp, revocationCp, ...(input.observedCheckpoints ?? [])];
+  // Prefer the single-witness proof (stronger attribution); fall back to the
+  // federation-level proof (disjoint signers, no single guilty witness).
+  const singleWitnessProof = detectSplitView(checkpointSet, input.trustRoot);
+  if (singleWitnessProof !== null && singleWitnessProof.log_id === inclusionCp.log_id) {
     checks.push({
       name: "no_equivocation",
       passed: false,
-      detail: `Witness ${equivocationProof.witness_id} equivocated at tree_size ${equivocationProof.tree_size} on log ${equivocationProof.log_id}.`,
+      detail: `Witness ${singleWitnessProof.witness_id} equivocated at tree_size ${singleWitnessProof.tree_size} on log ${singleWitnessProof.log_id}.`,
     });
-    return reject("rejected_equivocation", "Log equivocation detected; authenticated order is untrustworthy.", checks, {
-      equivocationProof,
+    return reject("rejected_equivocation", "Single-witness log equivocation detected; authenticated order is untrustworthy.", checks, {
+      equivocationProof: singleWitnessProof,
     });
   }
-  checks.push({ name: "no_equivocation", passed: true, detail: "No single-witness split view detected in the checkpoint set." });
+  const federationProof = detectFederationSplitView(checkpointSet, input.trustRoot, input.witnessQuorum);
+  if (federationProof !== null && federationProof.log_id === inclusionCp.log_id) {
+    checks.push({
+      name: "no_equivocation",
+      passed: false,
+      detail: `Federation served conflicting quorum-signed heads at tree_size ${federationProof.tree_size} on log ${federationProof.log_id}.`,
+    });
+    return reject("rejected_equivocation", "Federation-level log equivocation detected; authenticated order is untrustworthy.", checks, {
+      federationEquivocationProof: federationProof,
+    });
+  }
+  checks.push({ name: "no_equivocation", passed: true, detail: "No single-witness or federation split view detected in the checkpoint set." });
 
   // 4. Receipt inclusion proof against the (now authenticated) inclusion root.
   const receiptIncluded =
@@ -464,6 +487,7 @@ export function enforceAuthenticatedLedgerRevocation(
     receiptLeafIndex,
     revocationLeafIndex,
     equivocationProof: null,
+    federationEquivocationProof: null,
     backdatingSuspected,
     checks,
     detail: pre

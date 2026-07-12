@@ -17,7 +17,7 @@
     },
     "A_WITNESS_QUORUM_HONEST": {
       "status": "PARTIAL",
-      "rationale": "Single-witness split-view detection is wired into the authenticated decision; multi-witness (disjoint-signer) and different-tree-size forks remain undefended."
+      "rationale": "Single-witness (F1) and federation-level disjoint-signer (F2) same-size split views are detected and rejected offline; different-size history rewrites touching a decision's own heads fail via the required consistency proof (F3). Residual: forks among checkpoints outside the supplied set need external gossip monitoring. See docs/research/WITNESS_FORK_TAXONOMY.md."
     },
     "A_APPEND_ONLY_LOG": {
       "status": "PARTIAL",

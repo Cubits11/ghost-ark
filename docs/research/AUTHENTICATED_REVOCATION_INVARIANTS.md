@@ -107,17 +107,18 @@ INV-6 (timestamp non-influence). The self-reported timestamp affects only
 
 ## 7. Undefended cases and impossibility boundary (honest limits)
 
-- `A_WITNESS_QUORUM_HONEST` is now **partially enforced** (Phase II). The decision
-  runs `detectSplitView` (`witnessFraudProof.ts`) over the two decision
-  checkpoints plus an optional gossip pool (`observedCheckpoints`) and fails
-  closed with `rejected_equivocation` — attaching an offline-verifiable
-  `SplitViewFraudProof` — when a **single witness** signed two different roots for
-  the same `(log_id, tree_size)`. This checks, rather than assumes, the honest
-  property for the detectable case.
-- Still undefended (residual `A_WITNESS_QUORUM_HONEST`): a split view co-signed by
-  **different** witnesses across the two views (disjoint signer sets), and a fork
-  at **different** tree sizes. Closing these needs cross-witness gossip
-  reconciliation and a broader fork taxonomy — remaining Phase II work.
+- `A_WITNESS_QUORUM_HONEST` is now **partially enforced** (Phase II). Over the two
+  decision checkpoints plus an optional gossip pool (`observedCheckpoints`), the
+  decision fails closed `rejected_equivocation` with an offline-verifiable proof
+  for both **single-witness** forks (`detectSplitView` → `SplitViewFraudProof`,
+  field `equivocationProof`) and **federation-level disjoint-signer** forks
+  (`detectFederationSplitView` → `FederationSplitViewProof`, field
+  `federationEquivocationProof`). A different-tree-size rewrite touching a decision
+  head already fails via the required consistency proof.
+- Residual (why `A_WITNESS_QUORUM_HONEST` stays PARTIAL, not HELD): forks among
+  checkpoints outside the supplied set are invisible to a single decision — that
+  is a gossip-completeness property needing external monitoring. Full taxonomy:
+  `docs/research/WITNESS_FORK_TAXONOMY.md`.
 - It does not prove key custody, semantic correctness of the model output, or the
   authenticity of the trust-root manifest itself (delivered out-of-band).
 
