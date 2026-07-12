@@ -102,15 +102,22 @@ INV-6 (timestamp non-influence). The self-reported timestamp affects only
 | INV-3: cross-log / broken consistency fail closed | same file — different-log and non-extension cases |
 | INV-4: wrong-key revocation record fails closed | same file — other-key record case |
 | INV-6: timestamp non-influence | same file — with/without backdated timestamp |
+| Phase II: gossiped fork ⇒ `rejected_equivocation` + verifiable proof | same file — "Phase II equivocation detection" |
 | Old path weakness is real (justifies deprecation) | `tests/unit/enforcement-runtime/receipts/test_ledgerAnchoredRevocation.test.ts` — E1 characterization |
 
 ## 7. Undefended cases and impossibility boundary (honest limits)
 
-- This module does **not** defend against a colluding or equivocating witness
-  quorum (`A_WITNESS_QUORUM_HONEST`). A quorum that signs two different roots for
-  the same `(log_id, tree_size)` can lie about order. Detecting that requires
-  checkpoint gossip + fork detection + split-view proofs
-  (`witnessFraudProof.ts`), which is Phase II and is not wired here.
+- `A_WITNESS_QUORUM_HONEST` is now **partially enforced** (Phase II). The decision
+  runs `detectSplitView` (`witnessFraudProof.ts`) over the two decision
+  checkpoints plus an optional gossip pool (`observedCheckpoints`) and fails
+  closed with `rejected_equivocation` — attaching an offline-verifiable
+  `SplitViewFraudProof` — when a **single witness** signed two different roots for
+  the same `(log_id, tree_size)`. This checks, rather than assumes, the honest
+  property for the detectable case.
+- Still undefended (residual `A_WITNESS_QUORUM_HONEST`): a split view co-signed by
+  **different** witnesses across the two views (disjoint signer sets), and a fork
+  at **different** tree sizes. Closing these needs cross-witness gossip
+  reconciliation and a broader fork taxonomy — remaining Phase II work.
 - It does not prove key custody, semantic correctness of the model output, or the
   authenticity of the trust-root manifest itself (delivered out-of-band).
 
