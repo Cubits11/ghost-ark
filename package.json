@@ -28,6 +28,7 @@
     "validate:claims": "node tools/research/check-forbidden-claims.mjs",
     "validate:fast": "npm run test:research && npm run validate:claims",
     "claims:check": "npm run validate:claims",
+    "assumptions": "node tools/assumptions/check-assumptions.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "validate": "npm run lint && npm test && npm run docs:check && npm run claims:check",

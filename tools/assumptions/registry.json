@@ -1,0 +1,31 @@
+{
+  "schema_version": "ghostark.assumptions.registry.v1",
+  "generated_at": "2026-07-11T00:00:00Z",
+  "lattice": {
+    "maturity": ["SYNTH_ONLY", "RESEARCH", "PRODUCTION"],
+    "assumption_status": ["UNMET", "PARTIAL", "HELD"],
+    "rule": "Assurance(module) <= min( statusCap(a) for a in transitive assumptions, maturity(d) for d in transitive annotated deps ). A module whose declared MATURITY exceeds that bound is a build failure."
+  },
+  "assumptions": {
+    "A_SHA256_COLLISION_RESISTANCE": {
+      "status": "HELD",
+      "rationale": "Standard cryptographic hardness assumption for SHA-256, relied on by all Merkle constructions."
+    },
+    "A_WITNESS_KEY_MANIFEST_AUTHENTIC": {
+      "status": "PARTIAL",
+      "rationale": "The witness key manifest (trust root) is delivered out-of-band and assumed authentic; no live attestation of its provenance yet."
+    },
+    "A_WITNESS_QUORUM_HONEST": {
+      "status": "PARTIAL",
+      "rationale": "Single-witness split-view detection is wired into the authenticated decision; multi-witness (disjoint-signer) and different-tree-size forks remain undefended."
+    },
+    "A_APPEND_ONLY_LOG": {
+      "status": "PARTIAL",
+      "rationale": "Append-only order is checked at decision time via consistency proofs; the global property depends on a live witness federation that does not exist yet."
+    },
+    "A_CALLER_SUPPLIED_ORDERING_UNAUTHENTICATED": {
+      "status": "UNMET",
+      "rationale": "The legacy ledgerAnchoredRevocation detector orders from a caller-supplied sequence with no signatures; by construction this assumption cannot hold."
+    }
+  }
+}
