@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ghost-ark/schemas/ghostark.assumptions.registry.v1.json",
+  "title": "Ghost-Ark Assumption Registry v1",
+  "type": "object",
+  "required": ["schema_version", "assumptions"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "ghostark.assumptions.registry.v1" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "lattice": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "maturity": { "type": "array", "items": { "type": "string" } },
+        "assumption_status": { "type": "array", "items": { "type": "string" } },
+        "rule": { "type": "string" }
+      }
+    },
+    "assumptions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status", "rationale"],
+        "additionalProperties": false,
+        "properties": {
+          "status": { "enum": ["UNMET", "PARTIAL", "HELD"] },
+          "rationale": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

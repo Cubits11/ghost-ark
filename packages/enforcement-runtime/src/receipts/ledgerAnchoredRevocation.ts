@@ -6,7 +6,7 @@ import {
 
 /**
  * ┌──────────────────────────────────────────────────────────────────────────┐
- * │ NON-AUTHORITATIVE / MATURITY = RESEARCH.                                   │
+ * │ NON-AUTHORITATIVE / MATURITY = SYNTH_ONLY (assurance-lattice floor).       │
  * │                                                                            │
  * │ This function decides pre/post-revocation standing from a caller-supplied  │
  * │ `LedgerSequence` whose epoch `index` and `merkleRoot` values carry NO      │
@@ -58,13 +58,14 @@ export const ledgerAnchoredRevocationSchemaVersion =
   "ghost.ledger_anchored_revocation.v1" as const;
 
 /**
- * RESEARCH, and specifically NON-AUTHORITATIVE for ordering: the append-only
- * property of the supplied sequence is asserted by the caller, not authenticated.
- * Do not treat a verdict from this module as a production trust decision. Use
+ * SYNTH_ONLY = the assurance-lattice FLOOR. This module's ordering rests on the
+ * assumption A_CALLER_SUPPLIED_ORDERING_UNAUTHENTICATED, whose registry status is
+ * UNMET, so its assurance is capped at the lowest tier. It is NON-AUTHORITATIVE:
+ * do not treat a verdict from this module as a production trust decision. Use
  * enforceAuthenticatedLedgerRevocation (research-frontier) for authenticated
- * ordering.
+ * ordering. `npm run assumptions` enforces this cap.
  */
-export const MATURITY = "RESEARCH" as const;
+export const MATURITY = "SYNTH_ONLY" as const;
 
 /**
  * The unmet assumption that makes this module non-authoritative. Enforced (not
