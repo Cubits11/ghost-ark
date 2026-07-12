@@ -189,3 +189,119 @@ export function detectSplitView(
   }
   return null;
 }
+
+/**
+ * Federation-level split view (Phase II: multi-witness / disjoint-signer fork).
+ *
+ * `detectSplitView` blames a SINGLE witness who signed two roots. But an honest
+ * quorum should never let TWO different roots for the same (log_id, tree_size)
+ * each accrue a quorum of valid signatures — even from disjoint witness sets. If
+ * that happens, no individual witness equivocated, yet the federation as a whole
+ * served two histories. This proof captures exactly that: a pair of
+ * quorum-signed conflicting heads at the same size.
+ *
+ * Attribution is weaker than the single-witness proof (it does not name one
+ * guilty key), but it is still offline-verifiable and is sufficient to refuse to
+ * trust the log's order.
+ *
+ * Scope: SAME tree_size only. A history rewrite at DIFFERENT tree sizes is not
+ * captured here — it surfaces as a failed consistency proof at decision time.
+ */
+export const federationSplitViewProofSchemaVersion =
+  "ghostark.research.witness_federation_split_view_proof.v1" as const;
+
+export interface FederationSplitViewProof {
+  schema_version: typeof federationSplitViewProofSchemaVersion;
+  log_id: string;
+  tree_size: number;
+  quorum: number;
+  checkpoint_a: WitnessCheckpoint;
+  checkpoint_b: WitnessCheckpoint;
+}
+
+/** Count DISTINCT witness_ids on a checkpoint whose signatures validly verify. */
+export function countValidWitnesses(
+  checkpoint: WitnessCheckpoint,
+  manifest: WitnessKeyManifest,
+): number {
+  const valid = new Set<string>();
+  for (const signature of checkpoint.witness_signatures) {
+    if (witnessSignatureVerifies(checkpoint, signature.witness_id, manifest)) {
+      valid.add(signature.witness_id);
+    }
+  }
+  return valid.size;
+}
+
+/** Independently verify a federation split-view proof. */
+export function verifyFederationSplitViewProof(
+  proof: FederationSplitViewProof,
+  manifest: WitnessKeyManifest,
+): FraudProofVerification {
+  const checks: FraudProofCheck[] = [];
+  const a = proof.checkpoint_a;
+  const b = proof.checkpoint_b;
+
+  const schemaOk = proof.schema_version === federationSplitViewProofSchemaVersion;
+  checks.push({ name: "schema", passed: schemaOk, detail: schemaOk ? "Federation fraud proof schema is supported." : `Unsupported schema ${proof.schema_version}.` });
+
+  const quorumOk = Number.isSafeInteger(proof.quorum) && proof.quorum >= 1;
+  checks.push({ name: "quorum_configured", passed: quorumOk, detail: quorumOk ? `Quorum ${proof.quorum}.` : "Quorum must be a positive integer." });
+
+  const sameLog = a.log_id === proof.log_id && b.log_id === proof.log_id;
+  checks.push({ name: "same_log", passed: sameLog, detail: sameLog ? `Both heads bind log ${proof.log_id}.` : "Checkpoints do not share the claimed log_id." });
+
+  const sameSize = a.tree_size === proof.tree_size && b.tree_size === proof.tree_size;
+  checks.push({ name: "same_tree_size", passed: sameSize, detail: sameSize ? `Both heads assert tree_size ${proof.tree_size}.` : "Checkpoints do not share the claimed tree_size." });
+
+  const rootsDiffer = a.root_hash !== b.root_hash;
+  checks.push({ name: "roots_differ", passed: rootsDiffer, detail: rootsDiffer ? "Conflicting roots at the same size." : "Roots are identical; no equivocation." });
+
+  const aQuorum = quorumOk && countValidWitnesses(a, manifest) >= proof.quorum;
+  checks.push({ name: "quorum_a", passed: aQuorum, detail: aQuorum ? "Head A meets quorum." : "Head A does not meet quorum of valid witnesses." });
+
+  const bQuorum = quorumOk && countValidWitnesses(b, manifest) >= proof.quorum;
+  checks.push({ name: "quorum_b", passed: bQuorum, detail: bQuorum ? "Head B meets quorum." : "Head B does not meet quorum of valid witnesses." });
+
+  return { valid: checks.every((c) => c.passed), checks };
+}
+
+/**
+ * Scan checkpoints for a federation-level split view: two conflicting roots at
+ * the same (log_id, tree_size) that EACH meet the witness quorum. Emits a proof.
+ */
+export function detectFederationSplitView(
+  checkpoints: WitnessCheckpoint[],
+  manifest: WitnessKeyManifest,
+  quorum: number,
+): FederationSplitViewProof | null {
+  const groups = new Map<string, WitnessCheckpoint[]>();
+  for (const checkpoint of checkpoints) {
+    const key = JSON.stringify([checkpoint.log_id, checkpoint.tree_size]);
+    const bucket = groups.get(key) ?? [];
+    bucket.push(checkpoint);
+    groups.set(key, bucket);
+  }
+
+  for (const bucket of groups.values()) {
+    for (let i = 0; i < bucket.length; i += 1) {
+      for (let j = i + 1; j < bucket.length; j += 1) {
+        if (bucket[i].root_hash === bucket[j].root_hash) {
+          continue;
+        }
+        const candidate: FederationSplitViewProof = {
+          schema_version: federationSplitViewProofSchemaVersion,
+          log_id: bucket[i].log_id,
+          tree_size: bucket[i].tree_size,
+          quorum,
+          checkpoint_a: bucket[i],
+          checkpoint_b: bucket[j],
+        };
+        if (verifyFederationSplitViewProof(candidate, manifest).valid) {
+          return candidate;
+        }
+      }
+    }
+  }
+  return null;
+}

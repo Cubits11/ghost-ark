@@ -19,7 +19,10 @@ import {
   ledgerRevocationRecordSchemaVersion,
   MATURITY,
 } from "../../../packages/research-frontier/src/authenticatedRevocation";
-import { verifySplitViewFraudProof } from "../../../packages/research-frontier/src/witnessFraudProof";
+import {
+  verifyFederationSplitViewProof,
+  verifySplitViewFraudProof,
+} from "../../../packages/research-frontier/src/witnessFraudProof";
 
 const KEY = "arn:aws:kms:us-east-1:000000000000:key/aa11bb22-cc33-4d44-9e55-ff66aa77bb88";
 const LOG = "ghost-ark-transparency-log";
@@ -323,6 +326,37 @@ describe("authenticated ledger revocation — Phase II equivocation detection", 
     const result = enforceAuthenticatedLedgerRevocation(singleCheckpointScenario(1, 3));
     expect(result.standing).toBe("valid_pre_revocation");
     expect(result.equivocationProof).toBeNull();
+  });
+
+  it("fails closed on a federation-level (disjoint-signer) fork with a verifiable proof", () => {
+    // Four witnesses; two conflicting size-2 heads each quorum-signed by a
+    // disjoint pair. No single witness is guilty — only federation detection sees it.
+    const fedWitnesses = [
+      createDevWitnessKeyPair("fw-a"),
+      createDevWitnessKeyPair("fw-b"),
+      createDevWitnessKeyPair("fw-c"),
+      createDevWitnessKeyPair("fw-d"),
+    ];
+    const fedTrustRoot = manifestFor(fedWitnesses);
+    const fedPayloads = ["f0", RECEIPT_LEAF, "f2", REVOCATION_LEAF];
+    const honest = signedCheckpoint({ logId: LOG, payloads: fedPayloads, integratedTime: "2026-07-09T16:00:00Z", signers: fedWitnesses });
+    const forkX = signedCheckpoint({ logId: LOG, payloads: ["x0", "x1"], integratedTime: "2026-07-09T10:00:00Z", signers: [fedWitnesses[0], fedWitnesses[1]] });
+    const forkY = signedCheckpoint({ logId: LOG, payloads: ["y0", "y1"], integratedTime: "2026-07-09T10:05:00Z", signers: [fedWitnesses[2], fedWitnesses[3]] });
+
+    const result = enforceAuthenticatedLedgerRevocation({
+      keyId: KEY,
+      trustRoot: fedTrustRoot,
+      witnessQuorum: 2,
+      inclusion: { checkpoint: honest, leafPayload: RECEIPT_LEAF, proof: getInclusionProof(1, fedPayloads) },
+      revocation: { keyId: KEY, checkpoint: honest, leafPayload: REVOCATION_LEAF, proof: getInclusionProof(3, fedPayloads) },
+      consistency: getConsistencyProof(fedPayloads.length, fedPayloads),
+      observedCheckpoints: [forkX, forkY],
+    });
+
+    expect(result.standing).toBe("rejected_equivocation");
+    expect(result.equivocationProof).toBeNull(); // no single witness guilty
+    expect(result.federationEquivocationProof).not.toBeNull();
+    expect(verifyFederationSplitViewProof(result.federationEquivocationProof!, fedTrustRoot).valid).toBe(true);
   });
 
   it("ignores a fork in an UNRELATED log", () => {
