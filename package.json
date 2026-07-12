@@ -31,7 +31,7 @@
     "assumptions": "node tools/assumptions/check-assumptions.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "validate": "npm run lint && npm test && npm run docs:check && npm run claims:check",
+    "validate": "npm run lint && npm test && npm run docs:check && npm run claims:check && npm run assumptions",
     "ghost-verify": "node tools/ghost-verify.mjs",
     "receipt:verify": "ts-node tools/scripts/receiptVerify.ts",
     "receipt:verify:sample": "npm run ghost-verify -- --receipt examples/sample-receipts/valid-receipt.json --key examples/sample-receipts/public-key.pem --tenant acme-lab",
