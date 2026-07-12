@@ -5,6 +5,29 @@ import {
 } from "./checkpoint";
 
 /**
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │ NON-AUTHORITATIVE / MATURITY = RESEARCH.                                   │
+ * │                                                                            │
+ * │ This function decides pre/post-revocation standing from a caller-supplied  │
+ * │ `LedgerSequence` whose epoch `index` and `merkleRoot` values carry NO      │
+ * │ signature. Under the Ledger Design Law ("no production decision may depend │
+ * │ on caller-supplied ordering information") it MUST NOT be wired into a       │
+ * │ production trust-downgrade decision. A caller can fabricate the entire     │
+ * │ sequence — build a Merkle tree around a post-revocation leaf, place its    │
+ * │ root at a low `index`, and pass the honest inclusion proof — to obtain a   │
+ * │ `valid_pre_revocation` verdict (exploit E1, demonstrated in the            │
+ * │ characterization test alongside this module).                             │
+ * │                                                                            │
+ * │ Authenticated replacement:                                                 │
+ * │   packages/research-frontier/src/authenticatedRevocation.ts                │
+ * │   (enforceAuthenticatedLedgerRevocation) — ordering derives from           │
+ * │   witness-signed, quorum-verified append-only checkpoints, not caller      │
+ * │   input. See docs/research/AUTHENTICATED_REVOCATION_INVARIANTS.md.         │
+ * │                                                                            │
+ * │ Retained only as a backdating DETECTOR and monotonicity checker, never as  │
+ * │ an ordering AUTHORITY. Logic is intentionally unchanged for compatibility. │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
  * Ledger-anchored revocation (temporal-trust primitive).
  *
  * Problem this addresses:
@@ -33,6 +56,21 @@ import {
 
 export const ledgerAnchoredRevocationSchemaVersion =
   "ghost.ledger_anchored_revocation.v1" as const;
+
+/**
+ * RESEARCH, and specifically NON-AUTHORITATIVE for ordering: the append-only
+ * property of the supplied sequence is asserted by the caller, not authenticated.
+ * Do not treat a verdict from this module as a production trust decision. Use
+ * enforceAuthenticatedLedgerRevocation (research-frontier) for authenticated
+ * ordering.
+ */
+export const MATURITY = "RESEARCH" as const;
+
+/**
+ * The unmet assumption that makes this module non-authoritative. Enforced (not
+ * merely assumed) by the authenticated replacement via witness-signed checkpoints.
+ */
+export const ASSUMPTIONS = ["A_CALLER_SUPPLIED_ORDERING_UNAUTHENTICATED"] as const;
 
 export interface LedgerEpochRef {
   /** Stable identifier of the checkpoint epoch. */
