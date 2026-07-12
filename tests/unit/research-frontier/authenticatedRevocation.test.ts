@@ -19,6 +19,7 @@ import {
   ledgerRevocationRecordSchemaVersion,
   MATURITY,
 } from "../../../packages/research-frontier/src/authenticatedRevocation";
+import { verifySplitViewFraudProof } from "../../../packages/research-frontier/src/witnessFraudProof";
 
 const KEY = "arn:aws:kms:us-east-1:000000000000:key/aa11bb22-cc33-4d44-9e55-ff66aa77bb88";
 const LOG = "ghost-ark-transparency-log";
@@ -297,6 +298,41 @@ describe("authenticated ledger revocation — ordering is EXACTLY authenticated 
         );
       }
     }
+  });
+});
+
+describe("authenticated ledger revocation — Phase II equivocation detection", () => {
+  it("fails closed with a verifiable fraud proof when a gossiped fork is observed", () => {
+    // Same log_id + tree_size, different roots, both signed by the quorum: a
+    // single-witness split view. The decision checkpoints are honest, but the
+    // gossip pool reveals the fork.
+    const forkA = signedCheckpoint({ logId: LOG, payloads: ["p0", "p1"], integratedTime: "2026-07-09T10:00:00Z", signers: witnesses });
+    const forkB = signedCheckpoint({ logId: LOG, payloads: ["q0", "q1"], integratedTime: "2026-07-09T10:05:00Z", signers: witnesses });
+    const result = enforceAuthenticatedLedgerRevocation({
+      ...singleCheckpointScenario(1, 3),
+      observedCheckpoints: [forkA, forkB],
+    });
+    expect(result.verdict).toBe(false);
+    expect(result.standing).toBe("rejected_equivocation");
+    expect(result.equivocationProof).not.toBeNull();
+    // The emitted proof is independently verifiable under the trust root.
+    expect(verifySplitViewFraudProof(result.equivocationProof!, trustRoot).valid).toBe(true);
+  });
+
+  it("does not false-positive on the honest path (equivocationProof is null)", () => {
+    const result = enforceAuthenticatedLedgerRevocation(singleCheckpointScenario(1, 3));
+    expect(result.standing).toBe("valid_pre_revocation");
+    expect(result.equivocationProof).toBeNull();
+  });
+
+  it("ignores a fork in an UNRELATED log", () => {
+    const forkA = signedCheckpoint({ logId: "other-log", payloads: ["p0", "p1"], integratedTime: "2026-07-09T10:00:00Z", signers: witnesses });
+    const forkB = signedCheckpoint({ logId: "other-log", payloads: ["q0", "q1"], integratedTime: "2026-07-09T10:05:00Z", signers: witnesses });
+    const result = enforceAuthenticatedLedgerRevocation({
+      ...singleCheckpointScenario(1, 3),
+      observedCheckpoints: [forkA, forkB],
+    });
+    expect(result.standing).toBe("valid_pre_revocation");
   });
 });
 

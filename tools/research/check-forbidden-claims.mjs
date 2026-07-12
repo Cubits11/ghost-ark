@@ -40,6 +40,7 @@ const allowedPolicyFiles = new Set([
 
   // Tests intentionally contain forbidden phrases to verify rejection behavior.
   "tests/unit/research-frontier/checkForbiddenClaims.test.ts",
+  "tests/unit/research-frontier/claimScannerHardening.test.ts",
 
   // Claims-enforcement source: encodes the forbidden fragments it rejects at
   // runtime, so its rule constants are not public claims.
@@ -328,11 +329,11 @@ function hasResearchAllowanceContext(line) {
   );
 }
 
-function isAllowedLine(line, allowance) {
+function isAllowedText(text, allowance) {
   if (allowance === "research") {
-    return hasResearchAllowanceContext(line);
+    return hasResearchAllowanceContext(text);
   }
-  return hasStrictNonClaimContext(line);
+  return hasStrictNonClaimContext(text);
 }
 
 function formatViolation(violation) {
@@ -343,25 +344,163 @@ function formatViolation(violation) {
   ].join("\n");
 }
 
-export function scanText(text, filePath) {
-  const violations = [];
-  const lines = text.split(/\r?\n/);
+// ---------------------------------------------------------------------------
+// E2/E3 hardening: normalize before matching, match across line breaks, and
+// scope the non-claim allowance to the clause containing the phrase.
+//
+// Rationale (exploits this closes):
+//   E2 — Unicode/confusable: a raw code-point regex is bypassed by homoglyphs
+//        ("gυаrantee"), zero-width splits ("guar​antee"), fullwidth forms,
+//        and NBSP separators. Matching now runs over a normalized form.
+//   E3 — line-split: a phrase broken by a newline evaded per-line matching.
+//        Matching now runs over the whole document with newlines folded.
+//   E3 — allowance smuggling: the old check allowed a line if it merely CONTAINED
+//        a marker like "is not"/"candidate", so "This is not a toy: Ghost-Ark is
+//        production-ready and guarantees safety" passed. Allowance is now scoped
+//        to the clause holding the phrase, so a disclaimer in a different clause
+//        no longer excuses a claim.
+//
+// NON-CLAIM: the confusable map is a curated, bounded subset of UTS #39 (the
+// Cyrillic/Greek Latin-lookalikes that NFKC does not fold), not the full
+// confusable skeleton. It reduces, but does not eliminate, homoglyph evasion.
+// ---------------------------------------------------------------------------
 
-  lines.forEach((line, index) => {
-    for (const rule of rules) {
-      rule.pattern.lastIndex = 0;
-      if (rule.pattern.test(line) && !isAllowedLine(line, rule.allowance)) {
-        violations.push({
-          filePath,
-          lineNumber: index + 1,
-          line,
-          ruleId: rule.id,
-          reason: rule.reason,
-          suggestion: rule.suggestion,
-        });
+// Zero-width / default-ignorable characters used purely to split tokens.
+const invisiblePattern =
+  /[­​‌‍‎‏⁠⁡⁢⁣⁤⁦⁧⁨⁩‪‫‬‭‮﻿᠎]/;
+
+// Curated confusable homoglyph -> ASCII Latin. NFKC already folds fullwidth,
+// ligature, and compatibility forms, so this only needs the script-mixing
+// lookalikes (Cyrillic and a few Greek) that NFKC leaves intact.
+const confusables = new Map(
+  Object.entries({
+    "а": "a", "е": "e", "о": "o", "р": "p", "с": "c",
+    "у": "y", "х": "x", "к": "k", "м": "m", "н": "h",
+    "т": "t", "в": "b", "і": "i", "ј": "j", "ѕ": "s",
+    "ё": "e",
+    "А": "A", "Е": "E", "О": "O", "Р": "P", "С": "C",
+    "У": "Y", "Х": "X", "К": "K", "М": "M", "Н": "H",
+    "Т": "T", "В": "B", "І": "I", "Ј": "J", "Ѕ": "S",
+    "α": "a", "ο": "o", "ρ": "p", "ν": "v", "ϲ": "c",
+    "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H",
+    "Ι": "I", "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O",
+    "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
+  }),
+);
+
+function foldChar(ch) {
+  const mapped = confusables.get(ch);
+  return mapped !== undefined ? mapped : ch;
+}
+
+/**
+ * Normalize raw text into a matching form robust to confusables, invisible
+ * characters, and line-break evasion, while retaining a per-character source
+ * line map so violations still report the line where the phrase begins.
+ */
+export function normalizeForMatch(rawText) {
+  const out = [];
+  const lineFor = [];
+  let line = 1;
+  let lastWasSpace = false;
+
+  const pushChar = (ch, srcLine) => {
+    out.push(ch);
+    lineFor.push(srcLine);
+    lastWasSpace = ch === " ";
+  };
+  const pushSpace = (srcLine) => {
+    if (lastWasSpace || out.length === 0) {
+      return;
+    }
+    pushChar(" ", srcLine);
+  };
+
+  for (const raw of rawText) {
+    if (raw === "\n") {
+      // End-of-line hyphenation ("production-\nready"): keep the hyphen glued
+      // to the next line by NOT inserting a space; otherwise fold to a space.
+      if (!(out.length > 0 && out[out.length - 1] === "-")) {
+        pushSpace(line);
+      }
+      line += 1;
+      continue;
+    }
+    if (raw === "\r" || invisiblePattern.test(raw)) {
+      continue;
+    }
+    const code = raw.codePointAt(0) ?? 0;
+    const projected = code < 128 ? raw : foldChar(raw).normalize("NFKC");
+    for (const ch of projected) {
+      if (/\s/.test(ch)) {
+        pushSpace(line);
+      } else {
+        pushChar(foldChar(ch), line);
       }
     }
-  });
+  }
+
+  return { text: out.join(""), lineFor };
+}
+
+// Clause boundaries: a disclaimer before one of these does not govern a claim
+// after it. Global so matchAll can enumerate every boundary.
+const boundaryPattern =
+  /:|;|—|--|\.\s|\?\s|!\s|\sbut\s|\showever\s|\syet\s|\salthough\s|\sand\s/gi;
+
+function clauseStartBefore(text, index) {
+  const slice = text.slice(0, index);
+  const matches = [...slice.matchAll(boundaryPattern)];
+  if (matches.length === 0) {
+    return 0;
+  }
+  const last = matches[matches.length - 1];
+  return (last.index ?? 0) + last[0].length;
+}
+
+function clauseEndAfter(text, index) {
+  const slice = text.slice(index);
+  const next = [...slice.matchAll(boundaryPattern)][0];
+  return next === undefined ? text.length : index + (next.index ?? 0);
+}
+
+export function scanText(rawText, filePath) {
+  const violations = [];
+  const { text, lineFor } = normalizeForMatch(rawText);
+  const rawLines = rawText.split(/\r?\n/);
+  const seen = new Set();
+
+  for (const rule of rules) {
+    const flags = rule.pattern.flags.includes("g")
+      ? rule.pattern.flags
+      : `${rule.pattern.flags}g`;
+    const globalPattern = new RegExp(rule.pattern.source, flags);
+    for (const match of text.matchAll(globalPattern)) {
+      const start = match.index ?? 0;
+      const end = start + match[0].length;
+      const lineNumber = lineFor[start] ?? 1;
+      // Structural allowance: only the clause holding the phrase — the text
+      // between the nearest boundaries on both sides — can excuse it. A
+      // disclaimer in a different clause does not.
+      const region = text.slice(clauseStartBefore(text, start), clauseEndAfter(text, end));
+      if (isAllowedText(region, rule.allowance)) {
+        continue;
+      }
+      const key = `${rule.id}:${lineNumber}`;
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      violations.push({
+        filePath,
+        lineNumber,
+        line: (rawLines[lineNumber - 1] ?? "").trim(),
+        ruleId: rule.id,
+        reason: rule.reason,
+        suggestion: rule.suggestion,
+      });
+    }
+  }
 
   return violations;
 }
