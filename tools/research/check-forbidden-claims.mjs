@@ -52,6 +52,14 @@ const allowedPolicyFiles = new Set([
   "docs/research/THREAT_MODEL_FRONTIER.md",
   "docs/research/ASSURANCE_MATURITY_LADDER.md",
   "docs/research/AGENT_RESEARCH_AUDIT_2026-07-08.md",
+  // Boundary docs: define the non-claim vocabulary and quote forbidden wording as
+  // examples of what NOT to say, so their forbidden fragments are policy, not claims.
+  "docs/research/AUDITABILITY_SAFETY_SEPARATION.md",
+  "docs/research/NON_CLAIM_ENGINEERING.md",
+  // Dated adversarial audit snapshots: quote guarantee-language to critique it
+  // ("PROOF OBLIGATION ... not present"), so their fragments are analysis, not claims.
+  "docs/validation/ADVERSARIAL_CHECKLIST_AUDIT_2026-07-11.md",
+  "docs/validation/PHD_DEFENCE_AUDIT_2026-07-11.md",
   "docs/release/CLAIMS_BOUNDARY.md",
   "docs/compliance/non-claims.md",
   "docs/architecture/CLAIM_BOUNDARIES.md",

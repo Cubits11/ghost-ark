@@ -7,6 +7,15 @@ import {
   verifyConsistencyProof,
 } from "./merkle";
 
+// Maturity/assumption annotations for `npm run assumptions`
+// (see docs/architecture/ASSUMPTION_LATTICE.md). Dev/local witness keys keep this
+// at RESEARCH until a live witness federation exists.
+export const MATURITY = "RESEARCH" as const;
+export const ASSUMPTIONS = [
+  "A_SHA256_COLLISION_RESISTANCE",
+  "A_WITNESS_KEY_MANIFEST_AUTHENTIC",
+] as const;
+
 export type WitnessSignatureAlgorithm = "ecdsa-p256-sha256";
 export type WitnessKeyManifestStatus = "ACTIVE" | "DEPRECATED" | "REVOKED";
 
