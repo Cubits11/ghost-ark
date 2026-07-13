@@ -1,5 +1,10 @@
 import { createHash } from "crypto";
 
+// Maturity/assumption annotations for `npm run assumptions`
+// (see docs/architecture/ASSUMPTION_LATTICE.md).
+export const MATURITY = "RESEARCH" as const;
+export const ASSUMPTIONS = ["A_SHA256_COLLISION_RESISTANCE"] as const;
+
 export const EMPTY_TREE_ROOT = createHash("sha256")
   .update("ghostark.empty_merkle_tree.v1")
   .digest("hex");

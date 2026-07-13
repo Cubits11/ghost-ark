@@ -7,6 +7,14 @@ import {
   verifyWitnessKeyManifestEpoch,
 } from "./witnessCheckpoint";
 
+// Maturity/assumption annotations for `npm run assumptions`
+// (see docs/architecture/ASSUMPTION_LATTICE.md).
+export const MATURITY = "RESEARCH" as const;
+export const ASSUMPTIONS = [
+  "A_SHA256_COLLISION_RESISTANCE",
+  "A_WITNESS_KEY_MANIFEST_AUTHENTIC",
+] as const;
+
 /**
  * Witness split-view (equivocation) fraud proofs.
  *
