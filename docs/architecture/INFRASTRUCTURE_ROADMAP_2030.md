@@ -61,10 +61,14 @@ Ghost-Ark, as a speculative execution substrate in which agents:
 3. evaluate commit predicates,
 4. commit trajectories that satisfy policy,
 5. roll back trajectories that do not,
-6. quantify residual contamination within stated measurement bounds.
+6. audit influence-channel closure and bound residual influence within stated
+   measurement limits.
 
-Step 6 is the least mature and the most scientifically exposed. Section 6 and
-Section 16 treat it as a falsifiable research bet, not a capability.
+Step 6 is split into two constructs with different epistemological status:
+influence-channel closure (engineering, per-transaction, deterministic) and
+population-level residual estimation (research, offline, pre-registered).
+Sections 6 and 16 treat the residual estimator as a falsifiable research bet,
+not a capability. The channel-closure audit stands independently.
 
 ### 1.3 Scope filter (hard constraint)
 
@@ -83,7 +87,8 @@ excluded under this filter.
 
 The current repository is an evidence and enforcement kernel, not a
 speculative execution runtime. Recorded passing baseline: `npm run lint`
-passes, 63/63 test files, 335/335 tests (re-run at head before relying on it).
+passes, 86/86 test files, 559/559 tests as of 2026-07-14 (re-run at head before
+relying on these numbers — the gate is the command, not the literal).
 
 | Capability | Where | Status |
 |---|---|---|
@@ -103,6 +108,9 @@ passes, 63/63 test files, 335/335 tests (re-run at head before relying on it).
 | Witness checkpoint / fraud-proof mechanics | packages/research-frontier/src/witnessCheckpoint.ts, witnessFraudProof.ts | local-only, no external witness |
 | zk receipt object | packages/research-frontier/src/zkReceipt.ts | research-only, mock-level, no prover |
 | Nitro manifest / attestation policy objects | packages/research-frontier/src/nitroManifest.ts | research-only, no live enclave |
+| Dev-stage receipt DynamoDB fetch + CLI verification | docs/validation/RECEIPT_VERIFIER_LIVE_PASS_2026-07-07.md | AWS-live (dev stage, supervised, 2026-07-07) |
+| Dev-stage tenant-boundary rejection | docs/validation/TENANT_BOUNDARY_LIVE_PASS_2026-07-07.md | AWS-live (dev stage, supervised, 2026-07-07) |
+| Dev-stage core smoke (Cognito auth, API stack) | docs/validation/AWS_DEV_CORE_SMOKE_2026-07-07.md | AWS-live (dev stage, supervised, 2026-07-07) |
 
 ### 1.5 What does not exist [non-claim]
 
@@ -110,7 +118,7 @@ Named explicitly so vocabulary does not outrun evidence. The repository today
 contains **no**:
 
 - ghost replica runtime, fork/snapshot/rollback engine, or effect-deferral buffer
-- contamination score, residual-influence measurement, or any Layer 4 trust lifecycle beyond taint labels and vault expiry
+- influence-channel closure audit, residual-influence measurement, or any Layer 4 trust lifecycle beyond taint labels and vault expiry
 - speculative-transaction receipt types
 - delegation, capability transfer, or any multi-agent mechanism
 - Python SDK, or any SDK beyond internal TypeScript packages
@@ -136,25 +144,51 @@ deferred-effect buffer instead of being released. Defining property: nothing
 leaves G before a commit decision, except receipts.
 
 **Commit predicate.** Π(τ, E, P) → {ALLOW, ROLLBACK, ESCALATE}, where E is the
-evidence set (receipts, provenance, guardrail observations, contamination
-estimate) and P is the tenant policy. Π must be deterministic over recorded
+evidence set (receipts, provenance, guardrail observations, channel-closure
+audit) and P is the tenant policy. Π must be deterministic over recorded
 artifacts: same (τ, E, P) digests, same verdict. Π evaluates recorded
 evidence; it does not evaluate the world. This is the same claim boundary the
 receipt verifier already enforces.
 
-**Contamination model.** Split by reversibility mechanism:
+**Influence model.** Agent rollback faces two categories of residual
+influence, with fundamentally different tractability:
 
-- *External contamination* — writes, API calls, file changes. Reversible only
-  when the effect was deferred inside the ghost; a released effect is at best
-  compensable, never retroactively unreleased. The engine's core discipline is
-  therefore effect **deferral**, not undo.
-- *Cognitive contamination* — influence on context, reasoning trajectory, and
-  learned preference. Potentially irreversible. Handled by bounded residual
-  measurement: define ρ(τ_ghost) as observed behavioral divergence between
-  matched agents with and without exposure to the rolled-back trajectory,
-  under a pre-registered protocol. ρ is an estimate with stated error bounds,
-  never a proof of absence. [research-only; measurement validity is an open
-  problem — see Section 16.]
+- *Effect channels* — memory writes, retrieval-index mutations, vault records,
+  cache/embedding store updates, external API calls, fine-tuning data
+  collection, preference updates. Each channel is classifiable per
+  transaction: **deferred** (nothing written pre-commit — the ghost's defining
+  invariant), **revocable** (written but excludable at read time via taint
+  filter or expiry), or **uncontained** (written and not retractable). A
+  channel-closure audit enumerates every channel, classifies each, and emits
+  the classification as a signed receipt. This is deterministic,
+  per-transaction, and falsifiable by construction: a reviewer who finds an
+  unlisted channel has found a bug, not a disagreement about thresholds.
+  [research-only design; existing taint filter, vault expiry, and memory-write
+  gates are local-only primitives that implement partial closure]
+
+- *In-context influence* — the agent's reasoning trajectory, attention
+  patterns, and implicit priors may retain influence from a rolled-back
+  exploration within the same context window. This influence is not closable
+  by any mechanism short of context truncation, and is not measurable at the
+  individual-trajectory level (see §6.2 for the statistical argument and
+  §16.1 for the kill criterion). Ghost-Ark does not claim to contain
+  in-context influence. It claims to *enumerate and close the durable
+  channels* through which influence outlives the context window, and to
+  *bound the population-level residual* of the unclosable channel through a
+  pre-registered, offline estimation protocol (§6.6). The distinction
+  matters: channel closure is an engineering invariant; residual estimation is
+  a research hypothesis under active falsification. [research-only]
+
+**Why ρ(τ_ghost) does not exist.** The original formulation defined ρ as a
+per-trajectory scalar. This is statistically incoherent: individual causal
+effects are not identifiable for stochastic agents (Rubin's fundamental
+problem — you cannot observe both the exposed and unexposed potential
+outcomes for the same trajectory). What *can* be identified is an average
+treatment effect over a *population* of trajectories, which is the
+population-level construct in §6.6. Additionally, raw behavioral divergence
+is sign-blind (beneficial learning scores as contamination) and
+computationally infeasible at commit time (requires matched-agent batteries).
+The per-trajectory scalar is deleted, not deferred.
 
 ---
 
@@ -227,9 +261,11 @@ speculation_opened.v1   { schema_version, tenant_slug, execution_nonce,
                           opened_at, key_epoch }
 action_observed.v1      { …, action_index, action_trace_digest,
                           deferred_effect_digests[], evidence_digests[] }
-contamination_estimate.v1 { …, estimator_id, estimator_version_digest,
-                          estimate, bounds: {lower, upper, method},
-                          inputs_digest }        # measurement, not decision
+channel_closure_audit.v1  { …, channels[]: {channel_id, channel_type,
+                          closure_status: deferred|revocable|uncontained,
+                          enforcement_point, evidence_digest},
+                          audit_complete: boolean,
+                          uncontained_channels[] }  # engineering, not measurement
 commit_decision.v1      { …, predicate_digest, inputs: {trace_digest,
                           evidence_root, policy_digest}, verdict:
                           ALLOW|ROLLBACK|ESCALATE, decision_basis[] }
@@ -237,7 +273,11 @@ effects_released.v1     { …, released_effect_digests[],
                           idempotency_keys[] }   # only after ALLOW
 rollback_completed.v1   { …, journal_digest, restored_state_digest,
                           unreleased_effect_digests[] }
-residual_report.v1      { …, rho_estimate, protocol_digest, caveats[] }
+residual_report.v1      { …, population_flip_rate: {estimate, ci_lower,
+                          ci_upper, method_digest, n_trials,
+                          probe_battery_digest}, protocol_digest,
+                          null_baseline_digest, caveats[],
+                          scope: offline_research_only }
 ```
 
 Rollback is thus a new signed event, not a mutation — the chain itself is the
@@ -260,8 +300,18 @@ docs/architecture/transparency-witness-model.md).
 
 **Receipt composition.** A trajectory receipt is the Merkle root over its
 ordered event receipts; a session composes trajectories; a delegation (Layer
-5) composes sessions across agents. Composition must be associative over
-digests so a verifier can check any subtree without the whole history.
+5) composes sessions across agents. Composition is defined by canonical
+deterministic tree construction: given an ordered receipt sequence, the tree
+shape is uniquely determined by the split-at-midpoint algorithm in
+`packages/research-frontier/src/merkle.ts`, inclusion is independently
+provable per receipt via audit paths (`verifyInclusionProof`), and
+consistency between checkpoint epochs is verifiable without replaying the
+full history. Merkle roots are not associative over arbitrary partitions —
+`root(A‖B) ≠ f(root(A), root(B))` in general because the tree shape changes
+with the leaf count — but the canonical construction guarantees that any
+verifier who builds the same ordered sequence arrives at the same root. This
+is the property that matters for independent verification; associativity is
+neither needed nor claimed.
 
 **Long-term archival.** Checkpoint bundles with key-manifest epochs
 (docs/architecture/ADR-0002) so signatures remain checkable after rotation;
@@ -503,9 +553,10 @@ effect_classes:
     escalate_if: { compensation_untested: true }
   irreversible:
     verdict: ESCALATE               # never auto-ALLOW irreversible effects
-contamination:
-  estimator: ghostark.residual.v0    # bound to estimator version digest
-  max_estimate_upper_bound: 0.05     # bound the upper CI, not the point value
+channel_closure:
+  require_audit: true                # every commit must include a channel_closure_audit receipt
+  max_uncontained_channels: 0        # no uncontained channels permitted
+  uncontained_verdict: ESCALATE      # if any channel is uncontained, escalate
 risk_budget:
   window: 24h
   max_committed_irreversible: 0
@@ -513,14 +564,22 @@ risk_budget:
 predicate_tests:                      # policies ship with counterexamples
   - expect: ROLLBACK
     when: { effect_class: irreversible, human_approval: false }
+  - expect: ESCALATE
+    when: { channel_closure: { uncontained_channels: ["embedding_store"] } }
+  - expect: ROLLBACK
+    when: { channel_closure: { audit_complete: false } }
 ```
 
 Design rules: versioned schema; deny-by-default; verdicts per effect class;
-thresholds bind to estimator version digests so a number is meaningless
-without its method; policies carry their own counterexample tests (the
-existing policy counterexample tooling extends naturally here); every policy
-compiles to a deterministic evaluator whose digest goes into the decision
-receipt.
+channel-closure predicates bind to the channel_closure_audit receipt (a
+deterministic, per-transaction, replayable artifact); policies carry their
+own counterexample tests (the existing policy counterexample tooling extends
+naturally here); every policy compiles to a deterministic evaluator whose
+digest goes into the decision receipt. The policy language depends only on
+quantities that are computable at commit time, replayable from recorded
+artifacts, deterministic over inputs, and bounded in evaluation cost.
+Population-level residual estimates are research outputs consumed offline;
+they are never commit-time policy inputs.
 
 ### 5.4–5.7 Data, storage, security, failure modes
 
@@ -529,14 +588,15 @@ wiring AWS-synth-only); policy digest bound into every decision receipt
 (exists for governed invoke, local-only). Security: policy write access is
 itself a governed, receipted action; predicate evaluation runs with no network
 access. Failure modes: missing evidence ⇒ not ALLOW (fail closed, exists);
-estimator unavailable ⇒ treat contamination bound as exceeded; conflicting
+channel-closure audit incomplete ⇒ treat as uncontained (ROLLBACK); conflicting
 policies ⇒ most restrictive verdict wins; budget exhaustion ⇒ ROLLBACK.
 
 ### 5.8 MVP
 
-Map Π v0 onto the existing policy engine: effect-class rules + evidence
-completeness only, no contamination input (honest about what the estimator
-can't yet provide). [Phase 1 target]
+Map Π v0 onto the existing policy engine: effect-class rules +
+channel-closure predicates + evidence completeness. No population-level
+residual input — channel closure is the runtime signal; residual estimation
+is an offline research protocol, never a commit-time gate. [Phase 1 target]
 
 ### 5.9 Research paper opportunity
 
@@ -563,30 +623,140 @@ cross-tenant reputation scores (tenant-boundary violation).
 
 ---
 
-## 6. Layer 4 — Memory Integrity System
+## 6. Layer 4 — Memory Integrity and Influence-Channel Control
 
 Status: three primitives exist locally — retrieval taint filtering, privacy
 vault with expiry, memory-write gates. The trust lifecycle, admission receipts,
-quarantine, and any contamination measurement are research-only.
+quarantine, channel-closure audit, and any residual-influence estimation are
+research-only.
 
 ### 6.1 Scientific objective
 
 Control how information becomes durable influence. Agents learn, remember, and
-accumulate contamination; memory is where a rolled-back trajectory can still
-leak into the future.
+accumulate state; rolled-back trajectories can leak into the future through
+channels that outlive the transaction boundary.
 
 **How does an agent know whether something it remembers should influence
 future decisions?** Design answer: it checks the memory's admission receipt
 chain against *current* policy at **read time**, not only at write time. A
-memory admitted under yesterday's policy or an expired estimator is
-re-quarantined on read. Trust is never a property of content; it is a property
-of the evidence chain attached to the content, re-evaluated on every use.
+memory admitted under yesterday's policy or a revoked channel-closure audit
+is re-quarantined on read. Trust is never a property of content; it is a
+property of the evidence chain attached to the content, re-evaluated on every
+use.
 
-### 6.2 The memory object — improved
+**What can Layer 4 actually control?** This layer is divided into two
+constructs with different epistemological status:
 
-The prompt's sketch (`content, origin, evidence_chain, trust_score,
-contamination_budget, expiry`) stores content inline and a scalar trust score.
-Improved draft (`ghostark.memory_object.v1`, research-only):
+- **Influence-channel closure** (engineering, per-transaction, deterministic).
+  Enumerate every channel through which a rolled-back trajectory can
+  persistently influence future agent behavior. Classify each as deferred,
+  revocable, or uncontained. Emit the classification as a signed receipt. Bind
+  the commit predicate (Layer 3) to channel-closure status, not to a
+  contamination score. [research-only design; existing taint filter, vault
+  expiry, and memory-write gates are local-only primitives that implement
+  partial closure]
+
+- **Population-level residual influence** (research, offline, pre-registered).
+  For the one channel that cannot be closed — in-context influence within the
+  agent's reasoning during the rolled-back trajectory — estimate the
+  population-level rate at which exposure flips subsequent decisions from
+  policy-compliant to policy-violating. This is a research output, never a
+  commit-time input. [research-only; measurement validity is an open problem
+  — see §16.1]
+
+### 6.2 Why ρ(τ_ghost) cannot exist as specified
+
+The original formulation defined ρ(τ_ghost) as a per-trajectory contamination
+score gating commits. This construct is unsound for three independent reasons
+and is deleted from the architecture:
+
+1. **Counterfactual unidentifiability.** ρ requires comparing an agent's
+   behavior with and without exposure to the rolled-back trajectory. But the
+   agent is stochastic: two matched agents diverge from sampling alone. The
+   individual causal effect of exposure on a single trajectory is not
+   identifiable — this is Rubin's fundamental problem of causal inference
+   (1974; Holland 1986). Population-level average treatment effects are
+   identifiable; individual treatment effects are not. No amount of
+   engineering changes this; it is a mathematical property of counterfactual
+   reasoning under stochastic processes.
+
+2. **Sign blindness.** Raw behavioral divergence counts beneficial learning
+   (the agent correctly avoids a harmful action after seeing it fail) as
+   contamination. Any defensible metric must be directional: only
+   policy-compliant→policy-violating flips count. The original formulation
+   specified "behavioral divergence" without direction.
+
+3. **Runtime infeasibility.** Estimating ρ requires running matched-agent
+   batteries — orders of magnitude more expensive than the transaction it
+   gates, and non-deterministic by construction. A commit predicate must be
+   evaluable in bounded time from recorded artifacts alone. ρ cannot be
+   computed from artifacts; it requires fresh stochastic sampling.
+
+These are not engineering difficulties to be solved later. They are
+mathematical impossibilities (1), definitional errors (2), and computational
+lower bounds (3). The construct is deleted, not deferred.
+
+### 6.3 Influence-channel closure — the engineering construct
+
+**Enumerated channels.** Every mechanism by which a rolled-back trajectory's
+effects can persist beyond context-window lifetime:
+
+| Channel | Ghost invariant | Enforcement point | Status |
+|---|---|---|---|
+| Memory writes (long-term store) | Deferred: speculative namespace, committed only on ALLOW | Memory-write gate | local-only primitive |
+| Retrieval-index mutation | Deferred: index writes journal-buffered | Taint filter | local-only primitive |
+| Cache / embedding store updates | Deferred: no cache writes inside ghost | Effect interceptor | research-only design |
+| Vault records | Deferred: speculative vault partition | Vault with expiry | local-only primitive |
+| External API calls (writes) | Deferred: deferred-effect buffer (Layer 2) | Effect interceptor | research-only design |
+| Fine-tuning / preference data | Deferred: training-data writes buffered | Effect interceptor | research-only design |
+| Tool-state side effects | Deferred: read-only tool gateway | Tool gateway boundary | local-only (CLAUDE.md mandate) |
+| Context-window influence | **Uncontained**: not closable by construction | None — see §6.6 | research-only |
+
+**Design invariant: real reads, deferred writes.** The ghost executes reads
+through the existing brokered read-only tool gateway — real data, no stubs.
+Writes are deferred into the effect buffer. This eliminates simulation
+divergence by construction: there is no stub-fidelity problem because there
+are no stubs for reads. The read-only tool gateway mandate in CLAUDE.md is
+the ghost's defining isolation property, promoted from a policy constraint to
+a structural invariant.
+
+The channel-closure audit is a receipt emitted per transaction:
+
+```
+channel_closure_audit.v1 {
+  schema_version, tenant_slug, execution_nonce, parent_receipt_digest,
+  channels[]: {
+    channel_id,           # e.g. "memory_write", "retrieval_index"
+    channel_type,         # durable_state | external_effect | training_signal
+    closure_status,       # deferred | revocable | uncontained
+    enforcement_point,    # which component enforces closure
+    evidence_digest       # digest of the enforcement evidence
+  },
+  audit_complete: boolean,  # false if the channel enumeration is known incomplete
+  uncontained_channels[],   # explicit list; empty = all durable channels closed
+  schema_version_digest,    # binds audit to the channel enumeration version
+  key_epoch
+}
+```
+
+**Commit-predicate binding.** `audit_complete: true` with
+`uncontained_channels: []` (meaning: all *durable* channels closed) is the
+only state that permits ALLOW without ESCALATE. Any uncontained durable
+channel forces ESCALATE. An incomplete audit forces ROLLBACK. The single
+acknowledged uncontained channel — in-context influence — is not durable and
+is handled by the research protocol in §6.6, never by the commit predicate.
+
+**Falsifiability.** A reviewer who identifies an influence channel not in the
+enumeration has found a bug in the audit, not a disagreement about thresholds.
+The channel list is maintained as a versioned schema with explicit coverage
+claims, and the audit receipt binds to the schema version digest. This is the
+property that makes channel closure a stronger claim than contamination
+scoring: the attack surface is enumerable and checkable, not estimated and
+debatable.
+
+### 6.4 The memory object
+
+Draft (`ghostark.memory_object.v1`, research-only):
 
 ```
 MemoryObject {
@@ -597,7 +767,7 @@ MemoryObject {
   admission_receipt_digest    # the gate decision that admitted it (L3 verdict)
   provenance_tier             # signed_chain | attested_tool | model_output | external_untrusted
   taint_labels[]              # extends existing retrieval taint mechanics
-  contamination_estimate      # {value, bounds, estimator_digest} or ABSENT
+  channel_closure_digest      # digest of the channel_closure_audit that covered this write
   budget_charged              # what admitting this cost the tenant's budget
   state                       # quarantined | admitted | expired | revoked
   expires_at                  # extends existing vault expiry
@@ -610,10 +780,11 @@ every transition emitted as a Layer 1 receipt. Ghost writes land in a
 speculative memory namespace and are admitted only on trajectory commit — this
 is how Layers 2 and 4 interlock. Memory rollback = revocation receipt +
 exclusion from retrieval (the taint filter is the existing enforcement point),
-plus the honest caveat that influence already exercised on past decisions is
-not retracted — only measured, within protocol bounds.
+plus the honest caveat that influence already exercised on past decisions
+within the same context window is not retracted — only bounded offline, within
+protocol limits (§6.6).
 
-### 6.3–6.7 Architecture, storage, security, failure modes
+### 6.5 Architecture, storage, security, failure modes
 
 Admission gate extends the existing memory-write gates; retrieval-side
 enforcement extends the existing taint filter; bytes live in the vault
@@ -622,35 +793,117 @@ namespaces, receipts in the ledger. Security: quarantined content is never
 retrievable into prompts — prompt-injection payloads ride on memory, so the
 quarantine boundary is a primary injection defense (a control, not a proof of
 immunity). Failure modes: index/receipt divergence ⇒ memory unreadable (fail
-closed); estimator retired ⇒ affected memories revert to quarantined;
-budget exhausted ⇒ admissions stop.
+closed); channel-closure audit incomplete ⇒ admission blocked; budget
+exhausted ⇒ admissions stop.
 
-### 6.8 MVP
+### 6.6 Population-level residual influence — the research construct [research-only]
+
+For the one channel classified uncontained — in-context influence during the
+rolled-back trajectory — a research protocol, not a runtime mechanism.
+
+**What is measured.** For a pre-registered probe battery B of policy-relevant
+binary decisions (e.g., "does the agent approve a payment over the policy
+limit?"), define:
+
+  Z = 1[decision flips from policy-compliant to policy-violating | exposure
+      to rolled-back trajectory class T]
+
+Z is directional: beneficial learning (policy-violating→policy-compliant
+flips) does not count as contamination. This kills the sign-blindness defect
+in the original ρ formulation.
+
+**How it is measured.** Matched-agent protocol:
+
+1. Sample n trajectory pairs from class T.
+2. For each pair: run agent A (exposed to rolled-back trajectory) and agent B
+   (unexposed, same initial state) through probe battery B.
+3. Record binary outcomes per probe.
+4. Estimate P(Z=1) as a proportion with Wilson score confidence interval.
+5. Report against a pre-registered null baseline: unexposed agent pairs run
+   through the same protocol, establishing the noise floor from sampling
+   variance alone.
+
+**Statistical requirements:**
+
+- n and B are pre-registered before data collection — no post-hoc threshold
+  selection.
+- The null distribution (unexposed flip rate) is estimated with the same
+  protocol and reported alongside. Without a null, a 3% flip rate is
+  uninterpretable.
+- Confidence intervals use Wilson score (implemented:
+  `packages/research-frontier/src/ccCorrelation.ts:wilsonScoreInterval`).
+- Results are reported per model version; no claim of cross-version transfer
+  without re-estimation.
+- Simpson's paradox guard: results are reported stratified by probe category
+  (financial, safety, access-control) in addition to the aggregate, so that
+  a category-level effect masked by aggregation is visible.
+- Estimator gaming guard: the probe battery is published for adversarial
+  extension. An agent that passes the battery while being contaminated on
+  unstudied dimensions is a limitation, not a refutation — the claim is
+  bounded by the battery, not universal.
+
+**CC-Framework integration.** The directional flip Z is a binary variable in
+exactly the shape CC-Framework consumes. The existing
+`ghost.discretization_rule_receipt.v1` makes the continuous→binary conversion
+a signed, versioned, replayable evidence object with a monotonic-risk
+invariant — the threshold is committed before observing data, answering the
+reviewer objection that the threshold was chosen post-hoc. Co-failure
+analysis across multiple probe dimensions reuses `analyzeCcBinaryCohort`
+directly. This is the strongest existing asset for the residual protocol and
+the roadmap did not previously recognize it.
+
+**What this is not.** Not a per-trajectory score. Not a commit-time input. Not
+a proof that contamination is absent. Not transferable across model versions
+without re-estimation. It is a bounded, pre-registered, offline estimate of
+the average causal effect of in-context exposure on policy-relevant decisions,
+reported with confidence intervals and a pre-committed kill criterion (§16.1).
+
+**Kill criterion (stated now, before data collection).** If the exposed
+flip-rate CI overlaps the null-baseline CI at the pre-committed n, on the
+pre-registered probe battery, for two consecutive model versions, the
+construct has failed to demonstrate a measurable effect. It is retracted;
+Layer 4 reduces to channel-closure plus provenance-gated memory ACLs. This
+is stated publicly before running the protocol, not after seeing the data.
+
+### 6.7 MVP (Phase 2 target)
 
 Extend the existing gates: admission receipts + read-time state check +
-speculative namespace. No trust scores at first — provenance tiers only.
-[Phase 2 target]
+speculative namespace + channel-closure audit receipt (covering the channels
+whose enforcement points already exist locally: memory-write gate, taint
+filter, vault expiry, tool gateway). No residual estimation at first —
+channel closure is the engineering deliverable; residual estimation is the
+research deliverable on a separate timeline. [Phase 2 target]
 
-### 6.9 Research paper opportunity
+### 6.8 Research paper opportunity
 
-"Memory Integrity for LLM Agents: Provenance-Gated Influence." Contribution:
-the read-time revalidation model and quarantine semantics evaluated against
-injection-via-memory corpora. Venue: USENIX Security or NDSS; measurement
-companion at NeurIPS/ICML.
+"Influence-Channel Closure for LLM Agent Rollback." Contribution: the
+channel-enumeration model, closure receipts with versioned coverage claims,
+and the directional flip-rate protocol with pre-registered kill criteria. A
+paper that concedes individual contamination is unmeasurable and routes around
+it is stronger than one that claims to solve it — a USENIX reviewer who finds
+the ρ impossibility result has confirmed the paper's own premise, not
+refuted it. Venue: USENIX Security or NDSS; measurement companion at
+NeurIPS/ICML.
 
-### 6.10 2030 mature version — and the moat argument
+### 6.9 2030 mature version — and the moat argument
 
 By 2030: memory objects portable across agent frameworks with receipts intact,
-organization-wide memory policy, quarantine analytics. This layer is a
-plausible durable moat because it accumulates *structured evidence about
-information flow over time* — switching away means abandoning the provenance
-history that makes an agent fleet auditable. That is a hypothesis about
-markets, not a fact. [aspirational]
+organization-wide memory policy, quarantine analytics, channel-closure audit
+as a required field in compliance evidence bundles. The channel-enumeration
+schema is itself a contribution: it forces any competing system to explicitly
+state what it does and does not contain, rather than claiming unqualified
+"rollback."
+
+This layer is a plausible durable moat because it accumulates *structured
+evidence about information flow over time* — switching away means abandoning
+the provenance history that makes an agent fleet auditable. That is a
+hypothesis about markets, not a fact. [aspirational]
 
 **Rejected extensions:** cross-tenant memory sharing (boundary violation);
 automatic "trust decay" curves without an estimator behind them
 (false precision); storing raw content in the receipt ledger (privacy and
-size).
+size); per-trajectory contamination scores (statistically incoherent — §6.2);
+contamination gates in the commit predicate (runtime infeasible — §6.2).
 
 ---
 
@@ -732,7 +985,8 @@ no evidence benefit); federated learning across tenants.
 │     [aspirational]        receipt inheritance · collusion stats      │
 ├──────────────────────────────────────────────────────────────────────┤
 │ L4  MEMORY INTEGRITY      admission gates · quarantine · read-time   │
-│     [3 primitives local]  revalidation · speculative namespaces      │
+│     + CHANNEL CLOSURE     revalidation · channel-closure audit ·     │
+│     [3 primitives local]  speculative namespaces · offline residual  │
 ├──────────────────────────────────────────────────────────────────────┤
 │ L3  COMMIT INTELLIGENCE   policy DSL · deterministic Π · budgets ·   │
 │     [decision path local] counterexamples · CC co-failure discount   │
@@ -839,6 +1093,7 @@ lifecycle deployed on AWS (Step Functions + Lambda/micro-VM backends),
 AWS-synth-only first, then one AWS-live validation window; memory-integrity
 MVP (admission receipts, read-time revalidation, speculative namespaces);
 dashboards in apps/console (receipt explorer exists as product surface);
+influence-channel closure audit MVP (covering locally-enforced channels);
 residual-influence measurement protocol pre-registered and piloted
 [research-only].
 Evidence gate: an external developer reproduces a full
@@ -867,7 +1122,7 @@ Evidence gate: a runtime we did not write passes conformance.
 | L1 | Receipts for Agent Actions | USENIX Security / CCS | Receipt algebra, composition, negative-corpus method |
 | L2 | Ghost-Ark: Speculative Transactional Execution for LLM Agents | OSDI / SOSP / EuroSys | Lifecycle semantics, effect-deferral taxonomy, GhostBench |
 | L3 | Commit Predicates | NDSS / IEEE S&P (+ CAV artifact) | Deterministic contestable verdicts, counterexample-carrying policies |
-| L4 | Cognitive Contamination: Measuring Residual Influence of Rolled-Back Trajectories | NeurIPS / ICML | Pre-registered divergence protocol; the riskiest and highest-value result |
+| L4 | Influence-Channel Closure for LLM Agent Rollback | USENIX Sec / NDSS + NeurIPS | Channel-enumeration model, closure receipts, directional flip-rate with pre-registered kill criterion |
 | CC | Correlated Guardrail Failure under Explicit Dependence Assumptions | SaTML / IEEE S&P | Co-failure bounds; discretization receipts as the measurement interface |
 | L5 | Receipt-Bound Delegation | CCS | Attenuated capabilities, inheritance, collusion statistics |
 
@@ -922,8 +1177,9 @@ decides ALLOW, ROLLBACK, or ESCALATE. Verdicts, releases, rollbacks, and
 memory admissions are all append-only receipts in per-tenant Merkle logs with
 externally witnessed checkpoints. Memory is provenance-gated: nothing
 influences future decisions without an admission chain that is revalidated at
-read time, and rolled-back trajectories leave quantified, bounded residual
-reports instead of silent influence. Delegation between agents transfers
+read time, and rolled-back trajectories have their durable influence channels closed by
+construction and receipted per transaction, with population-level residual
+reports for the unclosable in-context channel. Delegation between agents transfers
 attenuated, receipt-bound capability, and delegated work returns as a
 speculative subtree under the delegator's own commit predicate. Around the
 core: an open receipt and lifecycle specification, at least two independent
@@ -941,22 +1197,31 @@ the whole architecture.
 Concrete, repo-specific, ordered:
 
 1. Draft `schemas/research/ghostark.speculation.*.v1.json` (the receipt family
-   in §3.4) with vitest schema tests. No runtime yet — schemas and negative
-   fixtures first, matching how every other spine was built.
-2. Scaffold `packages/ghost-engine` (local-only): transaction state machine,
-   deferred-effect buffer, journal rollback, recorded tool stubs. Wire receipt
+   in §3.4, including `channel_closure_audit.v1`) with vitest schema tests.
+   No runtime yet — schemas and negative fixtures first, matching how every
+   other spine was built.
+2. Write the influence-channel enumeration schema and the residual-influence
+   measurement protocol (docs/research/, research-only). This is the Layer 4
+   theory document — the channel taxonomy with versioned coverage claims,
+   matched-agent directional flip rate, Wilson intervals, pre-registered n and
+   probe battery, null baseline protocol, and kill criterion stated before
+   data collection. Get it reviewed before building anything that depends on
+   it. Layer 4 is the highest-risk research component; stabilize the theory
+   first.
+3. Scaffold `packages/ghost-engine` (local-only): transaction state machine,
+   deferred-effect buffer, journal rollback. Ghost reads go through the
+   existing read-only tool gateway — real reads, deferred writes. Wire receipt
    emission through the existing signer path. Unit tests for every lifecycle
    transition including crash-mid-commit.
-3. Implement Π v0 as a thin layer over the existing policy engine: effect
-   classes + deny-by-default + decision receipts. Add counterexample tests via
-   the existing `policy:counterexamples` tooling.
-4. Build GhostBench v0: ten scripted agent tasks seeded with
-   irreversible-effect traps; report containment rate, rollback completeness,
-   verdict reproducibility, and overhead in docs/validation/ with local-only
-   labels.
-5. Write and pre-register the residual-influence measurement protocol
-   (docs/research/, research-only): matched-agent behavioral divergence,
-   estimator versioning, failure criteria stated in advance.
+4. Implement Π v0 as a thin layer over the existing policy engine: effect
+   classes + channel-closure predicates + deny-by-default + decision receipts.
+   Add counterexample tests via the existing `policy:counterexamples` tooling.
+   No population-level residual input — channel closure is the L4 signal at
+   commit time.
+5. Build GhostBench v0: ten scripted agent tasks seeded with
+   irreversible-effect traps and influence-channel leaks; report containment
+   rate, rollback completeness, channel-closure audit coverage, verdict
+   reproducibility, and overhead in docs/validation/ with local-only labels.
 6. Execute the supervised live AWS validation window for the existing
    governed-invoke path (standing release blocker). New layers do not excuse
    old evidence debt.
@@ -965,51 +1230,319 @@ Concrete, repo-specific, ordered:
 
 ## 16. The Three Things That Could Kill This Project
 
-1. **Residual influence may not be measurable in a defensible way.** Cognitive
-   contamination is the thesis's novel object. If the pre-registered
-   divergence protocol cannot separate signal from prompt-level noise — or
-   reviewers show the metric is gameable or model-version-fragile — Layer 4's
-   differentiator collapses into ordinary memory ACLs and Layer 2 loses its
-   deepest justification. Mitigation: pre-registration, adversarial baselines,
-   and a stated willingness to retract the construct. This is a real
-   falsification risk, not a formality.
+1. **The influence-channel enumeration may be incomplete, and the residual
+   may not separate from noise.** Two coupled risks. First, the
+   channel-closure audit's value depends on the channel list being
+   *recognizably complete* — an unlisted channel is an unaudited leak. The
+   defense is versioned schemas with explicit coverage claims and adversarial
+   review of the enumeration itself, but completeness of an enumeration is
+   not provable in general; it is only defensible through sustained
+   adversarial pressure. The audit is still strictly better than the
+   alternative (no enumeration, implicit coverage) — but a reviewer who
+   finds three unlisted channels undermines the claim that the enumeration
+   is a useful primitive. Second, the population-level residual influence
+   protocol (§6.6) may fail outright: the directional flip-rate CI may
+   overlap the null baseline at the pre-committed sample size, meaning no
+   measurable effect of in-context exposure is demonstrable. If both fail —
+   channels leak and the residual is noise — Layer 4 reduces to ordinary
+   memory ACLs with provenance labels, which is useful but not novel.
+
+   Mitigation: pre-registration of the kill criterion (§6.6), adversarial
+   channel-enumeration review before Phase 2, and a stated willingness to
+   retract the residual construct. The channel-closure audit survives
+   independently of the residual protocol — even if ρ is noise, knowing which
+   durable channels are closed and which are not is operational evidence that
+   no competing system currently provides. The honest degraded outcome is
+   "receipted memory ACLs with explicit channel coverage claims," which is a
+   narrower contribution, not a worthless one.
+
 2. **The speculation tax may exceed the value for most workloads.** If
    ghosting doubles latency and cost while most agent actions are low-risk,
    buyers will choose inline filters and accept the residue. The project only
    clears the bar where irreversibility is expensive — payments, infra
    mutation, records. If GhostBench overhead numbers come back ugly and
-   cannot be engineered down (tool-stub fast paths, effect-class-scoped
-   ghosting), the honest conclusion is a niche product, not a substrate.
+   cannot be engineered down (real reads through the brokered gateway
+   eliminate stub overhead; effect-class-scoped ghosting skips low-risk
+   paths), the honest conclusion is a niche product, not a substrate.
+
 3. **Platform absorption before the formats are open.** If frontier labs ship
    integrated sandbox-plus-audit defaults before the receipt and lifecycle
    formats exist as an open, independently implemented standard, Ghost-Ark
    becomes a feature comparison it loses on distribution. The counter is
    sequencing: publish the spec and conformance suite early (Phase 2, not
    Phase 4) and recruit a second implementation even at the cost of
-   short-term differentiation. A related self-inflicted variant: letting
-   claims outrun evidence. The entire value of this project is that its
-   statements survive skeptical review; one overclaimed capability spends
-   that down faster than any competitor could.
+   short-term differentiation. A coupling: if the residual protocol fails
+   (§16.1), the moat narrows to neutrality plus cross-vendor formats plus
+   channel-closure receipts, making early standardization *more* urgent, not
+   less. The channel-enumeration schema is a publishable contribution
+   independent of the residual — it forces any competing system to
+   explicitly state what it does and does not contain, which no current
+   framework does. A related self-inflicted variant: letting claims outrun
+   evidence. The entire value of this project is that its statements survive
+   skeptical review; one overclaimed capability spends that down faster than
+   any competitor could.
 
 ## 17. Assumption Register (marked)
 
 - A1: Agent adoption in consequence-bearing workflows continues through 2030.
 - A2: Effect deferral is compatible with acceptable latency for a commercially
   meaningful subset of agent tasks. (Tested by GhostBench, Phase 1–2.)
-- A3: Residual influence is operationalizable as bounded behavioral
-  divergence. (Riskiest; see §16.1.)
+- A3: The influence-channel enumeration is recognizably complete — unlisted
+  channels do not dominate residual influence for the commercially meaningful
+  subset. (Tested by adversarial review of the channel taxonomy and GhostBench
+  leak-detection tasks, Phase 1–2. "Recognizably complete" is deliberately
+  weaker than "provably complete" — the claim is explicit versioned coverage
+  under adversarial pressure, not exhaustive proof.)
+- A3a: Population-level residual influence (directional flip rate) separates
+  from the null baseline at pre-committed sample sizes. (Riskiest research
+  bet; kill criterion stated in advance — see §6.6 and §16.1. Tested Phase 2.
+  If this fails, Layer 4 reduces to channel-closure plus provenance-gated
+  memory ACLs — a narrower but still operational contribution.)
 - A4: Buyers value independent verification over vendor-integrated logging.
 - A5: The existing local-only receipt kernel survives live AWS validation
   without semantic changes. (Standing release blocker; tested in Phase 1.)
 - A6: CC-Framework co-failure estimates transfer from guardrail evaluation to
   commit-evaluator discounting. (Research question, not a given.)
+- A7: Real reads through the brokered read-only gateway are sufficient for
+  ghost-mode agent tasks; simulation/stubbing of reads is not required for
+  the commercially meaningful subset. (Simplifies the isolation model by
+  eliminating simulation divergence; tested by GhostBench, Phase 1.)
 
 ## 18. Non-Claims for This Roadmap
 
 This document does not claim: production readiness; safety of any agent or
-model; that rollback removes all influence; that contamination estimates are
-proofs of absence; that any AWS path is live-validated beyond what
+model; that rollback removes all influence; that channel-closure audits are
+complete enumerations (they are versioned coverage claims under adversarial
+pressure); that population-level residual estimates are proofs of absence or
+per-trajectory scores; that any AWS path is live-validated beyond what
 docs/validation/ records; formal verification of any component; zero-knowledge
 verification capability; hardware attestation or enclave integrity;
-compliance status of any kind; certified status under any external framework. Every
-future-tense system in this document is a plan. Plans are not evidence.
+compliance status of any kind; certified status under any external framework.
+Every future-tense system in this document is a plan. Plans are not evidence.
+
+---
+
+## 19. Scientific Review Appendix — Layer 4 Revision Record (2026-07-14)
+
+This section documents the formal reasoning behind the Layer 4 revision so
+future contributors can understand why ρ(τ_ghost) was deleted and what
+replaced it, without re-deriving the arguments.
+
+### 19.1 Revision: ρ(τ_ghost) → influence-channel closure + population flip rate
+
+**Prior construct.** ρ(τ_ghost) was defined as a per-trajectory scalar
+measuring behavioral divergence between matched agents with and without
+exposure to a rolled-back trajectory. It was specified as a commit-time input
+to the predicate Π, gated in the policy DSL as
+`contamination.max_estimate_upper_bound: 0.05`.
+
+**Theorem intuition (why it fails).** The fundamental problem of causal
+inference (Rubin 1974; Holland 1986) states that individual causal effects
+are not identifiable: you cannot observe both the treated and untreated
+potential outcomes for the same unit. For stochastic agents, this means
+ρ(τ_ghost) — attributed to a single trajectory — is not a quantity that can
+be estimated from any finite sample of that trajectory. What *can* be
+estimated is the average treatment effect (ATE) across a population of
+trajectories, which is the population-level construct in §6.6.
+
+Additionally: (a) raw behavioral divergence is sign-blind — it counts
+beneficial learning as contamination, because divergence has no direction;
+(b) estimation requires running matched-agent batteries, which is
+computationally infeasible at commit time and non-deterministic by
+construction, violating the policy DSL's requirement that all inputs be
+computable, replayable, and deterministic from recorded artifacts.
+
+**Replacement construct A: Influence-channel closure.**
+
+- *Threat model:* An adversary crafts a trajectory to poison future agent
+  behavior through durable channels (memory, retrieval index, cache, vault,
+  external effects, fine-tuning data). The threat is persistent influence that
+  outlives context-window lifetime.
+- *Failure modes:* (1) Incomplete channel enumeration — an unlisted channel is
+  an unaudited leak. Defense: versioned schema with explicit coverage claims,
+  adversarial review, and a bug if a channel is found missing. (2) Enforcement-
+  point bypass — a channel listed as "deferred" whose enforcement point has a
+  code defect. Defense: per-channel GhostBench tasks that attempt writes and
+  verify they are caught, with any leak a test failure, not a score.
+  (3) New channel types introduced by framework changes not reflected in the
+  schema. Defense: the schema version digest in the audit receipt makes
+  staleness detectable; any new channel type that lacks a closure entry
+  triggers audit_complete: false, which forces ROLLBACK.
+- *Benchmark design:* GhostBench v0 includes one influence-channel leak task
+  per enumerated channel, plus composite tasks that attempt multiple channels
+  simultaneously. Metric: binary leak/no-leak per channel (not a score —
+  any leak in a "deferred" channel is a test failure). Coverage metric:
+  fraction of enumerated channels with exercised test tasks.
+- *Reviewer objections anticipated:*
+  - "Your channel enumeration is incomplete." — Correct, it may be. The claim
+    is not "complete enumeration" but "explicit, versioned, auditable
+    enumeration with receipted coverage claims." The alternative (no
+    enumeration, implicit coverage) is strictly worse. An unlisted channel is
+    a concrete finding that improves the schema, not a refutation of the
+    approach.
+  - "Channel closure is just access control with receipts." — Partly. The
+    contribution is (a) the enumeration itself (forcing the question "what
+    channels exist?" for agent rollback, which no current framework asks),
+    (b) the per-transaction audit receipt that binds closure status to the
+    commit decision, and (c) the acknowledgment that one channel (in-context
+    influence) is *not* closable, handled separately. Ordinary ACLs do not
+    carry coverage claims or bind to commit predicates.
+  - "An AWS principal wants to know: what's the TCO delta?" — The
+    channel-closure audit is a receipt emission (microseconds, existing signer
+    path). No matched-agent battery, no external service call. Overhead is
+    dominated by Layer 2 (effect interception), not Layer 4.
+- *Kill criteria:* If three or more channels are discovered in adversarial
+  review that were not in the enumeration, and if closing them requires
+  architectural changes to the ghost engine rather than enforcement-point
+  additions, the channel-closure model is inadequate for its stated purpose
+  and must be redesigned.
+
+**Replacement construct B: Population-level directional flip rate.**
+
+- *Threat model:* In-context influence — the one unclosable channel — causes
+  the agent to make worse decisions after exposure to a rolled-back trajectory,
+  because the trajectory's patterns persist in the context window or in
+  latent model state within a session.
+- *Failure modes:* (1) Flip rate does not separate from null baseline — no
+  measurable effect exists at the study's power level. (2) Flip rate is
+  model-version-fragile — results do not replicate across model updates,
+  making the estimate non-portable. (3) Probe battery is gameable — an agent
+  appears uncontaminated on the specific probes while being contaminated on
+  unstudied decisions (selection bias / Simpson's paradox across probe
+  selection). (4) Estimator gaming — adversary optimizes trajectory to pass
+  the probe battery while contaminating unmonitored dimensions.
+- *Benchmark design:* Pre-registered matched-agent protocol (§6.6). Primary
+  metric: P(policy-compliant→policy-violating flip | exposure), estimated as
+  a proportion with Wilson 95% CI. Secondary metric: same, stratified by
+  probe category (financial, safety, access-control). Null metric: same
+  protocol, unexposed pairs, establishing noise floor. All reported with
+  sample sizes, CIs, and model version.
+- *Reviewer objections anticipated:*
+  - "This is just a standard A/B test with Wilson intervals — what's novel?"
+    — The statistics are standard; the contribution is (a) the directional
+    formulation that avoids sign blindness, (b) the integration with
+    CC-Framework discretization receipts that bind thresholds before data
+    collection (existing asset: `ghost.discretization_rule_receipt.v1`), and
+    (c) the explicit pre-registered kill criterion that commits to retraction.
+  - "Your probe battery is gameable." — Yes. Probe-battery limitations are
+    stated upfront, and the battery is published for adversarial extension.
+    No claim of completeness is made; the claim is bounded by the battery.
+  - "Why not use mutual information or KL divergence?" — Information-theoretic
+    measures require distributional access that is not available for black-box
+    LLM agents in practice. The binary flip formulation works with black-box
+    API access only and maps directly to the CC-Framework discretization
+    pipeline.
+  - "If OpenAI ships a contamination detector next year, this is moot." —
+    A vendor's self-attestation of contamination absence is structurally
+    weaker evidence than an independent, pre-registered, reproducible
+    protocol. The value is in the independence and falsifiability of the
+    measurement, not in being first.
+- *Kill criteria:* Exposed flip-rate CI overlaps null-baseline CI at
+  pre-committed n, on the pre-registered probe battery, for two consecutive
+  model versions. The construct is retracted; Layer 4 reduces to
+  channel-closure plus provenance-gated memory ACLs. This is stated before
+  running the protocol.
+
+### 19.2 Revision: Merkle associativity → canonical deterministic construction
+
+**Prior claim.** §3.5 stated "composition must be associative over digests so
+a verifier can check any subtree without the whole history."
+
+**Why it fails.** Merkle root computation is not associative over arbitrary
+partitions. For leaves [a, b, c, d], the canonical `merkleRootForRange`
+algorithm splits at the midpoint, producing
+`nodeHash(nodeHash(leafHash(a), leafHash(b)), nodeHash(leafHash(c), leafHash(d)))`.
+Attempting to compose `root([a,b,c])` with `root([d])` yields
+`nodeHash(nodeHash(nodeHash(leafHash(a), leafHash(b)), leafHash(c)), leafHash(d))`,
+which is a different digest. The tree structure depends on the leaf count,
+so `root(A‖B) ≠ f(root(A), root(B))` in general.
+
+**What actually holds.** (1) *Canonical deterministic construction:* the
+repository's `merkleRootForRange` produces a unique tree shape from any
+ordered leaf sequence — same inputs, same root, always. (2) *Inclusion
+verifiability:* `verifyInclusionProof` checks a leaf's membership against a
+root using only the audit path, without reconstructing the full tree.
+(3) *Domain separation:* `leafHash` and `nodeHash` use distinct internal
+structure, preventing second-preimage attacks across tree levels. These three
+properties are sufficient for independent verification. Associativity is
+neither needed nor claimed.
+
+**Threat model for the correction.** If the roadmap claims associativity and a
+reviewer checks `merkle.ts`, the reviewer finds a discrepancy between the
+claim and the code. This undermines trust in the document's mathematical
+precision, which is the document's primary differentiator from marketing
+roadmaps.
+
+### 19.3 Revision: Contamination gate deleted from commit policy DSL
+
+**Prior construct.** `contamination: { estimator: ghostark.residual.v0,
+max_estimate_upper_bound: 0.05 }` in the policy YAML.
+
+**Why it fails.** The policy DSL's design rules require every predicate input
+to be: (1) computable at commit time, (2) replayable from recorded artifacts,
+(3) deterministic over inputs, (4) bounded in evaluation cost. The
+population-level residual influence satisfies none of these: it is computed
+offline, requires stochastic sampling, is non-deterministic, and is bounded
+only in expectation over a population. Binding a commit predicate to it would
+either (a) use a stale estimate from a prior offline run, which has unknown
+validity for the current trajectory, or (b) compute it inline, which is
+infeasible.
+
+**Replacement.** `channel_closure: { require_audit: true,
+max_uncontained_channels: 0, uncontained_verdict: ESCALATE }`.
+Channel-closure audit status is computable (enumerate and classify channels),
+replayable (the audit receipt is deterministic), deterministic (same channels
+and enforcement evidence, same classification), and bounded (the audit is
+O(|channels|), which is a small constant). It satisfies all four DSL
+requirements. Population-level residual estimates feed into offline risk
+reports, research publications, and organizational policy reviews — never
+into the per-transaction commit predicate.
+
+### 19.4 Adversarial review record
+
+The revised thesis was subjected to four adversarial perspectives:
+
+**USENIX Security reviewer.** "The channel-closure construct is access control
+with receipts. The novel claim — that agent rollback has an enumerable
+influence surface — is plausible but unproven for the general case. The
+population-level flip rate is a standard A/B test. What survives review?"
+Answer: the channel enumeration itself (no competing framework provides one),
+the per-transaction audit receipt binding closure status to commit decisions,
+the directional flip-rate formulation (resolves sign blindness in prior
+divergence measures), and the pre-registered kill criterion. The paper should
+lead with the impossibility result for per-trajectory ρ, making it the
+premise rather than a limitation.
+
+**OSDI reviewer.** "The systems contribution is the ghost engine (Layer 2),
+not the memory system (Layer 4). Layer 4 looks like a measurement appendix."
+Answer: agreed that the systems paper is Layer 2. Layer 4 is a companion
+measurement paper (NeurIPS/ICML), not the systems paper. The connection is
+that Layer 2's value proposition depends on Layer 4's honesty about what
+rollback does and does not contain — without the channel-closure audit, Layer
+2 is "a sandbox" and competes on isolation quality rather than evidence
+quality.
+
+**AWS principal engineer.** "What's the TCO delta? Will customers pay for
+channel-closure receipts they could approximate with IAM policies?" Answer:
+the channel-closure audit is a receipt emission (microseconds, existing signer
+path) — negligible marginal cost. The value over IAM policies is
+*composability with the commit predicate*: an IAM policy denies access; a
+channel-closure audit receipts what was deferred and binds the receipt to a
+commit decision. The difference is evidence for audit, not access control for
+prevention. Whether buyers value this depends on regulatory pressure in
+consequence-bearing domains — assumption A4.
+
+**OpenAI infrastructure team.** "We'll ship context-window isolation next
+year. Does this matter?" Answer: context-window isolation (resetting the
+agent's context after rollback) closes the in-context influence channel.
+If a frontier lab ships it, the channel enumeration loses its most
+interesting entry but gains a closure mechanism for it — the audit receipt
+would record `context_window: { closure_status: deferred }` instead of
+`uncontained`. The population-level residual protocol becomes unnecessary.
+This is the best-case outcome for safety and a neutral-to-positive outcome
+for Ghost-Ark: the channel-enumeration schema still forces explicit coverage
+claims, and the receipt layer still provides independent verification of the
+vendor's isolation claim. The scenario to worry about is not "they solve
+in-context influence" but "they ship good-enough logging with no receipt
+algebra, and buyers don't care about independent verification." That is
+§16.3.

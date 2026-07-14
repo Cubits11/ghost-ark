@@ -103,9 +103,9 @@ Recent known passing baseline:
 
 - npm test passes
 
-- 63/63 test files passed
+- 86/86 test files passed (as of 2026-07-14; re-run at head)
 
-- 335/335 tests passed
+- 559/559 tests passed (as of 2026-07-14; re-run at head)
 
 Recent hardening areas:
 
