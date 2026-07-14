@@ -1,5 +1,9 @@
 # Roadmap
 
+Long-horizon engineering and research staging lives in
+[docs/architecture/INFRASTRUCTURE_ROADMAP_2030.md](../architecture/INFRASTRUCTURE_ROADMAP_2030.md).
+This file tracks the AWS product surface.
+
 ## Foundation
 
 - Raw and curated S3 evidence zones.
