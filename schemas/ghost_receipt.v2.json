@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/ghost_receipt.v2.json",
+  "title": "Ghost Ark Decision Receipt v2 (DRAFT)",
+  "description": "DRAFT migration target, not emitted or signed by any runtime path yet. v2 is a strict superset of ghost.receipt.v1: every v1 field is preserved with v1 naming and semantics, and execution_trace adds per-tool-call transit digests recorded by the gateway so assertion-vs-record divergence becomes receipt-detectable. Identity fields remain digests; raw tenant, user, or session identifiers never appear in receipts. decision_pre, decision_post, and action_taken values must be tightened to the ghost.receipt.v1 enumerations before this draft is promoted.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "request_id",
+    "tenant_id_hash",
+    "user_id_hash",
+    "session_id_hash",
+    "timestamp",
+    "model_id",
+    "policy_version",
+    "policy_hash",
+    "input_digest",
+    "retrieved_context_digests",
+    "execution_context_hash",
+    "execution_nonce",
+    "execution_trace",
+    "decision_pre",
+    "decision_post",
+    "action_taken",
+    "risk_score",
+    "consent_state",
+    "memory_written",
+    "latency_ms",
+    "cost_estimate_usd",
+    "prev_receipt_hash",
+    "signature_alg"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "ghost.receipt.v2" },
+    "receipt_id": { "type": "string", "pattern": "^grct2_[a-f0-9]{64}$" },
+    "request_id": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "tenant_id_hash": { "type": "string", "pattern": "^(sha256|hmac-sha256):[a-f0-9]{64}$" },
+    "user_id_hash": { "type": "string", "pattern": "^(sha256|hmac-sha256):[a-f0-9]{64}$" },
+    "session_id_hash": { "type": "string", "pattern": "^(sha256|hmac-sha256):[a-f0-9]{64}$" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "model_id": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "policy_version": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "policy_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "input_digest": { "type": "string", "pattern": "^(sha256|hmac-sha256):[a-f0-9]{64}$" },
+    "retrieved_context_digests": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^(sha256|hmac-sha256):[a-f0-9]{64}$" }
+    },
+    "execution_context_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "execution_nonce": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,256}$" },
+    "execution_trace": {
+      "description": "Ordered per-tool-call transit records committed by the gateway. sequence_num values must be strictly increasing. provenance_class excludes AGENT_ASSERTED (a gateway-committed record is never the agent's bare claim) and CROSS_WITNESSED (derive-only; never assigned to a single record).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sequence_num", "tool_name", "request_payload_digest", "response_payload_digest", "provenance_class"],
+        "additionalProperties": false,
+        "properties": {
+          "sequence_num": { "type": "integer", "minimum": 0 },
+          "tool_name": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,256}$" },
+          "request_payload_digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "response_payload_digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "provenance_class": { "enum": ["GATEWAY_RECORDED", "SOURCE_SIGNED", "EXTERNALLY_ATTESTED"] }
+        }
+      }
+    },
+    "decision_pre": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "decision_post": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "action_taken": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+    },
+    "risk_score": { "type": "number", "minimum": 0, "maximum": 1 },
+    "consent_state": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "memory_written": { "type": "boolean" },
+    "latency_ms": { "type": "number", "minimum": 0 },
+    "cost_estimate_usd": { "type": "number", "minimum": 0 },
+    "prev_receipt_hash": {
+      "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }]
+    },
+    "signature_alg": { "enum": ["LOCAL_HMAC_SHA256_DEV_ONLY", "KMS_SIGN_RSASSA_PSS_SHA_256"] }
+  }
+}
