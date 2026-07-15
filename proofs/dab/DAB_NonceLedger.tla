@@ -3,33 +3,37 @@ EXTENDS Naturals, FiniteSets
 
 CONSTANTS Agents, Nonces, MaxLedgerSize
 
-VARIABLES ledger, agentState, agentNonce
+VARIABLES ledger, agentState, agentNonce, spent
 
-vars == <<ledger, agentState, agentNonce>>
+vars == <<ledger, agentState, agentNonce, spent>>
 
 Init == 
     /\ ledger = {}
+    /\ spent = {}
     /\ agentState = [a \in Agents |-> "Init"]
     /\ agentNonce = [a \in Agents |-> "None"]
 
 ConsumeNonce(a, n) ==
     /\ agentState[a] = "Init"
     /\ n \notin ledger
+    /\ n \notin spent
     /\ Cardinality(ledger) < MaxLedgerSize
     /\ ledger' = ledger \cup {n}
     /\ agentState' = [agentState EXCEPT ![a] = "Executed"]
     /\ agentNonce' = [agentNonce EXCEPT ![a] = n]
+    /\ UNCHANGED spent
 
 RejectNonce(a, n) ==
     /\ agentState[a] = "Init"
-    /\ n \in ledger
+    /\ (n \in ledger \/ n \in spent)
     /\ agentState' = [agentState EXCEPT ![a] = "Rejected"]
     /\ agentNonce' = [agentNonce EXCEPT ![a] = n]
-    /\ UNCHANGED ledger
+    /\ UNCHANGED <<ledger, spent>>
 
 GarbageCollect(n) ==
     /\ n \in ledger
-    /\ ledger' = ledger \setminus {n}
+    /\ ledger' = ledger \ {n}
+    /\ spent' = spent \cup {n}
     /\ UNCHANGED <<agentState, agentNonce>>
 
 Next == 
