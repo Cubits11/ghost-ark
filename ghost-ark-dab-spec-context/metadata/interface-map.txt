@@ -1,0 +1,53 @@
+packages/enforcement-runtime/src/receipts/verifier.ts:export interface DecisionReceiptVerificationCheck {
+packages/enforcement-runtime/src/receipts/verifier.ts:export interface DecisionReceiptVerificationResult {
+packages/enforcement-runtime/src/receipts/verifier.ts:export interface ParsedDecisionReceiptSignatureEnvelope {
+packages/enforcement-runtime/src/receipts/verifier.ts:export interface DecisionReceiptCanonicalVerifier {
+packages/enforcement-runtime/src/receipts/verifier.ts:export interface VerifyDecisionReceiptOptions {
+packages/enforcement-runtime/src/receipts/emission.ts:export interface DecisionReceiptAsyncSigner {
+packages/enforcement-runtime/src/receipts/emission.ts:export interface DecisionReceiptEmissionInput {
+packages/enforcement-runtime/src/receipts/emission.ts:export interface DecisionReceiptEmitter {
+packages/enforcement-runtime/src/receipts/emission.ts:export interface DefaultDecisionReceiptEmitterOptions {
+packages/enforcement-runtime/src/receipts/signer.ts:export interface DecisionReceiptSigner {
+packages/enforcement-runtime/src/receipts/signer.ts:export interface DecisionReceiptSignatureEnvelope {
+packages/enforcement-runtime/src/receipts/repository.ts:export interface DecisionReceiptChainHead {
+packages/enforcement-runtime/src/receipts/repository.ts:export interface DecisionReceiptPersistenceResult {
+packages/enforcement-runtime/src/receipts/repository.ts:export interface DecisionReceiptRepository {
+packages/enforcement-runtime/src/receipts/repository.ts:export interface DynamoDbDecisionReceiptRepositoryOptions {
+packages/enforcement-runtime/src/receipts/kmsVerifier.ts:export interface KmsDecisionReceiptVerifierLogger {
+packages/enforcement-runtime/src/receipts/kmsVerifier.ts:export interface KmsDecisionReceiptVerifierOptions {
+packages/enforcement-runtime/src/receipts/kmsSigner.ts:export interface KmsDecisionReceiptSignerOptions {
+packages/enforcement-runtime/src/receipts/v2/emission.ts:export interface DecisionReceiptV2TraceEntry {
+packages/enforcement-runtime/src/receipts/v2/emission.ts:export interface UnsignedDecisionReceiptV2 {
+packages/enforcement-runtime/src/receipts/v2/emission.ts:export interface SignedDecisionReceiptV2 extends UnsignedDecisionReceiptV2 {
+packages/enforcement-runtime/src/receipts/v2/runtimeEmitter.ts:export interface DecisionReceiptV2EmissionInput {
+packages/enforcement-runtime/src/receipts/v2/runtimeEmitter.ts:export interface DecisionReceiptV2Emitter {
+packages/enforcement-runtime/src/receipts/v2/runtimeEmitter.ts:export interface DefaultDecisionReceiptV2EmitterOptions {
+packages/enforcement-runtime/src/receipts/checkpointRepository.ts:export interface ReceiptCheckpointRepository {
+packages/enforcement-runtime/src/receipts/checkpointRepository.ts:export interface DynamoDbReceiptCheckpointRepositoryOptions {
+packages/enforcement-runtime/src/receipts/chain.ts:export interface ReceiptChainCheck {
+packages/enforcement-runtime/src/receipts/checkpoint.ts:export interface ReceiptChainHeadLeaf {
+packages/enforcement-runtime/src/proofs/receiptProof.ts:export interface ReceiptProofPublicInputs {
+packages/enforcement-runtime/src/proofs/receiptProof.ts:export interface ReceiptProofClaims {
+packages/enforcement-runtime/src/proofs/receiptProof.ts:export interface ReceiptProofStatement {
+packages/enforcement-runtime/src/proofs/receiptProof.ts:export interface ReceiptProof {
+packages/enforcement-runtime/src/proofs/receiptProof.ts:export interface ReceiptProofVerificationResult {
+packages/enforcement-runtime/src/proofs/receiptProof.ts:export interface ReceiptProofBackendVerification {
+packages/enforcement-runtime/src/proofs/receiptProof.ts:export interface ReceiptProofBackendVerifier {
+packages/enforcement-runtime/src/proofs/receiptProof.ts:export interface PrivateReceiptProofBundle<Receipt = unknown, Checkpoint = unknown, InclusionProof = unknown, KeyManifest = unknown> {
+packages/enforcement-runtime/src/proofs/externalReceiptProofVerifier.ts:export interface ExternalReceiptProofVerifierInput {
+packages/enforcement-runtime/src/runtime/lifecycle.ts:export interface GovernedInvokeRequest {
+packages/enforcement-runtime/src/runtime/lifecycle.ts:export interface GovernedInvokeDependencies {
+packages/enforcement-runtime/src/runtime/result.ts:export interface GovernedInvokeResult {
+packages/enforcement-runtime/src/runtime/metrics.ts:export interface GovernedInvokeMetricDimensions {
+packages/enforcement-runtime/src/runtime/metrics.ts:export interface GovernedInvokeMetric {
+packages/enforcement-runtime/src/runtime/metrics.ts:export interface GovernedInvokeMetrics {
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:interface ReceiptV2Outcome {
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:interface ReceiptEmissionInput {
+packages/enforcement-runtime/src/bedrock/awsBedrockInvoker.ts:export interface AwsBedrockInvokerOptions {
+packages/enforcement-runtime/src/bedrock/types.ts:export interface ModelInvokeInput {
+packages/enforcement-runtime/src/bedrock/types.ts:export interface ModelInvokeOutput {
+packages/enforcement-runtime/src/bedrock/types.ts:export interface ModelInvoker {
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:export interface AttestedReceiptBundle<Receipt = unknown> {
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:export interface GovernedTransitRequest {
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:export interface TransitRecord {
+packages/enforcement-runtime/src/gateway/gatewayModelInvoker.ts:export interface GatewayBoundModelInvokerOptions {

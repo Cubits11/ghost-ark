@@ -1,0 +1,385 @@
+packages/enforcement-runtime/src/receipts/schema.ts:const digestSchema = z.string().regex(/^(sha256|hmac-sha256):[a-f0-9]{64}$/u);
+packages/enforcement-runtime/src/receipts/schema.ts:  tenant_id_hash: digestSchema,
+packages/enforcement-runtime/src/receipts/schema.ts:  user_id_hash: digestSchema,
+packages/enforcement-runtime/src/receipts/schema.ts:  session_id_hash: digestSchema,
+packages/enforcement-runtime/src/receipts/schema.ts:  input_digest: digestSchema,
+packages/enforcement-runtime/src/receipts/schema.ts:  retrieved_context_digests: z.array(digestSchema).default([]),
+packages/enforcement-runtime/src/receipts/schema.ts:  execution_context_hash: digestSchema,
+packages/enforcement-runtime/src/receipts/schema.ts:  execution_nonce: z.string().regex(/^[A-Za-z0-9._:-]{8,256}$/u),
+packages/enforcement-runtime/src/receipts/verifier.ts:  digestSha256?: unknown;
+packages/enforcement-runtime/src/receipts/verifier.ts:  const embeddedDigest = typeof signatureEnvelope.digestSha256 === "string" ? signatureEnvelope.digestSha256 : "";
+packages/enforcement-runtime/src/receipts/verifier.ts:      "digest",
+packages/enforcement-runtime/src/receipts/verifier.ts:        ? "Embedded signature digest matches canonical unsigned envelope digest."
+packages/enforcement-runtime/src/receipts/emission.ts:          throw new IntegrityCollisionError("Receipt replay lookup found mismatched canonical digests", {
+packages/enforcement-runtime/src/receipts/emission.ts:      input_digest: input.inputDigest || publicSha256Digest(""),
+packages/enforcement-runtime/src/receipts/emission.ts:      retrieved_context_digests: input.retrievedContextDigests,
+packages/enforcement-runtime/src/receipts/emission.ts:      execution_nonce: input.executionNonce,
+packages/enforcement-runtime/src/receipts/emission.ts:        digestSha256: decisionReceiptDigest(unsigned),
+packages/enforcement-runtime/src/receipts/emission.ts:  for (const digest of input.retrievedContextDigests) {
+packages/enforcement-runtime/src/receipts/emission.ts:    if (!SHA256_OR_HMAC_DIGEST_PATTERN.test(digest)) {
+packages/enforcement-runtime/src/receipts/emission.ts:      throw new Error(`Decision receipt retrieved context digest is malformed: ${digest}`);
+packages/enforcement-runtime/src/receipts/signer.ts:import { canonicalize } from "../../../receipt-schema/src/hashCanonicalization";
+packages/enforcement-runtime/src/receipts/signer.ts:  readonly digestSha256: string;
+packages/enforcement-runtime/src/receipts/signer.ts:    throw signingError(`${name} must be a lowercase SHA-256 hex digest.`, { field: name });
+packages/enforcement-runtime/src/receipts/signer.ts:  const expected = ["algorithm", "digestSha256", "keyId", "schemaVersion", "signature"].sort();
+packages/enforcement-runtime/src/receipts/signer.ts:  if (typeof envelope.digestSha256 !== "string") {
+packages/enforcement-runtime/src/receipts/signer.ts:    throw signingError("receipt_signature envelope digestSha256 must be a string.", {
+packages/enforcement-runtime/src/receipts/signer.ts:      field: "digestSha256"
+packages/enforcement-runtime/src/receipts/signer.ts:  assertLowerSha256Hex("digestSha256", envelope.digestSha256);
+packages/enforcement-runtime/src/receipts/signer.ts:    digestSha256: envelope.digestSha256,
+packages/enforcement-runtime/src/receipts/signer.ts:  return Buffer.from(canonicalize(envelope), "utf8").toString("base64url");
+packages/enforcement-runtime/src/receipts/signer.ts:    return createHmac("sha256", this.secret).update(canonicalPayload).digest("base64");
+packages/enforcement-runtime/src/receipts/signer.ts:    digestSha256: decisionReceiptDigest(unsigned),
+packages/enforcement-runtime/src/receipts/repository.ts:      throw new IntegrityCollisionError("Receipt primary key collision detected with mismatched canonical digests", {
+packages/enforcement-runtime/src/receipts/repository.ts:      throw new IntegrityCollisionError("Receipt request id replay detected with mismatched canonical request digest", {
+packages/enforcement-runtime/src/receipts/canonical.ts:import { canonicalSha256Hex, canonicalize, sha256Hex } from "../../../receipt-schema/src/hashCanonicalization";
+packages/enforcement-runtime/src/receipts/canonical.ts:  "schema_version" | "receipt_id" | "execution_context_hash" | "execution_nonce"
+packages/enforcement-runtime/src/receipts/canonical.ts:  execution_nonce?: string;
+packages/enforcement-runtime/src/receipts/canonical.ts:export const DEFAULT_EXECUTION_NONCE = "local-dev-execution-nonce";
+packages/enforcement-runtime/src/receipts/canonical.ts:    throw receiptCanonicalizationError(`${name} has an invalid digest shape.`, { field: name, value });
+packages/enforcement-runtime/src/receipts/canonical.ts:    throw receiptCanonicalizationError("execution_nonce must be 8-256 characters of URL-safe text.", {
+packages/enforcement-runtime/src/receipts/canonical.ts:      field: "execution_nonce"
+packages/enforcement-runtime/src/receipts/canonical.ts:    throw receiptCanonicalizationError("Execution nonce byte length must be a safe integer between 18 and 96.", {
+packages/enforcement-runtime/src/receipts/canonical.ts:  return `hmac-sha256:${createHmac("sha256", secret).update(value).digest("hex")}`;
+packages/enforcement-runtime/src/receipts/canonical.ts:    receipt.execution_nonce === DEFAULT_EXECUTION_NONCE
+packages/enforcement-runtime/src/receipts/canonical.ts:  if (unsigned.execution_nonce === DEFAULT_EXECUTION_NONCE) {
+packages/enforcement-runtime/src/receipts/canonical.ts:    throw receiptCanonicalizationError("Production decision receipts must not use the default local-dev execution_nonce.", {
+packages/enforcement-runtime/src/receipts/canonical.ts:      field: "execution_nonce"
+packages/enforcement-runtime/src/receipts/canonical.ts:  if (input.input_digest.startsWith("hmac-sha256:")) {
+packages/enforcement-runtime/src/receipts/canonical.ts:    assertDigestShape("input_digest", input.input_digest, hmacSha256DigestPattern);
+packages/enforcement-runtime/src/receipts/canonical.ts:    assertDigestShape("input_digest", input.input_digest, sha256DigestPattern);
+packages/enforcement-runtime/src/receipts/canonical.ts:  const executionNonce = input.execution_nonce ?? DEFAULT_EXECUTION_NONCE;
+packages/enforcement-runtime/src/receipts/canonical.ts:    input_digest: input.input_digest,
+packages/enforcement-runtime/src/receipts/canonical.ts:    retrieved_context_digests: [...input.retrieved_context_digests].sort(),
+packages/enforcement-runtime/src/receipts/canonical.ts:    execution_nonce: executionNonce,
+packages/enforcement-runtime/src/receipts/canonical.ts:  return canonicalize(unsignedReceiptForSigning(receipt));
+packages/enforcement-runtime/src/receipts/canonical.ts:  return sha256Hex(canonicalize(requestStable));
+packages/enforcement-runtime/src/receipts/v2/emission.ts:import { canonicalize, canonicalSha256Hex, sha256Hex } from "../../../../receipt-schema/src/hashCanonicalization";
+packages/enforcement-runtime/src/receipts/v2/emission.ts: * with v1 naming, and execution_trace binds the per-tool-call transit digests
+packages/enforcement-runtime/src/receipts/v2/emission.ts: * shared hardened canonicalize(), which rejects host-language non-JSON values
+packages/enforcement-runtime/src/receipts/v2/emission.ts: * execution_trace digests are the gateway's record, and the independent
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  request_payload_digest: string;
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  response_payload_digest: string;
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  input_digest: string;
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  retrieved_context_digests: string[];
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  execution_nonce: string;
+packages/enforcement-runtime/src/receipts/v2/emission.ts:const allowedTraceClasses: ReadonlySet<ProvenanceTraceClass> = new Set([
+packages/enforcement-runtime/src/receipts/v2/emission.ts:    throw v2Error(`${name} has an invalid digest shape.`, { field: name, value });
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  assertDigest("request_payload_digest", entry.request_payload_digest, sha256DigestPattern);
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  assertDigest("response_payload_digest", entry.response_payload_digest, sha256DigestPattern);
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  if (!allowedTraceClasses.has(entry.provenance_class)) {
+packages/enforcement-runtime/src/receipts/v2/emission.ts:      request_payload_digest: record.requestDigest,
+packages/enforcement-runtime/src/receipts/v2/emission.ts:      response_payload_digest: record.responseDigest,
+packages/enforcement-runtime/src/receipts/v2/emission.ts:    input_digest: input.input_digest,
+packages/enforcement-runtime/src/receipts/v2/emission.ts:    retrieved_context_digests: [...input.retrieved_context_digests].sort(),
+packages/enforcement-runtime/src/receipts/v2/emission.ts:    execution_nonce: input.execution_nonce,
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  assertDigest("input_digest", input.input_digest, anyDigestPattern);
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  if (!executionNoncePattern.test(input.execution_nonce)) {
+packages/enforcement-runtime/src/receipts/v2/emission.ts:    throw v2Error("execution_nonce must be 8-256 characters of URL-safe text.", { field: "execution_nonce" });
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  for (const digest of input.retrieved_context_digests) {
+packages/enforcement-runtime/src/receipts/v2/emission.ts:    assertDigest("retrieved_context_digest", digest, anyDigestPattern);
+packages/enforcement-runtime/src/receipts/v2/emission.ts:  return canonicalize(receipt);
+packages/enforcement-runtime/src/receipts/v2/emission.ts:    digestSha256: decisionReceiptV2Digest(receipt),
+packages/enforcement-runtime/src/receipts/v2/runtimeEmitter.ts:      input_digest: input.inputDigest || publicSha256Digest(""),
+packages/enforcement-runtime/src/receipts/v2/runtimeEmitter.ts:      retrieved_context_digests: input.retrievedContextDigests,
+packages/enforcement-runtime/src/receipts/v2/runtimeEmitter.ts:      execution_nonce: input.executionNonce,
+packages/enforcement-runtime/src/receipts/ledgerAnchoredRevocation.ts:      throw new ValidationError("Epoch merkleRoot must be a sha256: -prefixed digest", {
+packages/enforcement-runtime/src/receipts/checkpoint.ts:import { canonicalSha256Hex, canonicalize, sha256Hex } from "../../../receipt-schema/src/hashCanonicalization";
+packages/enforcement-runtime/src/receipts/checkpoint.ts:  const canonicalPayload = canonicalize(unsigned);
+packages/enforcement-runtime/src/receipts/checkpoint.ts:    signaturePassed = await verifier.verifyCanonical(canonicalize(unsigned), checkpoint.signature, checkpoint);
+packages/enforcement-runtime/src/receipts/inMemoryReceiptRepository.ts:        throw new IntegrityCollisionError("Receipt request id replay detected with mismatched canonical request digest", {
+packages/enforcement-runtime/src/receipts/inMemoryReceiptRepository.ts:        throw new IntegrityCollisionError("Receipt primary key collision detected with mismatched canonical digests", {
+packages/enforcement-runtime/src/evidence/provenanceLattice.ts:    throw provenanceError("Evidence element contentDigest must be a sha256:<hex> digest.", { index });
+packages/enforcement-runtime/src/evidence/provenanceLattice.ts: * to the same content digest.
+packages/enforcement-runtime/src/evidence/provenanceLattice.ts: * above agree on the identical digest. Agreement among agent assertions or a
+packages/enforcement-runtime/src/evidence/provenanceLattice.ts:  const digests = new Set(elements.map((element) => element.contentDigest));
+packages/enforcement-runtime/src/evidence/provenanceLattice.ts:  if (digests.size !== 1) {
+packages/enforcement-runtime/src/evidence/provenanceLattice.ts:    throw provenanceError("Aggregate provenance requires all elements to commit to the same content digest.", {
+packages/enforcement-runtime/src/evidence/provenanceLattice.ts:      observedDigestCount: digests.size
+packages/enforcement-runtime/src/proofs/receiptProof.ts:    schemaVersion: "ghost.receipt_proof_statement.digest.v1",
+packages/enforcement-runtime/src/proofs/receiptProof.ts:  allowedProofSystems?: readonly ReceiptProofSystem[];
+packages/enforcement-runtime/src/proofs/receiptProof.ts:  const allowedProofSystems = input.allowedProofSystems ?? ["local-transcript"];
+packages/enforcement-runtime/src/proofs/receiptProof.ts:    "proof_system_allowed",
+packages/enforcement-runtime/src/proofs/receiptProof.ts:    allowedProofSystems.includes(proof.proofSystem),
+packages/enforcement-runtime/src/proofs/receiptProof.ts:    allowedProofSystems.includes(proof.proofSystem)
+packages/enforcement-runtime/src/proofs/receiptProof.ts:      ? `Proof system ${proof.proofSystem} is allowed for this verifier run.`
+packages/enforcement-runtime/src/proofs/receiptProof.ts:      : `Proof system ${proof.proofSystem} is not allowed for this verifier run.`
+packages/enforcement-runtime/src/proofs/receiptProof.ts:    "statement_digest",
+packages/enforcement-runtime/src/proofs/receiptProof.ts:      ? "Statement digest matches public inputs and claims."
+packages/enforcement-runtime/src/proofs/receiptProof.ts:      : `Statement digest mismatch. Expected ${expectedStatementDigest}; observed ${proof.statement.statementDigest}.`
+packages/enforcement-runtime/src/proofs/receiptProof.ts:      "local_transcript_witness_digest",
+packages/enforcement-runtime/src/proofs/receiptProof.ts:          ? "Local transcript witness digest is present in dev-only backend metadata."
+packages/enforcement-runtime/src/proofs/receiptProof.ts:          : "Local transcript witness digest is malformed."
+packages/enforcement-runtime/src/proofs/receiptProof.ts:        : "Local transcript witness digest is missing from dev-only backend metadata."
+packages/enforcement-runtime/src/proofs/receiptProof.ts:      "local_transcript_digest",
+packages/enforcement-runtime/src/proofs/receiptProof.ts:          ? "Local transcript digest matches the deterministic dev-only transcript."
+packages/enforcement-runtime/src/proofs/receiptProof.ts:          : `Local transcript digest mismatch. Expected ${expectedTranscriptDigest ?? "unavailable"}; observed ${proof.proof.transcriptDigest}.`
+packages/enforcement-runtime/src/proofs/receiptProof.ts:        : "Local transcript digest is required for local-transcript proofs."
+packages/enforcement-runtime/src/runtime/transitLedger.ts: * - digests must be well-formed sha256 values.
+packages/enforcement-runtime/src/runtime/transitLedger.ts:      throw ledgerError("Transit record requestDigest has an invalid digest shape.");
+packages/enforcement-runtime/src/runtime/transitLedger.ts:      throw ledgerError("Transit record responseDigest has an invalid digest shape.");
+packages/enforcement-runtime/src/runtime/nonceStore.ts:  nonce: string;
+packages/enforcement-runtime/src/runtime/nonceStore.ts:    const key = reservationKey(input.tenantIdHash, input.nonce);
+packages/enforcement-runtime/src/runtime/nonceStore.ts:      throw new ExecutionNonceReplayError("Execution nonce replay detected with mismatched context hash", {
+packages/enforcement-runtime/src/runtime/nonceStore.ts:        nonceHash: nonceHash(input.nonce),
+packages/enforcement-runtime/src/runtime/nonceStore.ts:    const key = reservationKey(input.tenantIdHash, input.nonce);
+packages/enforcement-runtime/src/runtime/nonceStore.ts:        nonceHash: nonceHash(input.nonce),
+packages/enforcement-runtime/src/runtime/nonceStore.ts:      throw new ExecutionNonceReplayError("Execution nonce replay detected with mismatched context hash", {
+packages/enforcement-runtime/src/runtime/nonceStore.ts:        nonceHash: nonceHash(input.nonce),
+packages/enforcement-runtime/src/runtime/nonceStore.ts:function reservationKey(tenantIdHash: string, nonce: string): string {
+packages/enforcement-runtime/src/runtime/nonceStore.ts:  return `${tenantIdHash}#${nonceHash(nonce)}`;
+packages/enforcement-runtime/src/runtime/nonceStore.ts:function nonceHash(nonce: string): string {
+packages/enforcement-runtime/src/runtime/nonceStore.ts:  return `sha256:${canonicalSha256Hex({ nonce })}`;
+packages/enforcement-runtime/src/runtime/executionContext.ts:  const nonce = (value ?? requestId).trim();
+packages/enforcement-runtime/src/runtime/executionContext.ts:  if (!/^[A-Za-z0-9._:-]{8,256}$/u.test(nonce)) {
+packages/enforcement-runtime/src/runtime/executionContext.ts:    throw new Error("Execution nonce must be 8-256 characters of URL-safe text");
+packages/enforcement-runtime/src/runtime/executionContext.ts:  return nonce;
+packages/enforcement-runtime/src/runtime/lifecycle.ts:import { ExecutionNonceStore } from "./nonceStore";
+packages/enforcement-runtime/src/runtime/lifecycle.ts:    allowTaintedDigestOnly?: boolean;
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:import { ExecutionNonceReplayError } from "./nonceStore";
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:function allowedCandidates(candidates: RetrievedContextCandidate[], allowedDigests: string[]): RetrievedContextCandidate[] {
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:  const allowed = new Set(allowedDigests);
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:  return candidates.filter((candidate) => allowed.has(candidate.digest));
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:    deps.retrievalOptions?.allowTaintedDigestOnly !== true &&
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:  const digestSecret = deps.identityDigestSecret ?? DEFAULT_DECISION_RECEIPT_HMAC_SECRET;
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:  const tenantIdHash = request.auth.tenantId ? privateHmacDigest(digestSecret, request.auth.tenantId) : publicSha256Digest("");
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:  const userIdHash = request.auth.userId ? privateHmacDigest(digestSecret, request.auth.userId) : publicSha256Digest("");
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:  const sessionIdHash = request.auth.sessionId ? privateHmacDigest(digestSecret, request.auth.sessionId) : publicSha256Digest("");
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:    deps.logger?.warn("governed invoke execution nonce rejected", { error: safeErrorMessage(error), requestId: identity.requestId });
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:      deps.logger?.warn("governed invoke model rejected by allowlist", {
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:            reason: "model id is not in governed invoke allowlist",
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:  const retrievedContextDigests = retrieval.allowed.map((context) => context.digest).sort();
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:    retrievedContext: retrieval.allowed,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:      actionTaken: ["block_model_invocation", "quarantine_retrieval", "digest_only_receipt"],
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:        nonce: executionNonce,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:        const replayDecision = syntheticDecision({
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:          reason: "execution nonce has already been used for this context",
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:          actionTaken: ["block_replay", "fail_closed"],
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:          preDecision: replayDecision,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:          postDecision: replayDecision,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:            preModel: replayDecision,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:            postModel: replayDecision,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:            errors: ["execution nonce replay detected", ...(receipt.emitted ? [] : [receipt.failureReason])]
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:      const replayDecision = syntheticDecision({
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:        reason: error instanceof ExecutionNonceReplayError ? "execution nonce replay detected" : "execution nonce reservation failed",
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:        actionTaken: ["block_replay", "fail_closed"],
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:        preDecision: replayDecision,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:        postDecision: replayDecision,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:          preModel: replayDecision,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:          postModel: replayDecision,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:        retrieved: allowedCandidates(retrieval.sanitized, retrievedContextDigests)
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:    retrievedContext: retrieval.allowed,
+packages/enforcement-runtime/src/runtime/governedInvoke.ts:      retrievedContext: retrieval.allowed,
+packages/enforcement-runtime/src/bedrock/awsBedrockInvoker.ts:  allowGenericJsonAdapter?: boolean;
+packages/enforcement-runtime/src/bedrock/awsBedrockInvoker.ts:  private readonly allowGenericJsonAdapter: boolean;
+packages/enforcement-runtime/src/bedrock/awsBedrockInvoker.ts:    this.allowGenericJsonAdapter = options.allowGenericJsonAdapter ?? false;
+packages/enforcement-runtime/src/bedrock/awsBedrockInvoker.ts:              allowGenericJson: this.allowGenericJsonAdapter
+packages/enforcement-runtime/src/bedrock/awsBedrockInvoker.ts:      allowGenericJson: this.allowGenericJsonAdapter
+packages/enforcement-runtime/src/bedrock/modelAllowlist.ts:export function isModelAllowed(modelId: string, allowlist: readonly string[]): boolean {
+packages/enforcement-runtime/src/bedrock/modelAllowlist.ts:  return allowlist.includes(modelId);
+packages/enforcement-runtime/src/bedrock/modelAllowlist.ts:export function assertModelAllowed(modelId: string, allowlist: readonly string[]): void {
+packages/enforcement-runtime/src/bedrock/modelAllowlist.ts:  if (!isModelAllowed(modelId, allowlist)) {
+packages/enforcement-runtime/src/bedrock/modelAllowlist.ts:    throw new ValidationError("Requested Bedrock model is not in the governed invoke allowlist", { modelId });
+packages/enforcement-runtime/src/bedrock/adapter.ts:  allowGenericJson?: boolean;
+packages/enforcement-runtime/src/bedrock/adapter.ts:  if (options.allowGenericJson === true) {
+packages/enforcement-runtime/src/bedrock/adapter.ts:  allowGenericJson?: boolean;
+packages/enforcement-runtime/src/bedrock/adapter.ts:  const family = bedrockModelFamilyForModelId(input.modelId, { allowGenericJson: input.allowGenericJson });
+packages/enforcement-runtime/src/bedrock/adapter.ts:    ? bedrockModelFamilyForModelId(options.modelId, { allowGenericJson: options.allowGenericJson })
+packages/enforcement-runtime/src/retrieval/filter.ts:  const allowed: RetrievalFilterResult["allowed"] = [];
+packages/enforcement-runtime/src/retrieval/filter.ts:    allowed.push({
+packages/enforcement-runtime/src/retrieval/filter.ts:      digest: candidate.digest,
+packages/enforcement-runtime/src/retrieval/filter.ts:    allowed,
+packages/enforcement-runtime/src/retrieval/types.ts:  digest: string;
+packages/enforcement-runtime/src/retrieval/types.ts:  allowed: RetrievedContextForPolicy[];
+packages/enforcement-runtime/src/retrieval/promptContext.ts:      lines.push(`- digest=${candidate.digest} taint=${taint}${source} text_omitted=untrusted_instruction`);
+packages/enforcement-runtime/src/retrieval/promptContext.ts:    const text = candidate.text ? ` data="${sanitizeLine(candidate.text)}"` : " data_digest_only=true";
+packages/enforcement-runtime/src/retrieval/promptContext.ts:    lines.push(`- digest=${candidate.digest} taint=${taint}${source}${text}`);
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:export type RuntimeAttestationType = "local-dev-attestation" | "aws-nitro-enclave";
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  readonly schemaVersion: "ghost.runtime_attestation.v1";
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  readonly attestationType: RuntimeAttestationType;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  readonly attestationId: string;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    readonly algorithm: "hmac-sha256" | "ecdsa-sha256" | "rsa-sha256" | "aws-nitro-attestation";
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  readonly schemaVersion: "ghost.runtime_attestation_policy.v1";
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  readonly allowedTypes: readonly RuntimeAttestationType[];
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  readonly allowedImageDigests?: readonly string[];
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  readonly allowedCodeDigests?: readonly string[];
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  readonly allowedPolicyCompilerDigests?: readonly string[];
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestation: RuntimeAttestation;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  readonly attestation: RuntimeAttestation;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  readonly attestation: RuntimeAttestation;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:const runtimeAttestationTypes = ["local-dev-attestation", "aws-nitro-enclave"] as const;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:const signatureAlgorithms = ["hmac-sha256", "ecdsa-sha256", "rsa-sha256", "aws-nitro-attestation"] as const;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        message: "Runtime attestation binding must include at least one receipt, checkpoint, or payload digest."
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    schemaVersion: z.literal("ghost.runtime_attestation.v1"),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestationType: z.enum(runtimeAttestationTypes),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestationId: z.string().min(1),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    schemaVersion: z.literal("ghost.runtime_attestation_policy.v1"),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    allowedTypes: z.array(z.enum(runtimeAttestationTypes)).min(1),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    allowedImageDigests: z.array(sha256DigestSchema).optional(),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    allowedCodeDigests: z.array(sha256DigestSchema).optional(),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    allowedPolicyCompilerDigests: z.array(sha256DigestSchema).optional(),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:function isAllowed<T extends string>(allowed: readonly T[] | undefined, observed: T): boolean {
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  return !allowed || allowed.includes(observed);
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  attestationType: RuntimeAttestationType
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  return attestationType === "aws-nitro-enclave" ? "aws-nitro-attestation" : "hmac-sha256";
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:function measurementPolicyFailures(attestation: RuntimeAttestation, policy: RuntimeAttestationPolicy): string[] {
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  return requiredMeasurementEntries(policy).flatMap(([key, allowedValues]) => {
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    const observed = attestation.measurements?.[key];
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      return [`${key} missing from attestation evidence`];
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    if (!allowedValues.includes(observed)) {
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:function nitroPcrPolicyFailures(attestation: RuntimeAttestation, policy: RuntimeAttestationPolicy): string[] {
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  const measurements = attestation.measurements ?? {};
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    ? { passed: result, detail: "Runtime attestation signature verification completed." }
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  attestationType: RuntimeAttestationType;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    schemaVersion: "ghost.runtime_attestation.subject.v1",
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestationType: input.attestationType,
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  attestation: RuntimeAttestation;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  let attestation: RuntimeAttestation;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestation = validateRuntimeAttestation(input.attestation);
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    check(checks, "schema", true, "Runtime attestation and policy schemas are valid.");
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    "attestation_type",
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    policy.allowedTypes.includes(attestation.attestationType),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    policy.allowedTypes.includes(attestation.attestationType)
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      ? `Attestation type ${attestation.attestationType} is allowed by policy.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      : `Attestation type ${attestation.attestationType} is not allowed by policy.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestationType: attestation.attestationType,
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    issuedAt: attestation.issuedAt,
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    runtime: attestation.runtime,
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    binding: attestation.binding,
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    measurements: attestation.measurements
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    "subject_digest",
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestation.subjectDigest === expectedSubjectDigest,
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestation.subjectDigest === expectedSubjectDigest
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      ? "Subject digest matches the domain-separated canonical attestation subject."
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      : `Subject digest mismatch. Expected ${expectedSubjectDigest}; observed ${attestation.subjectDigest}.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    isAllowed(policy.requiredRuntimeIds, attestation.runtime.runtimeId),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    isAllowed(policy.requiredRuntimeIds, attestation.runtime.runtimeId)
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      ? `Runtime id ${attestation.runtime.runtimeId} is allowed.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      : `Runtime id ${attestation.runtime.runtimeId} is not allowed.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    "image_digest",
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    isAllowed(policy.allowedImageDigests, attestation.runtime.imageDigest),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    isAllowed(policy.allowedImageDigests, attestation.runtime.imageDigest)
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      ? "Runtime image digest is allowed."
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      : `Runtime image digest ${attestation.runtime.imageDigest} is not allowed.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    "code_digest",
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    isAllowed(policy.allowedCodeDigests, attestation.runtime.codeDigest),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    isAllowed(policy.allowedCodeDigests, attestation.runtime.codeDigest)
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      ? "Runtime code digest is allowed."
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      : `Runtime code digest ${attestation.runtime.codeDigest} is not allowed.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    "policy_compiler_digest",
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    isAllowed(policy.allowedPolicyCompilerDigests, attestation.runtime.policyCompilerDigest),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    isAllowed(policy.allowedPolicyCompilerDigests, attestation.runtime.policyCompilerDigest)
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      ? "Policy compiler digest is allowed."
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      : `Policy compiler digest ${attestation.runtime.policyCompilerDigest} is not allowed.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  const measurementFailures = measurementPolicyFailures(attestation, policy);
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  if (attestation.attestationType === "aws-nitro-enclave") {
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    const failures = nitroPcrPolicyFailures(attestation, policy);
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        : `Nitro attestation requires pinned PCR0/PCR1/PCR2 measurements: ${failures.join("; ")}.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    const issuedAt = Date.parse(attestation.issuedAt);
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        : `Attestation issuedAt ${attestation.issuedAt} is outside maxClockSkewMs ${policy.maxClockSkewMs}.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      : Boolean(attestation.binding.receiptHash) && optionalDigestMatches(input.expectedReceiptHash, attestation.binding.receiptHash),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestation.binding.receiptHash
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      ? input.expectedReceiptHash && input.expectedReceiptHash !== attestation.binding.receiptHash
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        ? `Receipt binding mismatch. Expected ${input.expectedReceiptHash}; observed ${attestation.binding.receiptHash}.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        : "Receipt binding is present and matches the expected digest when supplied."
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      : Boolean(attestation.binding.checkpointDigest) &&
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:          optionalDigestMatches(input.expectedCheckpointDigest, attestation.binding.checkpointDigest),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestation.binding.checkpointDigest
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      ? input.expectedCheckpointDigest && input.expectedCheckpointDigest !== attestation.binding.checkpointDigest
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        ? `Checkpoint binding mismatch. Expected ${input.expectedCheckpointDigest}; observed ${attestation.binding.checkpointDigest}.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        : "Checkpoint binding is present and matches the expected digest when supplied."
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      : Boolean(attestation.binding.payloadDigest) && optionalDigestMatches(input.expectedPayloadDigest, attestation.binding.payloadDigest),
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    attestation.binding.payloadDigest
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      ? input.expectedPayloadDigest && input.expectedPayloadDigest !== attestation.binding.payloadDigest
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        ? `Payload binding mismatch. Expected ${input.expectedPayloadDigest}; observed ${attestation.binding.payloadDigest}.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        : "Payload binding is present and matches the expected digest when supplied."
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  const expectedAlgorithm = expectedAlgorithmForType(attestation.attestationType);
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:  const algorithmMatchesType = attestation.signature.algorithm === expectedAlgorithm;
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      ? `${attestation.signature.algorithm} is the expected algorithm for ${attestation.attestationType}.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      : `${attestation.attestationType} requires ${expectedAlgorithm}; observed ${attestation.signature.algorithm}.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    check(checks, "signature", false, "Runtime attestation signature algorithm is not valid for the attestation type.");
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      attestation.attestationType === "aws-nitro-enclave"
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        ? "AWS Nitro Enclave attestation validation requires a supplied production verifier; bundled Nitro validation is not implemented, so evidence fails closed."
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:        : "No runtime attestation signature verifier was supplied."
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    !input.verifier.supportedAlgorithms.includes(attestation.signature.algorithm) ||
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    !input.verifier.supportedTypes.includes(attestation.attestationType)
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      `Verifier does not support ${attestation.attestationType} with ${attestation.signature.algorithm}.`
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:    let detail = "Runtime attestation signature verification completed.";
+packages/enforcement-runtime/src/attestation/runtimeAttestation.ts:      const verifierResult = normalizeSignatureVerifierResult(await input.verifier.verify({ attestation }));
+packages/enforcement-runtime/src/attestation/externalRuntimeAttestationVerifier.ts:    detail: typeof parsed.detail === "string" ? parsed.detail : "External runtime attestation verifier completed."
+packages/enforcement-runtime/src/attestation/externalRuntimeAttestationVerifier.ts:      throw new Error("External runtime attestation verifier command must be non-empty.");
+packages/enforcement-runtime/src/attestation/externalRuntimeAttestationVerifier.ts:    this.supportedAlgorithms = input.supportedAlgorithms ?? ["aws-nitro-attestation"];
+packages/enforcement-runtime/src/attestation/externalRuntimeAttestationVerifier.ts:  verify(input: { attestation: RuntimeAttestation }): RuntimeAttestationSignatureVerificationResult {
+packages/enforcement-runtime/src/attestation/externalRuntimeAttestationVerifier.ts:    const attestation = validateRuntimeAttestation(input.attestation);
+packages/enforcement-runtime/src/attestation/externalRuntimeAttestationVerifier.ts:        schemaVersion: "ghost.external_runtime_attestation_verifier_request.v1",
+packages/enforcement-runtime/src/attestation/externalRuntimeAttestationVerifier.ts:        attestation
+packages/enforcement-runtime/src/attestation/externalRuntimeAttestationVerifier.ts:        detail: child.stderr.trim() || `External runtime attestation verifier exited with status ${child.status ?? "unknown"}.`
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:  readonly attestationIdPrefix?: string;
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    throw new Error("Local dev runtime attestation secret must be non-empty.");
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:export function localRuntimeAttestationSignaturePayloadDigest(attestation: RuntimeAttestation): string {
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    schemaVersion: "ghost.local_runtime_attestation.signature_payload.v1",
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    attestationType: attestation.attestationType,
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    subjectDigest: attestation.subjectDigest,
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    issuedAt: attestation.issuedAt,
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    runtime: attestation.runtime,
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    binding: attestation.binding,
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    measurements: attestation.measurements ?? {}
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:export function signLocalRuntimeAttestation(secret: string, attestation: RuntimeAttestation): string {
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:  const payloadDigest = localRuntimeAttestationSignaturePayloadDigest(attestation);
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:  return `hmac-sha256:${createHmac("sha256", secret).update(payloadDigest).digest("hex")}`;
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:  private readonly attestationIdPrefix: string;
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    this.attestationIdPrefix = input.attestationIdPrefix ?? "local-dev-att";
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    const attestationType = "local-dev-attestation";
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:      attestationType,
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:      schemaVersion: "ghost.runtime_attestation.v1",
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:      attestationType,
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:      attestationId: `${this.attestationIdPrefix}_${canonicalSha256Hex({
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:        schemaVersion: "ghost.local_runtime_attestation.id.v1",
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:  readonly supportedTypes = ["local-dev-attestation"] as const;
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:  verify(input: { attestation: RuntimeAttestation }): boolean {
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    const attestation = validateRuntimeAttestation(input.attestation);
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    if (attestation.attestationType !== "local-dev-attestation" || attestation.signature.algorithm !== "hmac-sha256") {
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:      ...attestation,
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:      signature: { ...attestation.signature, value: "" }
+packages/enforcement-runtime/src/attestation/localRuntimeAttestation.ts:    return constantTimeStringEquals(attestation.signature.value, expected);
+packages/enforcement-runtime/src/policy/schema.ts:  digest: string;
+packages/enforcement-runtime/src/policy/inMemoryPolicyRepository.ts:  private readonly allowDefaultPolicy: boolean;
+packages/enforcement-runtime/src/policy/inMemoryPolicyRepository.ts:    options: { defaultPolicy?: PolicySource; policiesByTenant?: Record<string, PolicySource[]>; allowDefaultPolicy?: boolean } = {}
+packages/enforcement-runtime/src/policy/inMemoryPolicyRepository.ts:    this.allowDefaultPolicy = options.allowDefaultPolicy ?? true;
+packages/enforcement-runtime/src/policy/inMemoryPolicyRepository.ts:    if (policies.length === 0 && !this.allowDefaultPolicy) {
+packages/enforcement-runtime/src/policy/canonical.ts:import { canonicalSha256Hex, canonicalize } from "../../../receipt-schema/src/hashCanonicalization";
+packages/enforcement-runtime/src/policy/canonical.ts:  return canonicalize(withoutHash);
+packages/enforcement-runtime/src/policy/dynamodbPolicyRepository.ts:  allowDefaultPolicy?: boolean;
+packages/enforcement-runtime/src/policy/dynamodbPolicyRepository.ts:  private readonly allowDefaultPolicy: boolean;
+packages/enforcement-runtime/src/policy/dynamodbPolicyRepository.ts:    this.allowDefaultPolicy = options.allowDefaultPolicy ?? true;
+packages/enforcement-runtime/src/policy/dynamodbPolicyRepository.ts:    if (policies.length === 0 && !this.allowDefaultPolicy) {
+packages/enforcement-runtime/src/gateway/ioDigester.ts: * Pass-through stream that continuously digests the exact bytes in transit.
+packages/enforcement-runtime/src/gateway/ioDigester.ts: * The digest is available only after the stream has fully flushed; asking
+packages/enforcement-runtime/src/gateway/ioDigester.ts:  private digestHex: string | null = null;
+packages/enforcement-runtime/src/gateway/ioDigester.ts:    this.digestHex = `sha256:${this.hash.digest("hex")}`;
+packages/enforcement-runtime/src/gateway/ioDigester.ts:    if (!this.digestHex) {
+packages/enforcement-runtime/src/gateway/ioDigester.ts:      throw new ValidationError("Stream digest requested before stream completion.", {
+packages/enforcement-runtime/src/gateway/ioDigester.ts:    return this.digestHex;
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts: * GATEWAY_RECORDED because the boundary computed the digests from the raw
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts: * allowlist behavior exercised by its tests.
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:  allowedDestinations: readonly string[];
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:  if (!Array.isArray(input.allowedDestinations)) {
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:    throw transitError("allowedDestinations must be an explicit list; there is no default-open mode.", {
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:      field: "allowedDestinations"
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:  if (!input.allowedDestinations.includes(key)) {
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:    throw transitError("Destination is not in the transit allowlist; failing closed.", { destination: key });
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:  const requestDigest = `sha256:${createHash("sha256").update(input.requestBody).digest("hex")}`;
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:        const digester = new IODigester();
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:        digester.on("error", (error) => fail(error.message));
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:        digester.on("data", (chunk: Buffer) => {
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:        digester.on("end", () => {
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:          const responseDigest = digester.getDigest();
+packages/enforcement-runtime/src/gateway/sidecarProxy.ts:        res.pipe(digester);
+packages/enforcement-runtime/src/gateway/gatewayModelInvoker.ts:import { canonicalize } from "../../../receipt-schema/src/hashCanonicalization";
+packages/enforcement-runtime/src/gateway/gatewayModelInvoker.ts: * bytes are canonicalized, transmitted by executeGovernedTransit under an
+packages/enforcement-runtime/src/gateway/gatewayModelInvoker.ts: * exact-match destination allowlist, and the observed transit is recorded in
+packages/enforcement-runtime/src/gateway/gatewayModelInvoker.ts: * the per-invocation TransitLedger. The recorded digests are the gateway's
+packages/enforcement-runtime/src/gateway/gatewayModelInvoker.ts: * fail-closed receipt binds the real transit digests.
+packages/enforcement-runtime/src/gateway/gatewayModelInvoker.ts:  allowedDestinations: readonly string[];
+packages/enforcement-runtime/src/gateway/gatewayModelInvoker.ts:    const requestBody = Buffer.from(canonicalize(payload), "utf8");
+packages/enforcement-runtime/src/gateway/gatewayModelInvoker.ts:      allowedDestinations: this.options.allowedDestinations,
