@@ -35,6 +35,6 @@ The Ghost-Ark approach represents a fundamental paradigm shift away from semanti
 1. Inherit the same token-space vulnerabilities as the underlying agent.
 2. Are computationally expensive, adding massive latency overhead.
 3. Suffer from high false-positive rates that break legitimate agent workflows.
-4. Provide no formal or mathematical guarantees.
+4. Provide no formal or mathematical assurances.
 
 In stark contrast, Ghost-Ark's dynamic taint-tracking operates entirely outside the semantic space. The runtime does not care *what* the agent is trying to do or *why* it is trying to do it. It only checks the mathematical lattice rank of the data attempting to trigger the execution. A 0% ASR is achieved not through smarter AI, but through rigorous deterministic cryptography and Information Flow Control.

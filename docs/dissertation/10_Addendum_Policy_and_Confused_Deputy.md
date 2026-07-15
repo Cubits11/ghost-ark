@@ -29,8 +29,8 @@ By verifying that the target namespaces are mathematically disjoint from forbidd
 ## 4. The Tri-Layer Defense Architecture
 The successful mitigation of the Confused Deputy problem completes the Ghost-Ark execution architecture. By combining three orthogonal security layers, Ghost-Ark achieves a verifiable AI runtime:
 
-1. **DAB Execution Boundary ($\Delta_{\text{DE}} = 0$)**: Guarantees that the physical execution bytes strictly match the agent's declared intent, mathematically preventing in-flight mutations and race conditions via a TLA+ verified sequence discipline.
-2. **IFC Provenance Lattice (0% Laundering ASR)**: Guarantees that the data triggering the execution possesses the requisite cryptographic clearance, completely eliminating Indirect Prompt Injection (IPI) trust laundering.
-3. **Static Policy Boundaries (Confused Deputy Mitigation)**: Guarantees that even if the execution is correct and the data is privileged, the final routing destination remains confined within a strict, statically verified topological namespace.
+1. **DAB Execution Boundary ($\Delta_{\text{DE}} = 0$)**: Verifies that the physical execution bytes strictly match the agent's declared intent, mathematically preventing in-flight mutations and race conditions via a TLA+ verified sequence discipline.
+2. **IFC Provenance Lattice (0% Laundering ASR)**: Checks that the data triggering the execution possesses the requisite cryptographic clearance, completely eliminating Indirect Prompt Injection (IPI) trust laundering.
+3. **Static Policy Boundaries (Confused Deputy Mitigation)**: Enforces that even if the execution is correct and the data is privileged, the final routing destination remains confined within a strict, statically verified topological namespace.
 
 Together, these three layers form a complete, verifiable AI execution architecture. Ghost-Ark proves that AI agents do not need to be smart or semantically aligned to be secure; they only need to be mathematically bound.
