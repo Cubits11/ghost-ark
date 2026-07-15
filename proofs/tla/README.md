@@ -7,6 +7,8 @@ Models in this directory are stubs until a genuine checker output artifact exist
 - `TenantIsolation.tla` / `.cfg` — tenant-isolation access-log invariant (stub, not checked)
 - `ProvenanceLattice.tla` / `.cfg` — evidence provenance lattice: meet-based delegation admission, floor evaluation (checked 2026-07-14 with TLC 2.19; see artifacts/ProvenanceLattice.tlc.txt; distinct-state count matched the pre-registered expectation below)
 - `ProvenanceLatticeMutant.tla` / `.cfg` — deliberately broken variant permitting direct assignment of the derive-only rank; exists to show the invariants are load-bearing (violation reproduced 2026-07-14; see artifacts/ProvenanceLatticeMutant.tlc.txt)
+- `SpeculativeCollapse.tla` / `.cfg` — speculative-collapse rule: canonical state admits an effect only on the gateway-recorded rank, never the speculative thread's claim (checked 2026-07-14 with TLC 2.19; 529 distinct states; see artifacts/SpeculativeCollapse.tlc.txt)
+- `SpeculativeCollapseMutant.tla` / `.cfg` — claim-trusting collapse, the assertion-conditioned poisoning of the reconciler; CollapseSound violation reproduced 2026-07-14 (see artifacts/SpeculativeCollapseMutant.tlc.txt)
 
 ## Commands
 
@@ -26,6 +28,16 @@ java -cp /path/to/tla2tools.jar tlc2.TLC -workers auto \
 java -cp /path/to/tla2tools.jar tlc2.TLC -workers auto \
   -config ProvenanceLatticeMutant.cfg ProvenanceLatticeMutant.tla \
   | tee artifacts/ProvenanceLatticeMutant.tlc.txt
+
+# SpeculativeCollapse baseline, then its claim-trusting mutant
+# (expected result: CollapseSound violated).
+java -cp /path/to/tla2tools.jar tlc2.TLC -workers auto \
+  -config SpeculativeCollapse.cfg SpeculativeCollapse.tla \
+  | tee artifacts/SpeculativeCollapse.tlc.txt
+
+java -cp /path/to/tla2tools.jar tlc2.TLC -workers auto \
+  -config SpeculativeCollapseMutant.cfg SpeculativeCollapseMutant.tla \
+  | tee artifacts/SpeculativeCollapseMutant.tlc.txt
 ```
 
 ## Pre-registered expectation for the baseline state space
