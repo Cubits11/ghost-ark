@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.aepri.ai/schemas/semantic-audit-receipt.json",
+  "title": "SemanticAuditReceipt",
+  "description": "Cryptographic attestation of a verified multi-agent Optimistic Concurrency Control (OCC) transaction.",
+  "type": "object",
+  "required": [
+    "transaction_id",
+    "timestamp",
+    "agent_identity",
+    "trace_length",
+    "validation_gates",
+    "commit_status",
+    "cryptographic_signature"
+  ],
+  "properties": {
+    "transaction_id": {
+      "type": "string",
+      "description": "UUIDv7 of the speculative execution trace."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "agent_identity": {
+      "type": "object",
+      "properties": {
+        "principal_arn": { "type": "string" },
+        "model_version": { "type": "string" },
+        "nitro_enclave_pcr0": { "type": "string" }
+      },
+      "required": ["principal_arn", "model_version"]
+    },
+    "trace_length": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of actions (k) in the speculative trace tau."
+    },
+    "validation_gates": {
+      "type": "object",
+      "required": ["ledger_gate", "occ_gate", "semantic_gate"],
+      "properties": {
+        "ledger_gate": {
+          "type": "object",
+          "properties": {
+            "status": { "enum": ["PASSED", "FAILED_REPLAY", "FAILED_LIVENESS"] },
+            "consumed_nonces": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "occ_gate": {
+          "type": "object",
+          "properties": {
+            "status": { "enum": ["PASSED", "FAILED_STATE_MISMATCH"] },
+            "read_set_projection_pi_R": {
+              "type": "array",
+              "description": "The exact URIs, DB keys, or file paths the agent read during G(sigma_0).",
+              "items": { "type": "string" }
+            },
+            "hash_sigma_0": { 
+              "type": "string", 
+              "description": "H(pi_R(sigma_0))" 
+            },
+            "hash_sigma_now": { 
+              "type": "string", 
+              "description": "H(pi_R(sigma_now))" 
+            }
+          }
+        },
+        "semantic_gate": {
+          "type": "object",
+          "properties": {
+            "status": { "enum": ["PASSED", "FAILED_DRIFT_BOUNDS"] },
+            "step_probabilities": {
+              "type": "array",
+              "description": "Individual failure probabilities P(F_i) for each step.",
+              "items": { "type": "number", "minimum": 0, "maximum": 1 }
+            },
+            "cumulative_failure_bound": {
+              "type": "number",
+              "description": "The computed Frechet-Hoeffding upper bound P(F_any).",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "policy_threshold": {
+              "type": "number",
+              "description": "The maximum acceptable P(F_any) dictated by enterprise policy.",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    },
+    "commit_status": {
+      "enum": ["COMMITTED_TO_PHYSICAL", "SPECULATIVE_COLLAPSE"],
+      "description": "The final resolution of the transaction."
+    },
+    "cryptographic_signature": {
+      "type": "string",
+      "description": "Ed25519 or ECDSA signature of the receipt payload by the Ghost-Ark KMS."
+    }
+  }
+}
