@@ -30,7 +30,7 @@ If $N \in L_t$, the gateway transitions to `REPLAY_REJECTED`.
 
 ## PART V — FORMAL VERIFICATION ROADMAP
 
-To guarantee mathematical replay resistance, we define the following TLA+ proof obligations:
+To verify mathematical replay resistance, we define the following TLA+ proof obligations:
 
 1. **Safety (No Replays)**: 
    `[] (Execution(N) => ~(N \in Ledger))`

@@ -46,4 +46,4 @@ When this mutant specification is fed to the TLC Model Checker, the `NoReplays` 
 ## 4. Synthesis of Mathematical and Empirical Evidence
 The empirical fuzzing data from Chapter 4 proved that our real-world V8 execution environment accurately handled $10,000$ concurrent flood attempts, rejecting $9,999$ of them. However, fuzzing alone is probabilistic; it proves resistance to an attack, not immunity.
 
-By pairing the empirical fuzzer data with the exhaustive TLA+ state-space exploration, Ghost-Ark establishes an air-tight execution consistency guarantee. The TLA+ model mathematically proves the state transitions are immune to replay faults, and the empirical benchmarks prove the compiled Rust Mutex perfectly maps to the atomic requirements of the formal model.
+By pairing the empirical fuzzer data with the exhaustive TLA+ state-space exploration, Ghost-Ark establishes strong execution consistency evidence. The TLA+ model models state transitions designed to resist to replay faults, and the empirical benchmarks demonstrate the compiled Rust Mutex perfectly maps to the atomic requirements of the formal model.

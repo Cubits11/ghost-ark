@@ -36,4 +36,4 @@ To achieve USENIX artifact evaluation readiness, the repository must be strictly
 2. **NEVER confuse design with implementation.** An architecture diagram is not a security boundary; only the compiled Rust TCB and IPC socket are security boundaries.
 3. **NEVER confuse implementation with evidence.** Code execution means nothing without a cryptographically signed Receipt.
 4. **NEVER confuse evidence with proof.** A Receipt proves what was executed, not that the execution was morally good or safe.
-5. **NEVER confuse a benchmark with a guarantee.** Benchmarks track regressions; only formal TLA+ models and mathematical invariants guarantee security.
+5. **NEVER confuse a benchmark with a formal assurance.** Benchmarks track regressions; only formal TLA+ models and mathematical invariants provide target security bounds.
