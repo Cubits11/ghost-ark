@@ -229,7 +229,7 @@ export function attackPrototypePollution(){
 
 
         detected:
-            safe === false,
+            safe === true,
 
 
         expected:
