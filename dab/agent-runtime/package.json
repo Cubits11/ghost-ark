@@ -1,0 +1,73 @@
+{
+  "name": "@ghost-ark/dab-agent-runtime",
+  "version": "0.1.0-tier0",
+  "private": true,
+  "description": "Ghost-Ark Declarative Action Binding (DAB) Tier-0 untrusted agent runtime. Generates declared action commitments and dispatches execution requests through the isolated gateway boundary.",
+  "type": "module",
+  "license": "MIT",
+
+  "author": {
+    "name": "Ghost-Ark Research"
+  },
+
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+
+  "scripts": {
+    "clean": "rm -rf dist coverage",
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:security": "vitest run tests/security",
+    "test:determinism": "vitest run tests/determinism",
+    "benchmark": "tsx ../bench/run.ts",
+    "artifact:verify": "npm run typecheck && npm run lint && npm test",
+    "prepublishOnly": "npm run artifact:verify"
+  },
+
+  "dependencies": {},
+
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "vitest": "^2.1.0",
+    "eslint": "^9.0.0",
+    "@eslint/js": "^9.0.0",
+    "typescript-eslint": "^8.0.0"
+  },
+
+  "exports": {
+    "./danf": "./dist/danf.js",
+    "./commitment": "./dist/commitment.js",
+    "./ipc": "./dist/ipc_client.js"
+  },
+
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+
+  "keywords": [
+    "cryptography",
+    "agent-security",
+    "execution-binding",
+    "trusted-computing-base",
+    "ai-security",
+    "usenix-security",
+    "declarative-action-binding",
+    "ghost-ark"
+  ],
+
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cubits11/ghost-ark"
+  }
+}
