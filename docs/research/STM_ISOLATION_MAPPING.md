@@ -21,32 +21,65 @@ This document formally models the Ghost-Ark framework not as an applied perimete
 
 ---
 
-### 4. Formalizing `SpeculativeCollapse` under the `DAB_NonceLedger`
+### 4. Formalizing `SpeculativeCollapse` and Resolving the Starvation Trap
 
-To verify Serializability, the Gateway Reference Monitor enforces strict OCC validation. If validation fails, the system invokes `SpeculativeCollapse`, discarding the `execution_buffer` and reverting the agent's context window to the last cryptographically verified state $G(\sigma_0)$.
+To verify Serializability without inducing starvation, the Gateway Reference Monitor must avoid global state checks. If we validate the entirety of $\sigma_{now}$ against $\sigma_0$, any concurrent environmental change (e.g., an unrelated system log or background write) will result in a mismatch, leading to perpetual transaction aborts—**The Starvation Trap**.
 
-Let $\mathcal{L}_{nonce}$ represent the active `DAB_NonceLedger` and $S_{spent}$ represent the set of tombstoned nonces to prevent replay attacks.
-Let $\sigma_t$ represent the cryptographic provenance hash of the external environment at time $t$.
+#### The Read-Set Projection Operator ($\pi_R$)
+To preserve liveness while enforcing safety, we define a projection operator $\pi_R$ that filters the global environment state $\sigma$ down to the exact data dependencies (the Read-Set) queried by the agent during the speculative trajectory $\tau$.
 
-An agent submits a trace of intended tool calls $\tau_{intent} = \langle a_1, \dots, a_k \rangle$ generated against a starting state $\sigma_0$. Each intended action $a_i$ carries a cryptographic nonce $n_i$ and a dependency on $\sigma_0$.
+Let $\mathcal{L}_{nonce}$ represent the active `DAB_NonceLedger` and $S_{spent}$ represent the set of tombstoned nonces.
+Let $\sigma_t$ represent the state of the external environment at time $t$.
+
+An agent submits a speculative trace of intended tool calls $\tau_{intent} = \langle a_1, \dots, a_k \rangle$ generated against the projected starting state $\pi_R(\sigma_0)$.
 
 **The Validation Phase (`VerifyAndBind`)**
-Before any action $a_i \in \tau_{intent}$ is handed to the `execution_buffer` for physical execution, the OCC validation phase checks two mathematical conditions:
+Before any action $a_i \in \tau_{intent}$ is appended to the `execution_buffer`, the Gateway validates the transaction using two gates:
 
-1. **Replay & Liveness Check:** The nonce $n_i$ must not exist in the spent set, and must not currently be held by another concurrent intent.
+1. **The Ledger Gate (Replay & Liveness):**
    $$ n_i \notin S_{spent} \quad \text{and} \quad n_i \notin \mathcal{L}_{nonce} $$
-2. **State Equivalence (Anti-Phantom Read):** The current environmental state $\sigma_{now}$ must cryptographically match the state upon which the agent based its reasoning ($\sigma_0$).
-   $$ \mathcal{H}(\sigma_{now}) == \mathcal{H}(\sigma_0) $$
+2. **The OCC Gate (Read-Set State Equivalence):**
+   $$ \mathcal{H}(\pi_R(\sigma_{now})) == \mathcal{H}(\pi_R(\sigma_0)) $$
 
 **The Abort Condition (`SpeculativeCollapse`)**
-If either condition fails for any $a_i \in \tau_{intent}$, the Gateway rejects the entire speculative trace. The state transition is defined as:
+If validation fails at either gate, the speculative state collapses:
 
 $$
 \text{SpeculativeCollapse}(\tau_{intent}) = 
 \begin{cases} 
-\text{Revert to } G(\sigma_0) & \text{if } \exists a_i \in \tau_{intent} : (n_i \in S_{spent} \lor \mathcal{H}(\sigma_{now}) \neq \mathcal{H}(\sigma_0)) \\
+\text{Revert to } G(\sigma_0) & \text{if } \exists a_i \in \tau_{intent} : (n_i \in S_{spent} \lor \mathcal{H}(\pi_R(\sigma_{now})) \neq \mathcal{H}(\pi_R(\sigma_0))) \\
 \text{Commit to } \mathcal{L}_{nonce} & \text{otherwise}
 \end{cases}
 $$
 
-By enforcing `SpeculativeCollapse`, the Ghost-Ark framework provides structured evidence that the non-deterministic output of an AGI can be bound by deterministic serializable isolation constraints. It models the transformation of the unpredictable hallucination space of an LLM into a cryptographically accountable, fully rollback-capable transaction graph.
+---
+
+### 5. Track 3: The Semantic Control Plane & Cumulative Drift Bounds
+
+Standard security systems evaluate tool calls individually. However, this fails to prevent **semantic drift** across a multi-turn trajectory. If an agent executes a sequence $\tau = \langle a_1, a_2, a_3 \rangle$, a policy violation might not be visible in $a_3$ alone, but rather in the cumulative transaction context.
+
+#### Fréchet-Hoeffding Bounds for Trajectory Failure
+We model the cumulative failure probability of the trajectory. Let $F_i$ represent the event that action $a_i$ introduces a semantic policy violation. The joint probability of overall trajectory failure $\mathbb{P}(F)$ is bounded by the Fréchet-Hoeffding bounds:
+
+$$ \max\left(0, \sum_{i=1}^k \mathbb{P}(F_i) - (k - 1)\right) \le \mathbb{P}(F) \le \min_{i=1}^k \mathbb{P}(F_i) $$
+
+For the union of failures (any single step violating semantic compliance):
+
+$$ \max_{i=1}^k \mathbb{P}(F_i) \le \mathbb{P}(F_{\text{any}}) \le \min\left(1, \sum_{i=1}^k \mathbb{P}(F_i)\right) $$
+
+Instead of assuming independent execution errors, Ghost-Ark's Semantic Gate calculates these dependent bounds to intercept cascading hallucinations in the ghost replica before they write to the physical environment.
+
+#### Validation Pipeline Architecture
+
+```mermaid
+graph TD
+    A[Speculative Execution Trace \tau] --> B{1. Ledger Gate}
+    B -- "n_i \in S_spent (Replay)" --> Abort[SpeculativeCollapse: Revert to G_0]
+    B -- "n_i \notin S_spent" --> C{2. OCC Gate}
+    C -- "H(\pi_R(\sigma_now)) != H(\pi_R(\sigma_0)) (Conflict)" --> Abort
+    C -- "H(\pi_R(\sigma_now)) == H(\pi_R(\sigma_0))" --> D{3. Semantic Gate}
+    D -- "Drift / Violation Detected" --> Abort
+    D -- "Within Bounds" --> Commit[VerifyAndBind: Commit to Execution Log]
+```
+
+By passing through all three verification gates, the transaction verifies both low-level cryptographic freshness and high-level semantic alignment prior to execution.
