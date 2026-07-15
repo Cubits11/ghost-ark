@@ -6,6 +6,7 @@ import { evaluatePolicy } from "../policy/evaluator";
 import { PolicyDecision } from "../policy/decisions";
 import { publicSha256Digest, privateHmacDigest } from "../receipts/canonical";
 import { DEFAULT_DECISION_RECEIPT_HMAC_SECRET } from "../receipts/emission";
+import { executionTraceFromTransitRecords } from "../receipts/v2/emission";
 import { filterRetrievedContext } from "../retrieval/filter";
 import { buildPromptContext } from "../retrieval/promptContext";
 import { RetrievedContextCandidate } from "../retrieval/types";
@@ -49,6 +50,7 @@ function baseResult(input: {
   memoryWrite?: PolicyDecision;
   memory?: Partial<GovernedInvokeResult["memory"]>;
   receipt?: Partial<GovernedInvokeResult["receipt"]>;
+  receiptV2?: GovernedInvokeResult["receiptV2"];
   responseText?: string;
   redacted?: boolean;
   errors?: string[];
@@ -79,6 +81,7 @@ function baseResult(input: {
       receiptId: input.receipt?.receiptId,
       failureReason: input.receipt?.failureReason
     },
+    ...(input.receiptV2 ? { receiptV2: input.receiptV2 } : {}),
     errors: input.errors ?? []
   };
 }
@@ -164,7 +167,14 @@ function strictRetrievalTaintBlockingEnabled(deps: GovernedInvokeDependencies): 
   );
 }
 
-async function emitReceipt(input: {
+interface ReceiptV2Outcome {
+  attempted: boolean;
+  emitted: boolean;
+  receiptId?: string;
+  failureReason?: string;
+}
+
+interface ReceiptEmissionInput {
   deps: GovernedInvokeDependencies;
   identity: VerifiedIdentityContext;
   request: GovernedInvokeRequest;
@@ -178,7 +188,59 @@ async function emitReceipt(input: {
   executionContextHash: string;
   executionNonce: string;
   now: string;
-}): Promise<{ emitted: true; receiptId: string } | { emitted: false; failureReason: string }> {
+  /**
+   * True only on paths reached after deps.modelInvoker.invoke resolved.
+   * Model egress that completed with zero gateway-recorded transits must not
+   * produce a v2 receipt attesting an empty execution trace.
+   */
+  modelInvocationSucceeded?: boolean;
+}
+
+async function emitReceiptV2Layer(input: ReceiptEmissionInput): Promise<ReceiptV2Outcome | undefined> {
+  const emitter = input.deps.receiptEmitterV2;
+  if (!emitter) {
+    return undefined;
+  }
+  const transitRecords = input.deps.transitLedger?.records() ?? [];
+  if (input.modelInvocationSucceeded && transitRecords.length === 0) {
+    return {
+      attempted: true,
+      emitted: false,
+      failureReason:
+        "model egress completed outside gateway custody; refusing to emit a v2 receipt attesting an empty execution trace"
+    };
+  }
+  try {
+    const receipt = await emitter.emitV2({
+      identity: input.identity,
+      modelId: input.request.model.modelId,
+      policyVersion: input.preDecision.policyVersion,
+      policyHash: input.preDecision.policyHash,
+      inputDigest: input.inputDigest,
+      retrievedContextDigests: input.retrievedContextDigests,
+      preDecision: input.preDecision,
+      postDecision: input.postDecision,
+      memoryWritten: input.memoryWritten,
+      consentState: input.request.consentState ?? "missing",
+      latencyMs: input.latencyMs,
+      costEstimateUsd: input.costEstimateUsd,
+      executionContextHash: input.executionContextHash,
+      executionNonce: input.executionNonce,
+      executionTrace: executionTraceFromTransitRecords(transitRecords),
+      timestamp: input.now
+    });
+    return { attempted: true, emitted: true, receiptId: receipt.receipt_id };
+  } catch (error) {
+    return { attempted: true, emitted: false, failureReason: safeErrorMessage(error) };
+  }
+}
+
+async function emitReceipt(
+  input: ReceiptEmissionInput
+): Promise<
+  { emitted: true; receiptId: string; v2?: ReceiptV2Outcome } | { emitted: false; failureReason: string; v2?: ReceiptV2Outcome }
+> {
+  let receiptId: string;
   try {
     const receipt = await input.deps.receiptEmitter.emit({
       identity: input.identity,
@@ -197,10 +259,28 @@ async function emitReceipt(input: {
       executionNonce: input.executionNonce,
       timestamp: input.now
     });
-    return { emitted: true, receiptId: receipt.receipt_id };
+    receiptId = receipt.receipt_id;
   } catch (error) {
-    return { emitted: false, failureReason: safeErrorMessage(error) };
+    return {
+      emitted: false,
+      failureReason: safeErrorMessage(error),
+      v2: input.deps.receiptEmitterV2
+        ? {
+            attempted: false,
+            emitted: false,
+            failureReason: "v1 receipt emission failed before the v2 layer was attempted"
+          }
+        : undefined
+    };
   }
+  const v2 = await emitReceiptV2Layer(input);
+  if (!v2) {
+    return { emitted: true, receiptId };
+  }
+  if (v2.emitted) {
+    return { emitted: true, receiptId, v2 };
+  }
+  return { emitted: false, failureReason: v2.failureReason ?? "v2 receipt emission failed", v2 };
 }
 
 export async function governedInvoke(
@@ -395,6 +475,7 @@ export async function governedInvoke(
           receiptId: receipt.emitted ? receipt.receiptId : undefined,
           failureReason: receipt.emitted ? undefined : receipt.failureReason
         },
+        receiptV2: receipt.v2,
         errors: receipt.emitted ? [] : [receipt.failureReason]
       }),
       receiptFailureMetrics(receipt)
@@ -446,6 +527,7 @@ export async function governedInvoke(
             receiptId: receipt.emitted ? receipt.receiptId : undefined,
             failureReason: receipt.emitted ? undefined : receipt.failureReason
           },
+          receiptV2: receipt.v2,
           errors: ["caller-supplied retrieval context is not trusted in this runtime mode", ...(receipt.emitted ? [] : [receipt.failureReason])]
         }),
         receiptFailureMetrics(receipt)
@@ -504,6 +586,7 @@ export async function governedInvoke(
               receiptId: receipt.emitted ? receipt.receiptId : undefined,
               failureReason: receipt.emitted ? undefined : receipt.failureReason
             },
+            receiptV2: receipt.v2,
             errors: [safeErrorMessage(error), ...(receipt.emitted ? [] : [receipt.failureReason])]
           }),
           receiptFailureMetrics(receipt)
@@ -550,6 +633,7 @@ export async function governedInvoke(
             receiptId: receipt.emitted ? receipt.receiptId : undefined,
             failureReason: receipt.emitted ? undefined : receipt.failureReason
           },
+          receiptV2: receipt.v2,
           errors: ["server-side retrieval provider is required when retrieval is enabled", ...(receipt.emitted ? [] : [receipt.failureReason])]
         }),
         receiptFailureMetrics(receipt)
@@ -607,6 +691,7 @@ export async function governedInvoke(
           receiptId: receipt.emitted ? receipt.receiptId : undefined,
           failureReason: receipt.emitted ? undefined : receipt.failureReason
         },
+        receiptV2: receipt.v2,
         errors: ["cross-tenant retrieval contamination detected", ...(receipt.emitted ? [] : [receipt.failureReason])]
       }),
       ["GovernedInvokeCrossTenantRetrievalBlocked", ...receiptFailureMetrics(receipt)]
@@ -671,6 +756,7 @@ export async function governedInvoke(
           receiptId: receipt.emitted ? receipt.receiptId : undefined,
           failureReason: receipt.emitted ? undefined : receipt.failureReason
         },
+        receiptV2: receipt.v2,
         errors: [
           "untrusted retrieval instructions detected before prompt construction",
           ...(receipt.emitted ? [] : [receipt.failureReason])
@@ -712,6 +798,7 @@ export async function governedInvoke(
           receiptId: receipt.emitted ? receipt.receiptId : undefined,
           failureReason: receipt.emitted ? undefined : receipt.failureReason
         },
+        receiptV2: receipt.v2,
         errors: receipt.emitted ? [] : [receipt.failureReason]
       }),
       receiptFailureMetrics(receipt)
@@ -774,6 +861,7 @@ export async function governedInvoke(
               receiptId: receipt.emitted ? receipt.receiptId : undefined,
               failureReason: receipt.emitted ? undefined : receipt.failureReason
             },
+            receiptV2: receipt.v2,
             errors: ["execution nonce replay detected", ...(receipt.emitted ? [] : [receipt.failureReason])]
           }),
           receiptFailureMetrics(receipt)
@@ -820,6 +908,7 @@ export async function governedInvoke(
             receiptId: receipt.emitted ? receipt.receiptId : undefined,
             failureReason: receipt.emitted ? undefined : receipt.failureReason
           },
+          receiptV2: receipt.v2,
           errors: [safeErrorMessage(error), ...(receipt.emitted ? [] : [receipt.failureReason])]
         }),
         receiptFailureMetrics(receipt)
@@ -885,6 +974,7 @@ export async function governedInvoke(
           receiptId: receipt.emitted ? receipt.receiptId : undefined,
           failureReason: receipt.emitted ? undefined : receipt.failureReason
         },
+        receiptV2: receipt.v2,
         errors: [safeErrorMessage(error), ...(receipt.emitted ? [] : [receipt.failureReason])]
       }),
       ["GovernedInvokeBedrockFailed", ...receiptFailureMetrics(receipt)]
@@ -979,7 +1069,8 @@ export async function governedInvoke(
           costEstimateUsd,
           executionContextHash: preExecutionContextHash,
           executionNonce,
-          now
+          now,
+          modelInvocationSucceeded: true
         });
         return finalizeResult(
           deps,
@@ -1000,6 +1091,7 @@ export async function governedInvoke(
               receiptId: receipt.emitted ? receipt.receiptId : undefined,
               failureReason: receipt.emitted ? undefined : receipt.failureReason
             },
+            receiptV2: receipt.v2,
             errors: [safeErrorMessage(error), ...(receipt.emitted ? [] : [receipt.failureReason])]
           }),
           receiptFailureMetrics(receipt)
@@ -1021,7 +1113,8 @@ export async function governedInvoke(
     costEstimateUsd,
     executionContextHash: preExecutionContextHash,
     executionNonce,
-    now
+    now,
+    modelInvocationSucceeded: true
   });
 
   if (!receipt.emitted) {
@@ -1043,6 +1136,7 @@ export async function governedInvoke(
           reason: memoryResult.reason
         },
         receipt: { attempted: true, emitted: false, failureReason: receipt.failureReason },
+        receiptV2: receipt.v2,
         errors: [receipt.failureReason]
       }),
       [
@@ -1071,7 +1165,8 @@ export async function governedInvoke(
         written: memoryResult.written,
         reason: memoryResult.reason
       },
-      receipt: { attempted: true, emitted: true, receiptId: receipt.receiptId }
+      receipt: { attempted: true, emitted: true, receiptId: receipt.receiptId },
+      receiptV2: receipt.v2
     }),
     memoryDecision?.decision === "MEMORY_SUPPRESS" ? ["GovernedInvokeMemorySuppressed"] : []
   );
