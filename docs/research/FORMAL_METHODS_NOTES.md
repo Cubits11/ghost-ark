@@ -108,6 +108,42 @@ This model does not cover:
 * real concurrency beyond the modeled next-state relation
 * refinement from implementation traces
 
+Second Model: ProvenanceLattice
+
+A second narrow model lives in:
+
+proofs/tla/ProvenanceLattice.tla
+proofs/tla/ProvenanceLattice.cfg
+
+It models the evidence provenance lattice from docs/research/EVIDENCE_PROVENANCE_LATTICE.md:
+
+* rank chain 0..4 with rank 3 derive-only
+* evidence records labeled with assignable ranks
+* meet-based delegation admission
+* floor evaluation over distinct qualifying sources
+
+Invariants: TypeOK, NoDeriveOnlyAssignment, NoLaundering (admitted rank bounded by both the claimed rank and the re-verified rank; bounding by the re-verified rank alone is not the meet).
+
+Action properties: SatisfiedStable (floor satisfaction is stable under record addition), FloodImmunity (below-floor additions never change the qualifying source set).
+
+Status: checked finite model with recorded checker artifacts.
+
+On 2026-07-14 the model was checked with TLC2 Version 2.19 (08 August 2024, rev 5a47802) for the committed configuration (three sources, MaxRecords 3, Floor 2, K 2):
+
+* Baseline: proofs/tla/artifacts/ProvenanceLattice.tlc.txt — no invariant or property violation; 2,542,529 states generated; 403,949 distinct states; search depth 7. The distinct-state count matches the expectation pre-registered in proofs/tla/README.md before the run.
+* Mutant: proofs/tla/artifacts/ProvenanceLatticeMutant.tlc.txt — ProvenanceLatticeMutant.tla permits direct assignment of the derive-only rank; TLC reports the NoDeriveOnlyAssignment invariant violated with a two-state counterexample, demonstrating the invariants are load-bearing rather than vacuous.
+
+Commands used:
+
+java -cp tla2tools.jar tlc2.TLC -workers auto -config ProvenanceLattice.cfg ProvenanceLattice.tla
+java -cp tla2tools.jar tlc2.TLC -workers auto -config ProvenanceLatticeMutant.cfg ProvenanceLatticeMutant.tla
+
+Allowed wording: the finite ProvenanceLattice model satisfies NoLaundering, NoDeriveOnlyAssignment, SatisfiedStable, and FloodImmunity for the recorded configuration, as checked by the recorded checker artifacts.
+
+Required non-claim: this validates the finite abstraction only. It is not a statement about the TypeScript implementation, the receipt pipeline, gateway behavior, or any AWS deployment. The corresponding TypeScript implementation (packages/enforcement-runtime/src/evidence/provenanceLattice.ts) is unit-tested locally, which is not model checking and not a proof; connecting model to implementation requires a refinement layer as described below.
+
+The refinement boundary stated below applies to this model equally: a checked lattice model would validate the finite abstraction, not the TypeScript implementation, the receipt pipeline, or any AWS behavior.
+
 Required Evidence Before Stronger Claims
 
 To claim L2: model-bound artifact
