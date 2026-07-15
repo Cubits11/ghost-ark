@@ -144,6 +144,35 @@ Required non-claim: this validates the finite abstraction only. It is not a stat
 
 The refinement boundary stated below applies to this model equally: a checked lattice model would validate the finite abstraction, not the TypeScript implementation, the receipt pipeline, or any AWS behavior.
 
+Third Model: SpeculativeCollapse
+
+Files:
+
+proofs/tla/SpeculativeCollapse.tla
+proofs/tla/SpeculativeCollapse.cfg
+proofs/tla/SpeculativeCollapseMutant.tla
+proofs/tla/SpeculativeCollapseMutant.cfg
+
+It models speculative-collapse semantics for deferred effects: each speculation carries both the rank the gateway recorded for its supporting evidence and the rank the speculative thread claims. The collapse action consults only the gateway rank; the claim is never read.
+
+Invariants: TypeOK, CollapseSound (no effect reaches canonical state below the floor, regardless of claimed rank).
+
+Status: checked finite model with recorded checker artifacts.
+
+On 2026-07-14 both modules were checked with TLC2 Version 2.19 for the committed configuration (two speculation ids, Floor 2):
+
+* Baseline: proofs/tla/artifacts/SpeculativeCollapse.tlc.txt — no invariant violation; 2,301 states generated; 529 distinct states; search depth 5.
+* Mutant: proofs/tla/artifacts/SpeculativeCollapseMutant.tlc.txt — CollapseMutant trusts the claimed rank instead of the gateway record; TLC reports CollapseSound violated with a four-state counterexample in which a speculation carrying gateway rank 0 and claimed rank 2 reaches canonical state.
+
+Commands used:
+
+java -cp tla2tools.jar tlc2.TLC -workers auto -config SpeculativeCollapse.cfg SpeculativeCollapse.tla
+java -cp tla2tools.jar tlc2.TLC -workers auto -config SpeculativeCollapseMutant.cfg SpeculativeCollapseMutant.tla
+
+Allowed wording: the finite SpeculativeCollapse model satisfies CollapseSound for the recorded configuration, as checked by the recorded checker artifacts, and the claim-trusting mutant violates it.
+
+Required non-claim: this validates the finite abstraction only. It is not a statement about the TypeScript SpeculativeContextManager, process-level forking, CRIU or microVM mechanisms, or any AWS behavior. ProvenanceLattice.tla was not modified for this work; its recorded artifacts bind to its exact text, so speculation is modeled in a separate module.
+
 Required Evidence Before Stronger Claims
 
 To claim L2: model-bound artifact
