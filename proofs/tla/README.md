@@ -9,6 +9,8 @@ Models in this directory are stubs until a genuine checker output artifact exist
 - `ProvenanceLatticeMutant.tla` / `.cfg` — deliberately broken variant permitting direct assignment of the derive-only rank; exists to show the invariants are load-bearing (violation reproduced 2026-07-14; see artifacts/ProvenanceLatticeMutant.tlc.txt)
 - `SpeculativeCollapse.tla` / `.cfg` — speculative-collapse rule: canonical state admits an effect only on the gateway-recorded rank, never the speculative thread's claim (checked 2026-07-14 with TLC 2.19; 529 distinct states; see artifacts/SpeculativeCollapse.tlc.txt)
 - `SpeculativeCollapseMutant.tla` / `.cfg` — claim-trusting collapse, the assertion-conditioned poisoning of the reconciler; CollapseSound violation reproduced 2026-07-14 (see artifacts/SpeculativeCollapseMutant.tlc.txt)
+- `TransportBoundary.tla` / `.cfg` — silent-compromise is prevented in both strict and lenient transport modes; transport strictness is an explicit assumption, not an asserted property (checked 2026-07-15 with TLC 2.19; 64 distinct states; see artifacts/TransportBoundary.tlc.txt)
+- `TransportBoundaryMutant.tla` / `.cfg` — reconciler that ignores extra wire bytes; NoSilentCompromise violation reproduced under the lenient mode 2026-07-15 (see artifacts/TransportBoundaryMutant.tlc.txt). Note: constants must be quoted strings in the .cfg, or the CASE comparisons fall through and both models pass vacuously.
 
 ## Commands
 

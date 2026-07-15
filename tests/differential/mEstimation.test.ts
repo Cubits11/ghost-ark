@@ -12,7 +12,9 @@ import {
   ExecutionOutcome,
   estimateFromCounts,
   estimateM,
-  wilsonInterval
+  requiredSampleSizeForFalsification,
+  wilsonInterval,
+  wilsonLowerBound
 } from "../../packages/research-frontier/src/oracle/mEstimator";
 
 const digestOf = (body: Buffer): string => `sha256:${createHash("sha256").update(body).digest("hex")}`;
@@ -94,5 +96,32 @@ describe("M estimation from real reconciler output", () => {
   it("requires a pre-registered epsilon in range", () => {
     expect(() => estimateFromCounts(1, 10, { epsilon: 1.5 })).toThrowError(/pre-registered/u);
     expect(wilsonInterval(1, 10).low).toBeGreaterThan(0);
+  });
+});
+
+describe("power analysis (required sample size)", () => {
+  it("reports the n needed to falsify at a given rate, and the bound holds there", () => {
+    const result = requiredSampleSizeForFalsification({ observedRate: 0.05, epsilon: 0.01 });
+    expect(result.achievable).toBe(true);
+    expect(result.requiredN).toBeGreaterThan(5);
+    expect(result.requiredN).toBeLessThan(500);
+    // The reported n is the exact boundary: the continuous Wilson lower bound
+    // clears epsilon at n, and one sample short of it does not.
+    const n = result.requiredN as number;
+    expect(wilsonLowerBound(0.05, n)).toBeGreaterThan(0.01);
+    expect(wilsonLowerBound(0.05, n - 1)).toBeLessThanOrEqual(0.01);
+  });
+
+  it("reports not-achievable when the rate does not exceed epsilon", () => {
+    const result = requiredSampleSizeForFalsification({ observedRate: 0.005, epsilon: 0.01 });
+    expect(result.achievable).toBe(false);
+    expect(result.requiredN).toBeNull();
+    expect(result.detail).toMatch(/never clear/u);
+  });
+
+  it("needs a smaller n when the divergence rate is further above epsilon", () => {
+    const near = requiredSampleSizeForFalsification({ observedRate: 0.02, epsilon: 0.01 });
+    const far = requiredSampleSizeForFalsification({ observedRate: 0.2, epsilon: 0.01 });
+    expect(far.requiredN as number).toBeLessThan(near.requiredN as number);
   });
 });

@@ -76,6 +76,23 @@ export function wilsonInterval(successes: number, total: number, z = DEFAULT_Z):
   };
 }
 
+/**
+ * Continuous Wilson score lower bound for a proportion p at sample size n.
+ * Algebraically identical to wilsonInterval's lower bound when p = k/n, but
+ * defined for real-valued p so power analysis is not distorted by rounding an
+ * assumed rate to an integer success count at small n.
+ */
+export function wilsonLowerBound(p: number, n: number, z = DEFAULT_Z): number {
+  if (!Number.isFinite(p) || p < 0 || p > 1 || !Number.isFinite(n) || n <= 0) {
+    throw estimatorError("wilsonLowerBound requires p in [0,1] and n > 0.");
+  }
+  const z2 = z * z;
+  const denom = 1 + z2 / n;
+  const center = p + z2 / (2 * n);
+  const margin = z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n));
+  return Math.max(0, (center - margin) / denom);
+}
+
 export function estimateFromCounts(unsafeAmongValid: number, receiptValidTotal: number, options: MEstimateOptions): MEstimate {
   if (!Number.isFinite(options.epsilon) || options.epsilon < 0 || options.epsilon > 1) {
     throw estimatorError("epsilon must be a pre-registered value in [0, 1].");
@@ -110,4 +127,67 @@ export function estimateM(outcomes: readonly ExecutionOutcome[], options: MEstim
   const receiptValid = outcomes.filter((outcome) => outcome.receiptValid === true);
   const unsafeAmongValid = receiptValid.filter((outcome) => outcome.oracleReconciled === false).length;
   return estimateFromCounts(unsafeAmongValid, receiptValid.length, options);
+}
+
+export interface SampleSizeQuery {
+  /** Assumed true divergence rate (e.g. a pilot point estimate). */
+  observedRate: number;
+  /** Threshold the Wilson lower bound must exceed to falsify containment. */
+  epsilon: number;
+  z?: number;
+  /** Upper search bound; the answer is null if no n up to maxN suffices. */
+  maxN?: number;
+}
+
+export interface SampleSizeResult {
+  achievable: boolean;
+  requiredN: number | null;
+  detail: string;
+}
+
+/**
+ * Power analysis: the smallest n at which the Wilson lower bound exceeds
+ * epsilon, given an assumed divergence rate. This is the honest answer to "how
+ * many samples do I need" — and it is the tool that replaces, rather than
+ * enables, driving n up on a synthetic corpus.
+ *
+ * The n it returns only counts when each of the n outcomes is an INDEPENDENT
+ * draw from the real adversarial distribution. Replaying the same synthetic
+ * outcomes n times narrows the interval arithmetically while adding zero real
+ * information: it manufactures confidence rather than earning it. If
+ * observedRate <= epsilon, no finite n can push the lower bound past the
+ * threshold, and the query is reported as not achievable.
+ */
+export function requiredSampleSizeForFalsification(query: SampleSizeQuery): SampleSizeResult {
+  if (!Number.isFinite(query.observedRate) || query.observedRate < 0 || query.observedRate > 1) {
+    throw estimatorError("observedRate must be in [0, 1].");
+  }
+  if (!Number.isFinite(query.epsilon) || query.epsilon < 0 || query.epsilon >= 1) {
+    throw estimatorError("epsilon must be in [0, 1).");
+  }
+  const z = query.z ?? DEFAULT_Z;
+  const maxN = query.maxN ?? 1_000_000;
+
+  if (query.observedRate <= query.epsilon) {
+    return {
+      achievable: false,
+      requiredN: null,
+      detail: `observedRate ${query.observedRate} does not exceed epsilon ${query.epsilon}; the Wilson lower bound converges to the rate and can never clear the threshold.`
+    };
+  }
+
+  for (let n = 1; n <= maxN; n += 1) {
+    if (wilsonLowerBound(query.observedRate, n, z) > query.epsilon) {
+      return {
+        achievable: true,
+        requiredN: n,
+        detail: `At n=${n} independent trials with rate ${query.observedRate}, the Wilson lower bound exceeds epsilon ${query.epsilon}.`
+      };
+    }
+  }
+  return {
+    achievable: false,
+    requiredN: null,
+    detail: `No n up to ${maxN} pushes the Wilson lower bound past epsilon ${query.epsilon} at rate ${query.observedRate}.`
+  };
 }
