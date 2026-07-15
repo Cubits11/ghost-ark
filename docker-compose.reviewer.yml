@@ -1,0 +1,48 @@
+# Ghost-Ark — reviewer environment (USENIX Artifact Evaluation)
+#
+#   docker compose -f docker-compose.reviewer.yml build
+#   docker compose -f docker-compose.reviewer.yml run --rm reviewer make reproduce
+#
+# `reviewer` is the hermetic image (Dockerfile.reviewer). `localstack` provides
+# local DynamoDB/KMS/S3 so no AWS account or credentials are needed. The local
+# reproduction path does not require LocalStack to be healthy — it is offered for
+# the AWS-shaped tests that can exercise mocked endpoints.
+
+services:
+  localstack:
+    image: localstack/localstack:3.8
+    environment:
+      - SERVICES=dynamodb,kms,s3
+      - DEBUG=0
+      - EAGER_SERVICE_LOADING=1
+    ports:
+      - "4566:4566"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - localstack_data:/var/lib/localstack
+
+  reviewer:
+    build:
+      context: .
+      dockerfile: Dockerfile.reviewer
+    image: ghost-ark-reviewer:latest
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - TLA_TOOLS_JAR=/opt/tla/tla2tools.jar
+    volumes:
+      # Surface the generated reports/artifacts back to the host for inspection.
+      - ./artifacts:/work/artifacts
+    command: ["make", "reproduce"]
+
+volumes:
+  localstack_data:

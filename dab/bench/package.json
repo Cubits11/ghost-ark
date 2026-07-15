@@ -1,0 +1,8 @@
+{
+  "name": "@ghost-ark/dab-bench",
+  "version": "0.1.0-tier0",
+  "private": true,
+  "type": "module",
+  "description": "Ghost-Ark DAB Tier-0 adversarial and performance benchmark suites. ESM package boundary so these files (which use import.meta and ES module syntax) run under Node native TypeScript type-stripping, independent of the CommonJS root workspace.",
+  "license": "MIT"
+}

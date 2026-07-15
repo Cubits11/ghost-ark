@@ -1,0 +1,21 @@
+# Keep the reviewer build context small and deterministic.
+node_modules
+**/node_modules
+dist
+coverage
+cdk.out
+.cache
+artifacts
+.git
+.terraform
+**/.terraform
+**/.terraform.lock.hcl
+**/*.tfstate*
+**/target
+**/.DS_Store
+*.log
+__pycache__
+**/__pycache__
+docs/dissertation/.build
+docs/dissertation/*.pdf
+docs/dissertation/*.tex

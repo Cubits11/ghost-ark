@@ -1,0 +1,90 @@
+name: artifact-evaluation
+
+# USENIX Artifact Evaluation pipeline. Runs the full honest reproduction and
+# uploads the machine- and human-readable reports plus the dissertation PDF.
+#
+# Job status reflects the repository's ACTUAL state: `make reproduce` exits
+# non-zero while the known HEAD blockers remain (see
+# docs/artifact/repository_inventory.md §7). Reports upload on success OR failure.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artifact-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-reproduce:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install dissertation toolchain (pandoc + TeX Live)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            jq graphviz pandoc latexmk \
+            texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended texlive-science lmodern
+
+      - name: Bootstrap (deps + pinned tla2tools)
+        run: make bootstrap
+
+      - name: Reproduce (build → claims → proof → unit → attack → benchmark → dissertation → report)
+        id: reproduce
+        run: make reproduce
+        # Do not mask the real result; the report step still runs via always().
+
+      - name: Ensure a report exists even if a stage failed
+        if: always()
+        run: node tools/artifact/aec-report.mjs || true
+
+      - name: Upload artifacts (reports, benchmarks, proof logs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aec-artifacts
+          path: |
+            artifacts/**
+            docs/dissertation/ghost-ark-usenix.pdf
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f artifacts/reports/aec_summary.md ]; then
+            cat artifacts/reports/aec_summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  hermetic-image:
+    # Proves Dockerfile.reviewer is self-sufficient (no host setup) by running
+    # the deterministic gates inside the image.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build reviewer image
+        run: docker build -f Dockerfile.reviewer -t ghost-ark-reviewer:ci .
+      - name: Run proofs + attacks inside the hermetic image
+        run: |
+          docker run --rm ghost-ark-reviewer:ci make proof
+          docker run --rm ghost-ark-reviewer:ci make attack
