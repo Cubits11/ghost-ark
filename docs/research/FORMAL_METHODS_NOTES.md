@@ -173,6 +173,32 @@ Allowed wording: the finite SpeculativeCollapse model satisfies CollapseSound fo
 
 Required non-claim: this validates the finite abstraction only. It is not a statement about the TypeScript SpeculativeContextManager, process-level forking, CRIU or microVM mechanisms, or any AWS behavior. ProvenanceLattice.tla was not modified for this work; its recorded artifacts bind to its exact text, so speculation is modeled in a separate module.
 
+Fourth Model: TransportBoundary
+
+Files:
+
+proofs/tla/TransportBoundary.tla
+proofs/tla/TransportBoundary.cfg
+proofs/tla/TransportBoundaryMutant.tla
+proofs/tla/TransportBoundaryMutant.cfg
+
+It answers whether silent compromise depends on the transport parser failing closed. The empirical E2E run found a strict HTTP client rejects smuggled trailing bytes and fails closed, but that is a runtime accident of one client, not a proven property. The model treats transport strictness as an explicit assumption (the mode parameter, strict or lenient) and checks that no adversarial transit is both receipt-valid and oracle-clean in EITHER mode. The load-bearing component is the reconciler, not the parser.
+
+Invariants: TypeOK, NoSilentCompromise.
+
+Status: checked finite model with recorded checker artifacts.
+
+On 2026-07-15, checked with TLC2 Version 2.19 for the configuration (Kinds {honest, smuggle, sidechannel}, Modes {strict, lenient}):
+
+* Baseline: proofs/tla/artifacts/TransportBoundary.tlc.txt — no violation; 64 distinct states.
+* Mutant: proofs/tla/artifacts/TransportBoundaryMutant.tlc.txt — the reconciler ignores extra wire bytes; TLC reports NoSilentCompromise violated with the counterexample [kind |-> "smuggle", mode |-> "lenient", rv |-> TRUE, oc |-> TRUE].
+
+Process note: an earlier run of both models passed vacuously because the .cfg used unquoted model values (honest) while the .tla compared against string literals ("honest"), so every CASE fell through to FALSE. The mutant passing where it should have failed is what exposed the vacuity — the mutant discipline caught a model that had no teeth. Fixed by quoting the constants as strings.
+
+Allowed wording: the finite TransportBoundary model satisfies NoSilentCompromise for the recorded configuration in both transport modes, as checked by the recorded artifacts, and a reconciler that ignores extra bytes violates it under the lenient mode.
+
+Required non-claim: this validates the finite abstraction only. Transport strictness is modeled as an assumption, not asserted as a property of any real HTTP client. It is not a statement about the TypeScript reconciler, the gateway, or any deployment.
+
 Required Evidence Before Stronger Claims
 
 To claim L2: model-bound artifact

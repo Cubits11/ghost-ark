@@ -33,6 +33,14 @@ Two corrections to the commissioning proposal:
 1. Its `stat_sig: ci_low > 0` flag is meaningless. Any non-degenerate interval on a proportion has a lower bound above zero once one event is observed, and a Beta posterior with alpha >= 1 has positive lower density regardless of data. The flag reports "true" for a clean baseline, which is exactly backwards. The meaningful test is against a pre-registered threshold, not against zero.
 2. Its Beta(1, 10) prior is informative on the very quantity being measured — it pulls the estimate toward ~0.09 with no data and encodes an unexplained "10". For a falsification instrument, an informative prior on the measurand biases the verdict. The estimator here is frequentist (Wilson) so the reported interval is a function of the data alone; a Bayesian variant, if added, should use a weak or Jeffreys prior and state it.
 
+## Statistical power, honestly
+
+`requiredSampleSizeForFalsification` answers "how many samples do I need for the Wilson lower bound to clear epsilon" at an assumed rate. It is deliberately the tool that REPLACES driving n up on a synthetic corpus rather than the tool that enables it.
+
+The n it returns counts only when each of the n outcomes is an independent draw from the real adversarial distribution. Replaying the same synthetic outcomes n times narrows the interval arithmetically while adding zero real information — it manufactures confidence rather than earning it, the sample-size form of computing an interval from invented counts. A tight interval over a hand-written corpus is not statistical power; it is the same fabrication at higher resolution. When the assumed rate does not exceed epsilon, no finite n suffices and the function says so.
+
+Reaching a peer-review-grade n therefore depends on real data — wiring the runtime to emit receipts over non-synthetic adversarial trajectories — not on iterating this harness.
+
 ## Reproduction and ordering
 
 The estimator reproduces the sensible part of the proposal's arithmetic: 345/10000 yields a Wilson 95% interval of approximately [3.11%, 3.83%]; 0/10000 yields a rule-of-three upper bound of 0.0003 and does not falsify containment. The difference is provenance — here those counts, in the corpus test, come from running the reconciler on real wire bytes, not from literals typed into a REPL.
