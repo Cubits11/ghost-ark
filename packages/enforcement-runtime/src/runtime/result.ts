@@ -35,5 +35,12 @@ export interface GovernedInvokeResult {
     receiptId?: string;
     failureReason?: string;
   };
+  /** Present only when the runtime was configured with a v2 receipt emitter. */
+  receiptV2?: {
+    attempted: boolean;
+    emitted: boolean;
+    receiptId?: string;
+    failureReason?: string;
+  };
   errors: string[];
 }

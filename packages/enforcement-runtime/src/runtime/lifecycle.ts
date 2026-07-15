@@ -6,11 +6,13 @@ import { PolicyMemoryTier } from "../policy/schema";
 import { RetrievedContextCandidate } from "../retrieval/types";
 import { RetrievalProvider } from "../retrieval/types";
 import { DecisionReceiptEmitter } from "../receipts/emission";
+import { DecisionReceiptV2Emitter } from "../receipts/v2/runtimeEmitter";
 import { VaultStore } from "../vault/store";
 import { ModelInvoker } from "../bedrock/types";
 import { GovernedInvokeStatus } from "./result";
 import { GovernedInvokeMetrics } from "./metrics";
 import { ExecutionNonceStore } from "./nonceStore";
+import { TransitLedger } from "./transitLedger";
 
 export interface GovernedInvokeRequest {
   pathTenantId: string;
@@ -66,6 +68,15 @@ export interface GovernedInvokeDependencies {
     stage?: string;
   };
   executionNonceStore?: ExecutionNonceStore;
+  /**
+   * Optional v2 receipt layer. When configured, every receipt-bearing path
+   * also emits a ghost.receipt.v2 whose execution_trace is the transit
+   * ledger's gateway-recorded custody; a completed model invocation with zero
+   * recorded transits fails closed instead of attesting an empty trace.
+   * When absent, behavior is unchanged from the v1-only runtime.
+   */
+  receiptEmitterV2?: DecisionReceiptV2Emitter;
+  transitLedger?: TransitLedger;
 }
 
 export function isModelInvocationAllowed(decision: PolicyDecision): boolean {
