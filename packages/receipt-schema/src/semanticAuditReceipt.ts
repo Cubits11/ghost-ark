@@ -56,3 +56,19 @@ export function validateSemanticAuditReceipt(value: unknown): SemanticAuditRecei
   }
   return parsed.data;
 }
+
+export function evaluateSemanticGate(
+  stepProbabilities: number[],
+  policyThreshold: number
+): { status: "PASSED" | "FAILED_DRIFT_BOUNDS"; cumulative_failure_bound: number } {
+  // Compute cumulative failure bound using Frechet-Hoeffding upper bound for the union of failure events
+  // P(F_any) <= min(1, sum(P(F_i)))
+  const sum = stepProbabilities.reduce((acc, p) => acc + p, 0);
+  const cumulative_failure_bound = Math.min(1, sum);
+  
+  const status = cumulative_failure_bound > policyThreshold ? "FAILED_DRIFT_BOUNDS" : "PASSED";
+  return {
+    status,
+    cumulative_failure_bound
+  };
+}
