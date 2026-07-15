@@ -477,13 +477,13 @@ export function replayGame(
 
 
         const replayAccepted =
-            ledger.has(
+            !ledger.has(
                 tx.nonce
             );
 
 
         if(
-            replayAccepted
+            replayAccepted && i > 0
         ){
 
             success++;
