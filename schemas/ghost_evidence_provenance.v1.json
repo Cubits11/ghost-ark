@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.local/schemas/ghost_evidence_provenance.v1.json",
+  "title": "Ghost Ark Evidence Provenance Label",
+  "description": "A provenance-labeled evidence element. The provenance class ranks the evidence by who must be compromised to fabricate it under the assumptions in docs/research/EVIDENCE_PROVENANCE_LATTICE.md. It does not state that the evidence content is true. CROSS_WITNESSED is derive-only and must not appear on a single element; it may only appear as a derived aggregate class.",
+  "type": "object",
+  "required": ["schemaVersion", "evidenceId", "contentDigest", "sourceId", "provenanceClass"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "ghost.evidence_provenance.v1" },
+    "evidenceId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,256}$"
+    },
+    "contentDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "sourceId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,256}$"
+    },
+    "provenanceClass": {
+      "description": "Assignable classes only. CROSS_WITNESSED is excluded because it is derived from agreeing independent records, never assigned.",
+      "enum": ["AGENT_ASSERTED", "GATEWAY_RECORDED", "SOURCE_SIGNED", "EXTERNALLY_ATTESTED"]
+    },
+    "labeledBy": {
+      "description": "Identifier of the boundary component that assigned the label. Labels are assigned by enforcement-boundary code, never by the agent whose evidence is being labeled.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,256}$"
+    }
+  }
+}

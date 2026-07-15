@@ -308,10 +308,11 @@ provable per receipt via audit paths (`verifyInclusionProof`), and
 consistency between checkpoint epochs is verifiable without replaying the
 full history. Merkle roots are not associative over arbitrary partitions —
 `root(A‖B) ≠ f(root(A), root(B))` in general because the tree shape changes
-with the leaf count — but the canonical construction guarantees that any
-verifier who builds the same ordered sequence arrives at the same root. This
-is the property that matters for independent verification; associativity is
-neither needed nor claimed.
+with the leaf count — but the canonical construction ensures that any
+verifier who builds the same ordered sequence arrives at the same root
+(determinism is enforced by the algorithm, not asserted as a global
+property). This is the property that matters for independent verification;
+associativity is neither needed nor claimed.
 
 **Long-term archival.** Checkpoint bundles with key-manifest epochs
 (docs/architecture/ADR-0002) so signatures remain checkable after rotation;
