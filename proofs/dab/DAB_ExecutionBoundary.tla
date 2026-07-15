@@ -66,4 +66,9 @@ DeltaZero ==
         execution_log[i] \in verified_intent
 
 Spec == Init /\ [][Next]_vars
+
+StateSpaceBound ==
+    /\ Len(execution_buffer) <= 3
+    /\ Len(execution_log) <= 3
+
 =============================================================================
