@@ -1,0 +1,25 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 38 and seed -105704061795707722 with 8 workers on 8 cores with 2048MB heap and 64MB offheap memory [pid: 89396] (Mac OS X 15.5 aarch64, Oracle Corporation 23.0.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/pranavbhave/Documents/GitHub/ghost-ark/proofs/tla/ProvenanceLattice.tla
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/Naturals.tla
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module ProvenanceLattice
+Starting... (2026-07-14 22:16:51)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-07-14 22:16:51.
+Progress(7) at 2026-07-14 22:16:54: 1,453,355 states generated (1,453,355 s/min), 278,887 distinct states found (278,887 ds/min), 171,865 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 4.7E-8
+  based on the actual fingerprints:  val = 3.0E-8
+2542529 states generated, 403949 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 7.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 31 and the 95th percentile is 8).
+Finished in 05s at (2026-07-14 22:16:56)
