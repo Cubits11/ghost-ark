@@ -470,4 +470,114 @@ mod tests {
         ));
     }
 
+    // ---- Brutal receipt-forgery corpus -----------------------------------
+    //
+    // Structured forgery attempts against the real verifier. Each must be
+    // rejected; the point is that a hostile reviewer's obvious first moves
+    // all fail closed with a specific, non-crashing error.
+
+    #[test]
+    fn protocol_downgrade_is_rejected() {
+        let (json, pk) =
+            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        let downgraded = json.replace("DAB-TIER0-V1", "DAB-TIER0-V0");
+        assert!(matches!(
+            verify_dab_receipt(&downgraded, &pk),
+            Err(VerificationError::ProtocolMismatch)
+        ));
+    }
+
+    #[test]
+    fn non_hex_signature_is_rejected() {
+        let (json, pk) =
+            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        // Replace the signature body with a non-hex string of the same shape.
+        let forged = regex_lite_replace_signature(&json, "zz not hex zz");
+        assert!(matches!(
+            verify_dab_receipt(&forged, &pk),
+            Err(VerificationError::InvalidSignature)
+        ));
+    }
+
+    #[test]
+    fn truncated_signature_is_rejected() {
+        let (json, pk) =
+            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        // A single hex byte: valid hex, wrong length for an ed25519 signature.
+        let forged = regex_lite_replace_signature(&json, "ab");
+        assert!(matches!(
+            verify_dab_receipt(&forged, &pk),
+            Err(VerificationError::InvalidSignature)
+        ));
+    }
+
+    #[test]
+    fn all_zero_signature_is_rejected() {
+        let (json, pk) =
+            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        // 64 zero bytes: correct length, not a valid signature for this key/msg.
+        let zeros = "0".repeat(128);
+        let forged = regex_lite_replace_signature(&json, &zeros);
+        assert!(matches!(
+            verify_dab_receipt(&forged, &pk),
+            Err(VerificationError::InvalidSignature)
+        ));
+    }
+
+    #[test]
+    fn signature_transplant_across_receipts_is_rejected() {
+        // A valid signature over receipt A pasted onto receipt B (different
+        // c_i/c_e that still satisfy c_i==c_e). The signed message differs, so
+        // ed25519 verification must fail — the signature is bound to content.
+        let (json_a, pk) =
+            signed_receipt_json("aaaa", "aaaa", "n-1", "0", "sha256:policy");
+        let sig_a = extract_signature(&json_a);
+        let (json_b, _pk_b) =
+            signed_receipt_json("bbbb", "bbbb", "n-2", "0", "sha256:policy");
+        let transplanted = regex_lite_replace_signature(&json_b, &sig_a);
+        assert!(matches!(
+            verify_dab_receipt(&transplanted, &pk),
+            Err(VerificationError::InvalidSignature)
+        ));
+    }
+
+    #[test]
+    fn missing_field_is_malformed() {
+        // Drop policy_digest entirely: strict parsing must reject, not panic.
+        let broken = r#"{"protocol":"DAB-TIER0-V1","status":"CERTIFIED","c_i":"c","c_e":"c","nonce":"n","timestamp":"0","gateway_signature":"00"}"#;
+        let (_j, pk) = signed_receipt_json("c", "c", "n", "0", "sha256:policy");
+        assert!(matches!(
+            verify_dab_receipt(broken, &pk),
+            Err(VerificationError::MalformedReceipt)
+        ));
+    }
+
+    #[test]
+    fn empty_public_key_is_rejected() {
+        let (json, _pk) =
+            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        assert!(matches!(
+            verify_dab_receipt(&json, &[]),
+            Err(VerificationError::InvalidPublicKey)
+        ));
+    }
+
+    // -- test helpers (no external crates) --
+
+    fn extract_signature(json: &str) -> String {
+        let key = "\"gateway_signature\":\"";
+        let start = json.find(key).unwrap() + key.len();
+        let end = json[start..].find('"').unwrap() + start;
+        json[start..end].to_string()
+    }
+
+    fn regex_lite_replace_signature(json: &str, new_sig: &str) -> String {
+        let old = extract_signature(json);
+        json.replacen(
+            &format!("\"gateway_signature\":\"{old}\""),
+            &format!("\"gateway_signature\":\"{new_sig}\""),
+            1,
+        )
+    }
+
 }

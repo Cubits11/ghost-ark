@@ -72,32 +72,40 @@ version, which in most cases is *more* impressive than the inflated one.
 >
 > Because you will read the code, here is the honest status of each gate.
 > The **ledger gate** (replay rejection via a spent-tombstone set) is
-> implemented in the Rust gateway and TLC-checked as a bounded model — and I
-> want to be candid that model checking first *refuted* my original design:
-> TLC produced a counterexample where garbage collection re-enabled replay.
-> The repair landed spec-first, the implementation was brought into
+> TLC-checked as a bounded model *and* wired into the running Rust gateway —
+> and I want to be candid that model checking first *refuted* my original
+> design: TLC produced a counterexample where garbage collection re-enabled
+> replay. The repair landed spec-first, the implementation was brought into
 > conformance, and the counterexample is kept as a permanent mutant
-> regression test. The **semantic gate** (a dependence-free Fréchet upper
-> bound on cumulative trajectory failure — no independence assumption, which
-> is the point, since guardrail failures correlate) is implemented and
-> unit-tested; it bounds supplied per-step marginals and deliberately does
-> not classify content itself. The **OCC gate** (a read-set projection π_R
-> that recovers liveness from what I call the starvation trap) is specified
-> with a tested receipt schema; its runtime enforcement is future work, and
-> the paper labels it that way.
+> regression. I can show the wired ledger rejecting a replayed nonce over the
+> real Unix socket, not just in a unit test. The **semantic gate** (a
+> dependence-free Fréchet upper bound on cumulative trajectory failure — no
+> independence assumption, which is the point, since guardrail failures
+> correlate) is implemented and unit-tested; it bounds supplied per-step
+> marginals and deliberately does not classify content itself. The **OCC
+> gate** (a read-set projection π_R that recovers liveness from what I call
+> the starvation trap) is specified with a tested receipt schema; its runtime
+> enforcement is future work, and the paper labels it that way throughout.
 >
 > Current evidence at HEAD: five TLC-checked bounded models (up to 403,949
 > distinct states) with five seeded mutants reproducing their intended
-> violations; modeled-attacker advantage 0 across four security games ×
-> 10,000 trials plus a nine-attack corpus (in-suite, modeled attacker only —
-> the bench's own header states the non-claim); ~6.6 μs mean added
-> in-process latency; 640 passing tests; and a claim-language linter that
-> gates the repository's own documentation, including the manuscript.
+> violations; a recorded, reproducible gateway↔independent-verifier
+> round-trip with real ed25519 signatures — the independent verifier accepts
+> a gateway receipt and rejects a brutal forgery corpus (tampered field,
+> protocol downgrade, non-hex / truncated / all-zero / transplanted
+> signatures, wrong key), all demonstrated on Kubernetes as well; the Rust
+> crates are `cargo clippy -D warnings` clean; modeled-attacker advantage 0
+> across four security games × 10,000 trials plus a nine-attack corpus
+> (in-suite, modeled attacker only — the bench's own header states the
+> non-claim); ~6.6 μs mean added in-process latency; and a claim-language
+> linter that gates the repository's own documentation, including the
+> manuscript.
 >
 > I would value your brutal critique far more than your kindness here —
 > especially on Section 4 (the starvation analysis and the Fréchet bound's
-> saturation behavior) and on anything in the evaluation you think is
-> overstated. If it survives you, I'll feel ready for the committee.
+> saturation behavior — Figures 2 and 3 plot both) and on anything in the
+> evaluation you think is overstated. If it survives you, I'll feel ready for
+> the committee.
 >
 > Manuscript and code:
 > - Repository: https://github.com/Cubits11/ghost-ark (paper under
