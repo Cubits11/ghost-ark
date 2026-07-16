@@ -19,23 +19,26 @@ failure.
 
 ## ⚠️ Current status — read before you run
 
-This artifact is **honest, not green**. `make reproduce` runs real commands, and
-at the current commit it **exits non-zero** because of pre-existing, documented
-blockers in the repository (not in this harness). This is deliberate: an
-artifact-evaluation harness must report the repository's real state, not a
-manufactured pass.
+This artifact is **honest first, green second**. `make reproduce` runs real
+commands and records real exit codes. At earlier commits it **exited non-zero**
+because of real, documented blockers, and that red result was published rather
+than patched around. As of 2026-07-16 the previously red gating stages are
+resolved by ordinary reviewed fixes (inventory §7.1–§7.3, §7.6 — kept as
+RESOLVED entries with their history), and the compute stages pass; the
+dissertation-PDF stage still requires the container toolchain. The harness is
+unchanged either way: it reports whatever is true at the commit you run it on.
 
 | Stage | Result today | Why |
 |-------|--------------|-----|
 | Build / typecheck | ✅ pass | — |
-| Claim-language gate | ✅ pass | 0 forbidden-claim phrases at HEAD (`npm run scan:claims`, 589 scannable files) |
+| Claim-language gate | ✅ pass | 0 forbidden-claim phrases at HEAD (`npm run scan:claims`; coverage includes `.tex`/`.bib`, so the conference manuscript is inside the gate) |
 | Proofs — `proofs/tla` | ✅ pass | ProvenanceLattice / SpeculativeCollapse / TransportBoundary + mutants |
-| Proofs — `proofs/dab` | ✅ pass (bounded) | baseline `NoReplays`+`EventualGC` verified and mutant TOCTOU counterexample reproduced (real logs in `proofs/dab/artifacts/`); model↔implementation divergence (post-TTL replay window in `nonce.rs`) documented in inventory §7.2 |
+| Proofs — `proofs/dab` | ✅ pass (bounded) | baseline `NoReplays`+`EventualGC` verified and mutant TOCTOU counterexample reproduced (real logs in `proofs/dab/artifacts/`); model↔implementation divergence **closed** — `nonce.rs` now implements the verified tombstone semantics, with a bounded capacity caveat (inventory §7.2) |
 | Unit/integration | ✅ pass (load-tolerant timeout) | 6 CDK-synth tests time out only under default 15s + full-suite load |
 | Attack — root security | ✅ pass | policy fuzzer, negative corpus, tenant boundary |
 | Attack — DAB bench | ✅ pass | scoring inversion fixed (`cd66782`); Tier-0 in-suite detection green at HEAD (`global_advantage = 0` over 10,000 trials, modeled attacker only — see `dab/bench/run_all.ts` non-claim header) |
 | Benchmark | ▶ runs | real latency/throughput/overhead numbers exported |
-| Dissertation PDF | ⏸ blocked | gated by the RED claim gate; also needs pandoc+latexmk |
+| Dissertation PDF | ⏸ toolchain-gated | claim gate is green at HEAD; needs pandoc+latexmk (present in the reviewer container); a claim-clean PDF build has not yet been exercised on this host |
 
 Full evidence for each item, with the exact commands, is in
 [`docs/artifact/repository_inventory.md`](docs/artifact/repository_inventory.md)
@@ -47,9 +50,12 @@ logs committed), the root security suite passes, the Tier-0 DAB bench reports
 zero in-suite attacker advantage, the receipt verifier/differential tests pass,
 and the reporting pipeline produces a faithful machine-readable summary.
 **What is not yet reproducible or remains open:** DAB empirical claims beyond
-the Tier-0 modeled attacker (no live gateway/TCB evidence), the
-model↔implementation retention divergence in `nonce.rs` (inventory §7.2), and
-a claim-clean PDF.
+the Tier-0 modeled attacker (no live gateway/TCB evidence; the Rust
+receipt-shape items of inventory §7.5 are "unverified", not "closed"), any
+live-AWS behavior, and a dissertation-PDF build on a host without the
+container toolchain. The conference manuscript (`docs/paper/`) has its own
+claim-gated build (`docs/paper/build.sh`) and claim-to-command map
+(`README-AE.md`).
 
 ---
 
@@ -125,11 +131,14 @@ the PDF), `VITEST_TIMEOUT_MS=60000` (unit-test timeout).
   (fraction of trials the modeled attacker "wins") and per-game latency.
 - `benchmarks_summary.json` — a digest.
 
-**Caveat (do not skip):** the DAB formal-game attacker-advantage figures reflect
-the benchmark's **current, partly inverted accounting** — `replayGame` scores a
-*detected* replay as an attacker win, so it reports advantage ≈ 0.998 where a
-correct accounting yields 0 (inventory §7.6). Read these numbers as evidence that
-the harness needs correcting, not as a measured defense failure.
+**Caveat (do not skip):** read the attacker-advantage figures as **in-suite
+detection under the modeled attacker only** — the non-claim header at the top
+of `dab/bench/run_all.ts` is normative. Historical note: an earlier revision
+of the benchmark scored two suites backwards (a detected replay counted as an
+attacker win), and this artifact published that red result until the
+accounting fix landed (`cd66782`); the episode is preserved in inventory §7.6
+and disclosed in the manuscript (§5.4) because an evaluation pipeline that
+cannot be caught being wrong cannot be trusted when it says it is right.
 
 ## 6. Threat model (as modeled)
 
@@ -150,16 +159,23 @@ and the full AWS cloud path (no live-AWS evidence bundled here).
 
 ## 7. Known limitations (authoritative list: inventory §7)
 
-1. `proofs/dab/*.tla` are invalid TLA+ and, once corrected, the baseline violates
-   its own `NoReplays` invariant (GarbageCollect reintroduces replay). The DAB
-   formal claim is **unverified**.
-2. The claim-language gate is RED: dissertation prose exceeds the claim boundary.
-3. The DAB benchmark scores two suites backwards; `global_advantage ≈ 0.25`.
+1. ~~`proofs/dab/*.tla` are invalid TLA+ / baseline violates `NoReplays`~~ —
+   **RESOLVED** (inventory §7.1–7.2): specs repaired with tombstone semantics,
+   TLC clean over the complete bounded space, mutant counterexample kept as
+   regression, implementation brought into conformance. Surviving caveat: the
+   in-process tombstone set is capacity-bounded (500,000; §7.2).
+2. ~~Claim-language gate RED (dissertation prose)~~ — **RESOLVED** (inventory
+   §7.3): 0 violations at HEAD; scanner coverage extended to `.tex`/`.bib`.
+3. ~~DAB benchmark scores two suites backwards~~ — **RESOLVED** (`cd66782`,
+   inventory §7.6): `global_advantage = 0` over 10,000 trials at HEAD
+   (recorded 2026-07-16), modeled attacker only.
 4. Full `npm test` needs a raised per-test timeout to avoid load-induced
-   CDK-synth flakiness (the harness sets `--test-timeout=60000`).
-5. The DAB container path (`dab/docker-compose.yml`), the DAB Rust
-   gateway↔verifier receipt shape, and `cargo --locked` are broken/incomplete;
-   `make attack`/`make benchmark` therefore use the TypeScript suites directly.
+   CDK-synth flakiness (the harness sets `--test-timeout=60000`). **Open.**
+5. The DAB container path (`dab/docker-compose.yml`), and `cargo --locked`
+   (no `Cargo.lock`) are broken/incomplete; the Rust gateway↔verifier receipt
+   shape has evolved (`policy_digest` now present) but remains **unverified**
+   end-to-end (inventory §7.5, dated note); `make attack`/`make benchmark`
+   therefore use the TypeScript suites directly. **Open.**
 
 ## 8. Troubleshooting
 
