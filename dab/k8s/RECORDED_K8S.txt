@@ -1,6 +1,6 @@
-=== Ghost-Ark DAB Tier-0 — in-cluster round-trip (recorded) ===
+=== Ghost-Ark DAB Tier-0 — in-cluster round-trip (recorded, WIRED gateway) ===
 context: docker-desktop   node: desktop-control-plane (kindest/node v1.34.3)
-pod: dab-roundtrip-qxhtn   image: ghost-ark/dab-tools:local (imported into node containerd)
+pod: dab-roundtrip-zpwzq   image: ghost-ark/dab-tools:local (wired tombstone ledger; loaded into node containerd)
 
 --- gateway-emit (init container: signing authority) ---
 4cb5abf6ad79fbf5abbccafcc269d85cd2651ed4b885b5869f241aedf0a5ba29
@@ -24,4 +24,4 @@ VERIFIED
 --- Job status ---
 SuccessCriteriaMet=True succeeded=1
 
-RESULT: independent verifier accepted the gateway receipt IN-CLUSTER.
+RESULT: independent verifier accepted the wired-gateway receipt IN-CLUSTER.
