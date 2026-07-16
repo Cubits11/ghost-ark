@@ -1,0 +1,5 @@
+# Never send compiled output or local scratch into the build context.
+**/target/
+roundtrip/RECORDED_ROUNDTRIP.txt
+**/*.md
+agent-runtime/node_modules/

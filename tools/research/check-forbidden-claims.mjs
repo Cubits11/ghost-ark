@@ -26,6 +26,9 @@ const skippedDirectories = new Set([
   "dist",
   "node_modules",
   "cdk.out",
+  // Rust build output (dab/*/target) — compiled artifacts and cargo
+  // fingerprint JSON are not public claim text.
+  "target",
 ]);
 
 const skippedFiles = new Set([

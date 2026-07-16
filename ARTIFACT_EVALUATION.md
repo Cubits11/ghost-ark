@@ -160,10 +160,13 @@ and the full AWS cloud path (no live-AWS evidence bundled here).
 ## 7. Known limitations (authoritative list: inventory §7)
 
 1. ~~`proofs/dab/*.tla` are invalid TLA+ / baseline violates `NoReplays`~~ —
-   **RESOLVED** (inventory §7.1–7.2): specs repaired with tombstone semantics,
-   TLC clean over the complete bounded space, mutant counterexample kept as
-   regression, implementation brought into conformance. Surviving caveat: the
-   in-process tombstone set is capacity-bounded (500,000; §7.2).
+   **RESOLVED at the spec level** (inventory §7.1–7.2): specs repaired with
+   tombstone semantics, TLC clean over the complete bounded space, mutant
+   counterexample kept as regression. Caveats: the tombstone set is
+   capacity-bounded (500,000; §7.2), and the tombstone *module* (`nonce.rs`) is
+   **not yet wired into the shipped gateway binary** (orphaned; the running
+   gateway uses an inline `HashSet` ledger — §7.2 correction, §7.5 residuals).
+   **Open:** wire `nonce.rs` into `main.rs`.
 2. ~~Claim-language gate RED (dissertation prose)~~ — **RESOLVED** (inventory
    §7.3): 0 violations at HEAD; scanner coverage extended to `.tex`/`.bib`.
 3. ~~DAB benchmark scores two suites backwards~~ — **RESOLVED** (`cd66782`,
@@ -171,11 +174,15 @@ and the full AWS cloud path (no live-AWS evidence bundled here).
    (recorded 2026-07-16), modeled attacker only.
 4. Full `npm test` needs a raised per-test timeout to avoid load-induced
    CDK-synth flakiness (the harness sets `--test-timeout=60000`). **Open.**
-5. The DAB container path (`dab/docker-compose.yml`), and `cargo --locked`
-   (no `Cargo.lock`) are broken/incomplete; the Rust gateway↔verifier receipt
-   shape has evolved (`policy_digest` now present) but remains **unverified**
-   end-to-end (inventory §7.5, dated note); `make attack`/`make benchmark`
-   therefore use the TypeScript suites directly. **Open.**
+5. ~~The DAB container path and `cargo --locked` are broken; the gateway↔verifier
+   receipt round-trip is unverified~~ — **RESOLVED and RECORDED** (inventory §7.5):
+   real ed25519 round-trip closed (`dab/roundtrip/`, recorded transcript,
+   reproducible in a pinned container and on Kubernetes via `dab/k8s/`); both
+   crates commit `Cargo.lock`; `dab/Dockerfile` + a working `docker-compose.yml`
+   added; empty Dockerfiles removed. Residual **open** items: the untrusted
+   agent's Unix-socket transport (agent runtime has no entrypoint) and wiring the
+   tombstone `nonce.rs` into the binary. `make attack`/`make benchmark` still use
+   the TypeScript suites.
 
 ## 8. Troubleshooting
 
