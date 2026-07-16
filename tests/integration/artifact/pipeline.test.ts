@@ -92,20 +92,33 @@ describe("artifact-evaluation pipeline", () => {
     }
   });
 
-  it("run-proofs.sh quarantines the DAB specs rather than editing them to pass", () => {
+  it("run-proofs.sh gates the DAB specs with real expectations and never edits them to pass", () => {
     const src = readFileSync(at("scripts/run-proofs.sh"), "utf8");
-    expect(src).toMatch(/quarantined/i);
-    expect(src).toMatch(/DAB_NonceLedger/);
+    expect(src).toMatch(/DAB_NonceLedger:clean/);
+    expect(src).toMatch(/DAB_NonceLedger_Mutant:violation/);
     // It must not rewrite the LaTeX operator in the committed specs.
     expect(src).not.toMatch(/sed .*setminus/);
+  });
+
+  it("committed DAB reference logs record the real TLC verdicts", () => {
+    const baseline = readFileSync(
+      at("proofs/dab/artifacts/DAB_NonceLedger.tlc.txt"),
+      "utf8",
+    );
+    expect(baseline).toMatch(/No error has been found/);
+    const mutant = readFileSync(
+      at("proofs/dab/artifacts/DAB_NonceLedger_Mutant.tlc.txt"),
+      "utf8",
+    );
+    expect(mutant).toMatch(/Invariant NoReplays is violated/);
   });
 
   const nodeMajor = Number(process.versions.node.split(".")[0]);
   it.runIf(nodeMajor >= 22)(
     "DAB aggregate runner emits an honest, well-formed report",
     () => {
-      // The runner honestly exits 1 when all_passed is false (current HEAD),
-      // so capture stdout whether it exits 0 or non-zero.
+      // The runner honestly exits 1 when all_passed is false, so capture
+      // stdout whether it exits 0 or non-zero.
       let out: string;
       try {
         out = execFileSync(
@@ -125,9 +138,12 @@ describe("artifact-evaluation pipeline", () => {
       expect(report.attacks).toHaveProperty("concurrency");
       expect(report.formal_games).toHaveProperty("games");
       expect(typeof report.all_passed).toBe("boolean");
-      // Honesty guard: with the current (inverted) benchmark accounting the
-      // aggregate must NOT falsely report a clean sweep.
-      expect(report.all_passed).toBe(false);
+      // Honesty guard: the scoring inversion (a detected replay counted as an
+      // attacker win) was fixed in cd66782. With correct accounting the
+      // aggregate must report a clean sweep AND zero in-suite advantage —
+      // a green flag with nonzero advantage would be the new lie.
+      expect(report.global_advantage).toBe(0);
+      expect(report.all_passed).toBe(true);
     },
     20_000,
   );

@@ -36,10 +36,24 @@ GarbageCollect(n) ==
     /\ spent' = spent \cup {n}
     /\ UNCHANGED <<agentState, agentNonce>>
 
-Next == 
+\* Terminal state of the finite scenario: every agent has acted and the active
+\* ledger has fully drained into the spent tombstone set. Explicit stuttering
+\* here lets TLC's deadlock check cover the full state space instead of
+\* flagging the intended final state. NOTE: `spent` models durable tombstones;
+\* the implementation-mapping caveat (TTL eviction without tombstones in
+\* dab/gateway/src/nonce.rs) is documented in
+\* docs/artifact/repository_inventory.md §7.2.
+Done ==
+    /\ \A a \in Agents : agentState[a] # "Init"
+    /\ ledger = {}
+
+Terminating == Done /\ UNCHANGED vars
+
+Next ==
     \/ \E a \in Agents, n \in Nonces : ConsumeNonce(a, n)
     \/ \E a \in Agents, n \in Nonces : RejectNonce(a, n)
     \/ \E n \in Nonces : GarbageCollect(n)
+    \/ Terminating
 
 Fairness == 
     \A n \in Nonces : WF_vars(GarbageCollect(n))

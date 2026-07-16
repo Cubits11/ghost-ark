@@ -28,12 +28,12 @@ manufactured pass.
 | Stage | Result today | Why |
 |-------|--------------|-----|
 | Build / typecheck | ✅ pass | — |
-| Claim-language gate | ❌ fail | 11 forbidden-claim phrases in the dissertation chapters |
+| Claim-language gate | ✅ pass | 0 forbidden-claim phrases at HEAD (`npm run scan:claims`, 589 scannable files) |
 | Proofs — `proofs/tla` | ✅ pass | ProvenanceLattice / SpeculativeCollapse / TransportBoundary + mutants |
-| Proofs — `proofs/dab` | ❌ quarantined | specs are invalid TLA+ (`\setminus`); once corrected the baseline **refutes its own** `NoReplays` claim |
+| Proofs — `proofs/dab` | ✅ pass (bounded) | baseline `NoReplays`+`EventualGC` verified and mutant TOCTOU counterexample reproduced (real logs in `proofs/dab/artifacts/`); model↔implementation divergence (post-TTL replay window in `nonce.rs`) documented in inventory §7.2 |
 | Unit/integration | ✅ pass (load-tolerant timeout) | 6 CDK-synth tests time out only under default 15s + full-suite load |
 | Attack — root security | ✅ pass | policy fuzzer, negative corpus, tenant boundary |
-| Attack — DAB bench | ❌ fail | two suites score **backwards** (a detected replay is counted as an attacker win) |
+| Attack — DAB bench | ✅ pass | scoring inversion fixed (`cd66782`); Tier-0 in-suite detection green at HEAD (`global_advantage = 0` over 10,000 trials, modeled attacker only — see `dab/bench/run_all.ts` non-claim header) |
 | Benchmark | ▶ runs | real latency/throughput/overhead numbers exported |
 | Dissertation PDF | ⏸ blocked | gated by the RED claim gate; also needs pandoc+latexmk |
 
@@ -41,11 +41,15 @@ Full evidence for each item, with the exact commands, is in
 [`docs/artifact/repository_inventory.md`](docs/artifact/repository_inventory.md)
 §7. None of these are the harness's doing; the harness surfaces them.
 
-**What a reviewer can verify today:** the `proofs/tla` family checks cleanly and
-reproducibly, the root security suite passes, the receipt verifier/differential
-tests pass, and the reporting pipeline produces a faithful machine-readable
-summary. **What is not yet reproducible:** the DAB formal-verification and DAB
-empirical claims, and a claim-clean PDF.
+**What a reviewer can verify today:** the `proofs/tla` AND `proofs/dab` families
+check cleanly and reproducibly (baselines clean, mutants violating, recorded
+logs committed), the root security suite passes, the Tier-0 DAB bench reports
+zero in-suite attacker advantage, the receipt verifier/differential tests pass,
+and the reporting pipeline produces a faithful machine-readable summary.
+**What is not yet reproducible or remains open:** DAB empirical claims beyond
+the Tier-0 modeled attacker (no live gateway/TCB evidence), the
+model↔implementation retention divergence in `nonce.rs` (inventory §7.2), and
+a claim-clean PDF.
 
 ---
 
@@ -81,7 +85,7 @@ container build is dominated by TeX Live.
 
 ```bash
 make bootstrap        # install deps + fetch pinned tla2tools.jar
-make proof            # TLA+ proofs (proofs/tla passes; proofs/dab quarantined)
+make proof            # TLA+ proofs (proofs/tla and proofs/dab both gate; mutants must violate)
 make attack           # root security suite (pass) + DAB bench (currently red)
 cat artifacts/reports/aec_summary.md   # after `make reproduce`
 ```

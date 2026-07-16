@@ -48,7 +48,7 @@ lint: ## Typecheck the TypeScript workspace (tsc --noEmit)
 build: ## Full TypeScript build (tsc emit to dist/)
 	npm run build
 
-proof: ## Run all TLA+ proofs (proofs/dab is quarantined by design)
+proof: ## Run all TLA+ proofs (baselines must pass; mutants must violate)
 	bash scripts/run-proofs.sh
 
 unit: ## Run the full vitest suite with a load-tolerant timeout

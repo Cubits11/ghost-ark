@@ -19,7 +19,7 @@ To verify the `NoReplays` safety invariant and the `EventualGC` liveness propert
    ```bash
    tlc -config DAB_NonceLedger.cfg DAB_NonceLedger.tla
    ```
-   **Expected Output**: The checker will exhaustively explore the state space and report `Model checking completed. No error has been found.`, confirming mathematical immunity to replays and race conditions.
+   **Expected Output**: The checker will exhaustively explore the bounded state space (1,321 distinct states for the shipped configuration) and report `Model checking completed. No error has been found.`, confirming `NoReplays` and `EventualGC` hold within the bounded tombstone model. This is a bounded model-checking result, not an implementation-safety claim — the implementation-mapping caveat (TTL eviction in `dab/gateway/src/nonce.rs`) is documented in `docs/artifact/repository_inventory.md` §7.2. Alternatively, run `bash scripts/run-proofs.sh` from the repository root: it checks every spec with a pinned `tla2tools`, expects mutants to violate, and records logs under `artifacts/proofs/logs/` (committed reference copies: `proofs/dab/artifacts/`).
 3. Execute the TLC model checker against the falsifiable TOCTOU mutant:
    ```bash
    tlc -config DAB_NonceLedger.cfg DAB_NonceLedger_Mutant.tla
@@ -31,26 +31,19 @@ To verify the `NoReplays` safety invariant and the `EventualGC` liveness propert
 To verify the physical execution consistency and the system's ability to halt AST/payload mutations, reviewers must run the local benchmark laboratory.
 
 **Prerequisites:**
-- Node.js (v18+)
-- TypeScript and `ts-node` globally or locally installed.
+- Node.js v22+ (native TypeScript type-stripping; no `ts-node` and no additional dependencies required).
 
 **Execution:**
 1. Navigate to the project root:
    ```bash
    cd ghost-ark/
    ```
-2. Execute the mutation attack suite:
+2. Execute the Tier-0 aggregate runner (all attack suites plus formal games and performance):
    ```bash
-   npx ts-node dab/bench/attacks/mutation.ts
+   node --experimental-strip-types dab/bench/run_all.ts --trials 10000
    ```
-   **Expected Output**: A JSON array will be printed to stdout. Reviewers should note that for `payload_field_mutation` and `single_byte_flip`, the `detected` flag is `true`, and the `expected` hash ($C_I$) strictly diverges from the `observed` hash ($C_E$). This proves that $\Delta_{\text{DE}} = 1$ safely halts execution.
-3. Execute the replay attack suite:
-   ```bash
-   npx ts-node dab/bench/attacks/replay.ts
-   ```
-   **Expected Output**: The output will demonstrate the `mass_replay_flood` test accepting exactly 1 execution and successfully blocking the remaining attempts.
-4. Execute the concurrency attack suite:
-   ```bash
-   npx ts-node dab/bench/attacks/concurrency.ts
-   ```
-   **Expected Output**: The output will confirm the `double_execution_race` results in exactly 1 execution state transition.
+   **Expected Output**: A single JSON document on stdout with `all_passed: true` and `global_advantage: 0`. Within it:
+   - `attacks`: every mutation/replay/unicode/concurrency entry reports `detected: true` — for `payload_field_mutation` and `single_byte_flip` the `expected` hash ($C_I$) strictly diverges from the `observed` hash ($C_E$); `mass_replay_flood` accepts exactly 1 execution and rejects the remainder; `double_execution_race` results in exactly 1 execution state transition.
+   - `formal_games`: each game reports `advantage: 0` with its finite-sample confidence upper bound (≈ 3×10⁻⁴ at 10,000 trials) printed alongside, not omitted.
+
+   Per the runner's own non-claim header: a green result demonstrates in-suite detection under the modeled attacker only; it is not a proof of safety and says nothing about the DAB gateway/verifier TCB.

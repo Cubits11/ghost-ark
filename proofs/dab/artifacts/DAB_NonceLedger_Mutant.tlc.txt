@@ -1,0 +1,56 @@
+TLC2 Version 2026.07.15.134331 (rev: 227f61b)
+Running breadth-first search Model-Checking with fp 120 and seed 7155052745879800438 with 8 workers on 8 cores with 1820MB heap and 64MB offheap memory [pid: 14414] (Mac OS X 15.5 aarch64, Oracle Corporation 23.0.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/pranavbhave/Documents/GitHub/ghost-ark/proofs/dab/DAB_NonceLedger_Mutant.tla
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/Naturals.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/FiniteSets.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/_TLCTrace.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/Sequences.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/TLC.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/TLCExt.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/Integers.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module DAB_NonceLedger_Mutant
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module DAB_NonceLedger_Mutant
+Starting... (2026-07-16 01:41:16)
+Implied-temporal checking--satisfiability problem has 5 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-07-16 01:41:16.
+Error: Invariant NoReplays is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ agentNonce = (a1 :> "None" @@ a2 :> "None" @@ a3 :> "None")
+/\ ledger = {}
+/\ agentState = (a1 :> "Init" @@ a2 :> "Init" @@ a3 :> "Init")
+
+State 2: <CheckNonce(a1,n1) line 16, col 5 to line 20, col 23 of module DAB_NonceLedger_Mutant>
+/\ agentNonce = (a1 :> n1 @@ a2 :> "None" @@ a3 :> "None")
+/\ ledger = {}
+/\ agentState = (a1 :> "Checked" @@ a2 :> "Init" @@ a3 :> "Init")
+
+State 3: <CheckNonce(a3,n1) line 16, col 5 to line 20, col 23 of module DAB_NonceLedger_Mutant>
+/\ agentNonce = (a1 :> n1 @@ a2 :> "None" @@ a3 :> n1)
+/\ ledger = {}
+/\ agentState = (a1 :> "Checked" @@ a2 :> "Init" @@ a3 :> "Checked")
+
+State 4: <CommitNonce(a1) line 23, col 5 to line 27, col 27 of module DAB_NonceLedger_Mutant>
+/\ agentNonce = (a1 :> n1 @@ a2 :> "None" @@ a3 :> n1)
+/\ ledger = {n1}
+/\ agentState = (a1 :> "Executed" @@ a2 :> "Init" @@ a3 :> "Checked")
+
+State 5: <CommitNonce(a3) line 23, col 5 to line 27, col 27 of module DAB_NonceLedger_Mutant>
+/\ agentNonce = (a1 :> n1 @@ a2 :> "None" @@ a3 :> n1)
+/\ ledger = {n1}
+/\ agentState = (a1 :> "Executed" @@ a2 :> "Init" @@ a3 :> "Executed")
+
+328 states generated, 232 distinct states found, 181 states left on queue.
+The depth of the complete state graph search is 5.
+Finished in 00s at (2026-07-16 01:41:16)
+Trace exploration spec path: ./DAB_NonceLedger_Mutant_TTrace_1784180476.tla

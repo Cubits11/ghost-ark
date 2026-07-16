@@ -3,6 +3,8 @@
 
 This document formally models the Ghost-Ark framework not as an applied perimeter defense, but as a structural Software Transactional Memory (STM) primitive designed to bound non-deterministic (stochastic) compute sequences. By framing LLM context windows and tool-calling trajectories as discrete state-transitions over an isolated environment, we map traditional RDBMS isolation levels directly to AI agent architectures.
 
+> **Status (2026-07-16): research formalization.** Implemented and unit-tested: the semantic-gate cumulative bound (`evaluateSemanticGate` in `packages/receipt-schema/src/semanticAuditReceipt.ts`) and the semantic audit receipt schema. TLC-verified as a bounded model: the ledger gate's tombstone design (`proofs/dab/artifacts/`). Specified here but **not yet implemented** in the enforcement runtime: the OCC gate and the read-set projection $\pi_R$. The Rust gateway ledger retains TTL semantics that diverge from the verified tombstone model — see `docs/artifact/repository_inventory.md` §7.2.
+
 ---
 
 ### 1. Read Uncommitted (The Dirty Write Anomaly)
