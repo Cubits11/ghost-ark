@@ -30,6 +30,31 @@ bash dab/roundtrip/run_in_docker.sh     # pinned rust:1-slim, no host toolchain
 bash dab/roundtrip/run_roundtrip.sh
 ```
 
+## Full socket transport E2E (real `/ipc/dab.sock`)
+
+`run_roundtrip.sh` uses the hermetic `emit-receipt` mode. For the complete
+path — a real agent client driving the running gateway over the Unix socket,
+exercising the **wired tombstone ledger** — run:
+
+```bash
+bash dab/roundtrip/run_socket_e2e_in_docker.sh
+```
+
+It starts the gateway (`dab-gateway`), a stand-in tool sink (`dab-sink`), and a
+real agent client (`dab-agent`, `dab/gateway/src/bin/dab-agent.rs`), then checks
+three things over the socket (recorded in
+[`RECORDED_SOCKET_E2E.txt`](RECORDED_SOCKET_E2E.txt)):
+
+| # | Over `/ipc/dab.sock` | Expected |
+|---|----------------------|----------|
+| 1 | agent sends honest declaration | `CERTIFIED` → independent verifier `VERIFIED` |
+| 2 | agent replays the same nonce | `REPLAY_REJECTED` (wired `ReplayLedger.consume` returns false) |
+| 3 | agent declares `c_i` ≠ payload bytes | `MUTATION_DETECTED_HALT` |
+
+Check 2 is the evidence that the TLC-verified spent-tombstone model
+(`nonce.rs`) now governs the **running gateway binary** — not just a module
+that exists.
+
 Both the gateway and verifier also carry `cargo test` unit evidence
 (gateway: signer determinism + signature shape; verifier: a signed receipt
 verifies, and commitment-mismatch / tampered-field / wrong-key / non-certified

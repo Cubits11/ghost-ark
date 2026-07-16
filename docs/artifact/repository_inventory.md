@@ -176,15 +176,20 @@ is committed spec design, and the recorded logs are real runs of it.
 them. A nonce consumed at time T is rejected at T+3601. Capacity pressure fails
 closed.
 
-**Correction (2026-07-16) — the module is not yet wired in:** `main.rs`
-declares no `mod nonce;`, so `nonce.rs` is **not compiled into the shipped
-gateway binary**, and its unit tests do not run under `cargo test`. The running
-gateway uses an inline monotonic `HashSet` ledger (replay-safe within a process,
-but without the TTL/capacity/tombstone semantics the model verifies). So the
-model↔binary conformance for tombstones is **not** exercised today; only the
-model↔module correspondence is. See §7.5 residuals. Do not claim the running
-gateway implements the verified tombstone model until `nonce.rs` is wired into
-`main.rs` and its tests run.
+**Correction, then closure (2026-07-16):** for part of this day `nonce.rs` was
+**orphaned** — `main.rs` declared no `mod nonce;`, so the verified tombstone
+module was not compiled into the shipped gateway binary, which used an inline
+monotonic `HashSet` ledger. That gap is now **CLOSED**: `main.rs` declares
+`mod nonce;` and the replay check calls `ReplayLedger::consume()` (the
+`ConsumeNonce` discipline: reject if the nonce is in the active ledger OR the
+spent tombstone set, and fail closed on capacity). `nonce.rs` gained four unit
+tests (fresh-accept, within-TTL replay-reject, distinct-coexist, shared-state)
+that run under `cargo test`, and the wired behavior is exercised end-to-end
+over the real Unix socket: `dab/roundtrip/RECORDED_SOCKET_E2E.txt` shows a
+second request with the same nonce answered `REPLAY_REJECTED` by the wired
+ledger. The whole gateway crate is `cargo clippy -D warnings` clean. Bounded
+caveat unchanged: the in-process `spent` set prunes at 500,000 (durable
+external store is the production posture).
 
 **Bounded caveat (stated, not hidden):** the in-process `spent` HashSet is
 bounded at `MAX_SPENT_ENTRIES` (500,000). When this limit is reached, oldest
@@ -247,24 +252,25 @@ Historical state and its resolution, item by item:
   now commit a `Cargo.lock`; `cargo build --locked` / `cargo test --locked`
   work.
 
-**Residuals that remain open (stated, not hidden):**
-- The untrusted **agent** runtime (`dab/agent-runtime/`) is a library with no
-  runnable entrypoint, so the full agent→gateway **Unix-socket** transport is a
-  documented deployment sketch (`dab/k8s/README.md`), not an exercised path. The
-  `emit-receipt` mode used by the round-trip runs the same
-  `build_certified_receipt` signing code as the socket handler.
-- `dab/gateway/src/nonce.rs` (the TLC-verified spent-tombstone ledger),
-  `receipts.rs`, and `verifier.rs` are **orphaned**: `main.rs` declares no
-  `mod`, so they are not compiled into the shipped gateway binary. The running
-  gateway's replay protection is an inline monotonic `HashSet` (rejects all
-  replays within a process; no TTL/capacity/tombstone semantics). This corrects
-  any earlier reading of §7.2 as "the running binary implements the tombstone
-  model" — the *module* exists and matches the model, but it is not wired in.
-  Wiring `nonce.rs` into `main.rs` is the honest next step.
+**Former residuals — now CLOSED (2026-07-16):**
+- ~~The untrusted agent has no runnable entrypoint, so the Unix-socket transport
+  is only a sketch~~ — **CLOSED**: a real Rust agent client (`dab-agent`,
+  `dab/gateway/src/bin/dab-agent.rs`) drives the running gateway over
+  `/ipc/dab.sock`. The socket E2E (`dab/roundtrip/run_socket_e2e.sh`, recorded
+  in `RECORDED_SOCKET_E2E.txt`) proves certified-over-socket → independent
+  `VERIFIED`, replay → `REPLAY_REJECTED` (wired ledger), and mutation →
+  `MUTATION_DETECTED_HALT`, with a trivial `dab-sink` standing in for the
+  external tool. (The TypeScript `dab/agent-runtime/` library remains a
+  separate, still-unwired surface; the Rust client is the exercised driver.)
+- ~~`nonce.rs` is orphaned~~ — **CLOSED**: wired into `main.rs` (see §7.2
+  closure above). `receipts.rs` and `gateway/src/verifier.rs` remain orphaned
+  parallel surfaces (the live paths are `GatewayReceipt` in `main.rs` and the
+  independent `dab-verifier` crate); they are dead code, not a claimed path.
 
 `make attack` / `make benchmark` continue to run the **TypeScript** suites
 directly (real, self-contained code); the Rust binaries are exercised by the
-round-trip harness and their own `cargo test`.
+round-trip harness, the socket E2E, and their own `cargo test` + `cargo clippy
+-D warnings`.
 
 ### 7.6 The DAB benchmark scores two suites backwards — RESOLVED (`cd66782`)
 Historical state: when the suites were actually executed (via the new

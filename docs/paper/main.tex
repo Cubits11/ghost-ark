@@ -890,19 +890,23 @@ digest:
   make reproduce}); exit code 0 iff every gating stage passed.
 \end{itemize}
 
-\subsection{The gateway$\leftrightarrow$verifier round-trip}
-The Rust gateway and the independent verifier now agree on a real ed25519
+\subsection{The gateway$\leftrightarrow$verifier round-trip and its enforcement}
+The Rust gateway and the independent verifier agree on a real ed25519
 signature over a domain-separated canonical message including
 \texttt{policy\_digest}. A recorded, reproducible round-trip
 (\texttt{dab/roundtrip/}) shows a gateway-emitted receipt verifying, and
 tamper / mutation / wrong-key variants each rejected with the specific error;
 the same round-trip is demonstrated on Kubernetes (\texttt{dab/k8s/}: a gateway
 init-container emits the receipt, a separate verifier container accepts it
-in-cluster). Scope: a local DEV ed25519 key (not KMS/HSM/TPM/Nitro). Two
-residuals are stated in the repository inventory and not claimed here: the
-untrusted agent's Unix-socket transport (the agent runtime has no entrypoint)
-and wiring the TLC-verified tombstone module into the running gateway binary
-(it is currently orphaned; the binary uses an inline monotonic ledger).
+in-cluster). A full socket-transport E2E
+(\texttt{dab/roundtrip/run\_socket\_e2e.sh}) drives the running gateway over
+\texttt{/ipc/dab.sock} with a real agent client and shows the
+\emph{TLC-verified spent-tombstone ledger}, now wired into the gateway binary,
+rejecting a replayed nonce (\texttt{REPLAY\_REJECTED}) while certifying the
+honest request. The gateway and verifier crates are
+\texttt{cargo clippy -D warnings} clean. Scope: a local DEV ed25519 key
+(not KMS/HSM/TPM/Nitro); the bounded tombstone-capacity caveat
+(\S\ref{sec:nonclaims}, item 5) is unchanged.
 
 \subsection{What the artifact deliberately does not show}
 No live-cloud behavior (KMS-mode signing, cloud latency); nothing semantic.

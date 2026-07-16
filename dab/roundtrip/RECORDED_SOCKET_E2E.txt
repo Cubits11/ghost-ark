@@ -1,0 +1,18 @@
+[build] gateway (dab-gateway, dab-agent, dab-sink) + verifier
+gateway up; public key = 4cb5abf6ad79fbf5abbccafcc269d85cd2651ed4b885b5869f241aedf0a5ba29
+------------------------------------------------------------
+[1] agent -> gateway (certified) -> independent verifier
+{"protocol":"DAB-TIER0-V1","status":"CERTIFIED","c_i":"sha256:d527c6463cae2314f97b5053d8fdb4aebcfe9708ec9b58e914c4b3c00aa9df1d","c_e":"sha256:d527c6463cae2314f97b5053d8fdb4aebcfe9708ec9b58e914c4b3c00aa9df1d","nonce":"sock-n1","timestamp":"1784218980","policy_digest":"sha256:be27d158c3f8c0fa58ba568db4ba41ca099db9d23af503958bb0a6f0fdba2405","gateway_signature":"312527e30afd6c4fa38fd92781237bf492f020453ebbaa5186c97f52fe6bf843328afe7215659478d41bd552eed33646a7f72a8832114171b75ef30345634e0e"}
+VERIFIED
+PASS  certified-over-socket -> VERIFIED
+------------------------------------------------------------
+[2] replay same nonce sock-n1 -> expect REPLAY_REJECTED (tombstone ledger)
+{"protocol":"DAB-TIER0-V1","status":"REPLAY_REJECTED","c_i":"sha256:d527c6463cae2314f97b5053d8fdb4aebcfe9708ec9b58e914c4b3c00aa9df1d","c_e":"NULL","nonce":"sock-n1","timestamp":"1784218980","policy_digest":"NULL","gateway_signature":""}
+PASS  replay -> REPLAY_REJECTED (wired ReplayLedger.consume returned false)
+------------------------------------------------------------
+[3] --mutate (c_i != c_e), fresh nonce -> expect MUTATION_DETECTED_HALT
+{"protocol":"DAB-TIER0-V1","status":"MUTATION_DETECTED_HALT","c_i":"sha256:f2f9a13de38ef9bd43ee97c376a08b6ceddda219a9a0958b8c10ecb988d8977a","c_e":"sha256:d527c6463cae2314f97b5053d8fdb4aebcfe9708ec9b58e914c4b3c00aa9df1d","nonce":"sock-n2","timestamp":"1784218980","policy_digest":"NULL","gateway_signature":""}
+PASS  mutation -> MUTATION_DETECTED_HALT
+------------------------------------------------------------
+SUMMARY: 3 passed, 0 failed
+SOCKET-E2E: OK

@@ -4,7 +4,29 @@ Status: defense preparation document, 2026-07-16. Companion to
 `docs/dissertation/` (the monograph), `docs/paper/` (the conference
 manuscript), and `README-AE.md` (the claim-to-command map). Every answer
 below cites the artifact that backs it; an answer with no artifact is a
-concession, and three of those are listed deliberately in §3.
+concession, and the remaining ones are listed deliberately in §3.
+
+> **§0. Brutal-readiness addendum (2026-07-16).** Two questions a hostile
+> committee would have won last week are now closed with recorded evidence,
+> and one honest correction was made in the process:
+>
+> - *"You proved a tombstone replay model in TLA+. Does your gateway actually
+>   run it, or is that code decoration?"* — It runs it. The verified
+>   `ReplayLedger` (`nonce.rs`) was **orphaned** (never compiled into the
+>   binary; the gateway used an inline `HashSet`). I found that, said so in
+>   the inventory, and then **wired it in**: `main.rs` now calls
+>   `ReplayLedger::consume()`, and a full socket E2E over `/ipc/dab.sock`
+>   shows a replayed nonce answered `REPLAY_REJECTED` by that ledger
+>   (`dab/roundtrip/RECORDED_SOCKET_E2E.txt`). The find-and-disclose-then-fix
+>   sequence is itself the argument: the repository caught its own overclaim.
+> - *"Show me the untrusted agent driving the gateway over the real socket,
+>   not a hermetic shortcut."* — `dab-agent` (`gateway/src/bin/dab-agent.rs`)
+>   does exactly that; the certified path is independently `VERIFIED`
+>   in the same transcript, and the whole gateway/verifier is
+>   `cargo clippy -D warnings` clean.
+> - *Correction made along the way:* earlier docs (and prior notes) implied
+>   the running binary already implemented the verified tombstone model. It
+>   did not, until today. That is now stated plainly (inventory §7.2/§7.5).
 
 ## 1. The kernel
 
@@ -122,9 +144,15 @@ claimed as novel cryptography.
 
 ## 3. Deliberate concessions (say them before the committee does)
 
-1. No live-AWS evidence anywhere in the defended claims.
-2. The Rust gateway↔independent-verifier round-trip is unverified end-to-end
-   (inventory §7.5, dated note) — the TCB's receipt path is a named gap.
+1. No live-AWS evidence anywhere in the defended claims; the gateway signs
+   with a local DEV ed25519 key, not KMS/HSM/TPM/Nitro. (The
+   gateway↔verifier round-trip that *was* a concession here is now closed and
+   recorded — §0 — so the honest residual shrinks to key custody, not the
+   receipt path.)
+2. `receipts.rs` and `gateway/src/verifier.rs` remain orphaned parallel
+   surfaces (dead code); the live paths are `GatewayReceipt` in `main.rs` and
+   the `dab-verifier` crate. The TypeScript `dab/agent-runtime/` library is
+   still unwired (the exercised agent driver is the Rust `dab-agent`).
 3. Single-node everything: no consensus, no replication, no availability
    story. That is Tier-1 (below), not the defended system.
 

@@ -41,7 +41,9 @@ counts, gate status) are machine-independent.
 | 6 | Semantic gate implements the dependence-free Fréchet union upper bound `min(1, Σ pᵢ)` (§4.2) | `npx vitest run tests/unit/receipt-schema/semanticAuditReceipt.test.ts` | suite passes; tests pin the bound to hand-computed values and the PASSED/FAILED_DRIFT_BOUNDS threshold behavior | exact |
 | 7 | Receipts verify under an independent implementation; negative corpus rejects malformed envelopes (§3.5) | `npm run receipt:verify:independent && npm run receipt:verify:corpus && npm run receipt:verify:agreement` | all pass | exact |
 | 8 | **Gateway↔independent-verifier round-trip** (real ed25519): a receipt from the gateway binary's shipped signing path verifies against the independent verifier; tamper/mutation/wrong-key are rejected (§3.5) | `bash dab/roundtrip/run_in_docker.sh` (or `run_roundtrip.sh` with a host toolchain); unit evidence: `cd dab/gateway && cargo test --locked` and `cd dab/verifier && cargo test --locked` | `ROUND-TRIP: OK` (5/5); deterministic pubkey `4cb5abf6…`; gateway 3 + verifier 6 unit tests pass. Recorded: `dab/roundtrip/RECORDED_ROUNDTRIP.txt` | exact |
-| 8b | Same round-trip **on Kubernetes**: gateway (init container) emits a receipt; a separate verifier container accepts it in-cluster | `bash dab/k8s/run_demo.sh` (needs a cluster + `localhost:5000` registry) | Job `dab-roundtrip` completes; verifier logs `VERIFIED`. Recorded: `dab/k8s/RECORDED_K8S.txt` | exact (given a cluster) |
+| 8b | Same round-trip **on Kubernetes**: gateway (init container) emits a receipt; a separate verifier container accepts it in-cluster | `bash dab/k8s/run_demo.sh` (needs a cluster; loads the image into the node — no registry) | Job `dab-roundtrip` completes; verifier logs `VERIFIED`. Recorded: `dab/k8s/RECORDED_K8S.txt` | exact (given a cluster) |
+| 8c | **Full socket transport E2E** over the real `/ipc/dab.sock`: a Rust agent client drives the running gateway; the **wired tombstone ledger** rejects replay (§4.3) | `bash dab/roundtrip/run_socket_e2e_in_docker.sh` | `SOCKET-E2E: OK` (3/3): certified-over-socket → `VERIFIED`; same nonce again → `REPLAY_REJECTED` (wired `ReplayLedger.consume`); mutation → `MUTATION_DETECTED_HALT`. Recorded: `dab/roundtrip/RECORDED_SOCKET_E2E.txt` | exact (timestamps vary) |
+| 8d | Rust crates are lint-clean under a hostile bar | `cd dab/gateway && cargo clippy --locked --all-targets -- -D warnings` (and `dab/verifier`) | clean; gateway 7 + verifier 6 tests pass | exact |
 | 9 | Full roll-up: build → claims → proofs → unit → attack → benchmark (§7) | `GHOST_SKIP_DISS=1 make reproduce` (native, or hermetically in the reviewer container) | `artifacts/reports/aec_summary.json` → `.status`, `.gating_failures`; exit 0 iff every gating stage passed. Reviewer-container lane verified PASS 2026-07-16 | exact |
 
 ## What a reviewer cannot reproduce here (deliberately listed)
@@ -49,22 +51,15 @@ counts, gate status) are machine-independent.
 - **Any live-AWS behavior.** KMS-mode signing, cloud latency, the deployment
   sketch of the paper's §5.5 — design targets; no live evidence is bundled
   or claimed.
-- **The full agent→gateway Unix-socket path.** The Rust gateway↔verifier
-  *receipt* round-trip is now closed and recorded (row 8), and the DAB
-  container path builds and runs (`dab/docker-compose.yml` rewritten;
-  `dab/Dockerfile` added; the two 0-byte Dockerfiles removed). What remains
-  unexercised is the untrusted **agent** driving the gateway over the Unix
-  socket: `dab/agent-runtime/` is a library with no runnable entrypoint, so
-  that transport is documented as a deployment sketch (`dab/k8s/README.md`),
-  not claimed as run. The `emit-receipt` path used by the round-trip exercises
-  the same `build_certified_receipt` signing code as the socket handler.
-- **The wired tombstone ledger.** `dab/gateway/src/nonce.rs` implements the
-  TLC-verified spent-tombstone model, but `main.rs` declares no modules, so it
-  is **not compiled into the shipped gateway binary** — the running gateway
-  uses an inline monotonic `HashSet` (which rejects all replays within a
-  process but has no TTL/capacity/tombstone semantics). Wiring `nonce.rs` into
-  the binary is the honest next step; until then no claim is made that the
-  running gateway implements the verified tombstone model.
+- **The TypeScript `dab/agent-runtime/` library.** The Unix-socket transport
+  is now exercised (row 8c) by a **Rust** agent client (`dab-agent`); the
+  TypeScript agent library still has no runnable entrypoint and is not on any
+  claimed path. `receipts.rs` and `gateway/src/verifier.rs` likewise remain
+  orphaned parallel surfaces (dead code; the live paths are `GatewayReceipt` in
+  `main.rs` and the `dab-verifier` crate).
+- **Live-cloud key custody and attestation.** The signing key is a local DEV
+  ed25519 key; KMS asymmetric keys by immutable ARN, and any hardware
+  attestation, remain unimplemented and unclaimed.
 - **Anything semantic.** No command here measures truthfulness, alignment,
   or safety of model output; the corpus results are in-suite detection under
   the modeled attacker (the non-claim header at the top of
