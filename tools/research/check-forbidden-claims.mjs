@@ -12,6 +12,9 @@ const scannableExtensions = new Set([
   ".json",
   ".yml",
   ".yaml",
+  // Manuscript sources are public claim text and must pass the same gate.
+  ".tex",
+  ".bib",
 ]);
 
 const skippedDirectories = new Set([

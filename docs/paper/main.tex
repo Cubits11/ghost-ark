@@ -1,0 +1,875 @@
+% =============================================================================
+% Ghost-Ark — conference manuscript (systems track)
+% Build: docs/paper/build.sh (uses the reviewer container's TeX Live)
+%
+% CLAIM DISCIPLINE: every empirical number in this file is bound to a recorded
+% run or committed artifact, named in the Evidence Macros block below and in
+% README-AE.md. If you edit a number, edit its evidence pointer or delete it.
+% This file must never claim: proved safety, prevented-all-attacks, production
+% readiness, compliance, formal verification of the implementation, or any
+% live-AWS result without a bundled evidence artifact.
+% =============================================================================
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage[margin=0.75in,columnsep=0.25in]{geometry}
+\usepackage{mathptmx}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+\captionsetup{font=small,labelfont=bf}
+\setlist{nosep,leftmargin=1.2em}
+
+% ---------------------------------------------------------------------------
+% Evidence macros — single source for every number cited in the paper.
+% Each macro names its evidence artifact. Reproduce via README-AE.md.
+% ---------------------------------------------------------------------------
+% DAB Tier-0 bench, 2026-07-16, Apple M1 (8 GB), macOS (Darwin 24.5.0 arm64),
+% Node v22.22.3, `node --experimental-strip-types dab/bench/run_all.ts --trials 10000`
+\newcommand{\benchtrials}{10{,}000}
+\newcommand{\globaladvantage}{0}
+\newcommand{\eepfifty}{5.5}      % end-to-end p50, microseconds
+\newcommand{\eepninefive}{6.3}   % end-to-end p95, microseconds
+\newcommand{\eepninenine}{24.6}  % end-to-end p99, microseconds
+\newcommand{\eemean}{7.1}        % end-to-end mean, microseconds
+\newcommand{\eethroughput}{140{,}941}
+\newcommand{\addedmean}{6.6}     % mean e2e minus mean baseline, microseconds
+\newcommand{\overheadpct}{1{,}333\%}
+% TLC (tla2tools v1.8.0), recorded logs in artifacts/proofs/logs/ and proofs/dab/artifacts/
+\newcommand{\plstates}{403{,}949}
+\newcommand{\scstates}{529}
+\newcommand{\tbstates}{64}
+\newcommand{\nlstates}{1{,}321}
+\newcommand{\ebstates}{51{,}106}
+% Test suite at HEAD (make unit, 2026-07-16): 640 tests / 97 files, all passing
+\newcommand{\testcount}{640}
+\newcommand{\testfiles}{97}
+% Claim-language gate at HEAD (npm run scan:claims): 589 scannable files, 0 hits
+\newcommand{\claimfiles}{589}
+
+\newcommand{\dab}{\textsc{dab}}
+\newcommand{\ghostark}{Ghost-Ark}
+\newcommand{\piR}{\pi_R}
+\newcommand{\statusimpl}[0]{\textcolor{black}{\textbf{[implemented, tested]}}}
+\newcommand{\statusmodel}[0]{\textcolor{black}{\textbf{[TLC-checked, bounded model]}}}
+\newcommand{\statusspec}[0]{\textcolor{black}{\textbf{[specified, not enforced at runtime]}}}
+
+\title{\vspace{-1.5em}\textbf{\ghostark{}: A Transactional Control Plane for Untrusted AI Agents}\\
+\large Optimistic Concurrency Control, Three-Gate Validation, and Receipt-Backed
+Evidence for Non-Deterministic Compute\vspace{-0.5em}}
+\author{Pranav Bhave\\ \normalsize\texttt{bhavepranavwork@gmail.com}}
+\date{Draft of 2026-07-16 --- evidence-bound; see \S\ref{sec:nonclaims} for explicit non-claims}
+
+\begin{document}
+\maketitle
+
+% ============================================================================
+\begin{abstract}
+\noindent
+Agentic LLM deployments couple a non-deterministic planner directly to
+effectful tools. The dominant defense --- semantic guardrails --- emits
+probabilistic judgments about \emph{content}, but enforcement is a question
+about \emph{state}: which bytes may mutate the environment, under which
+recorded justification. We present \ghostark{}, a control plane that treats an
+agent trajectory as a software transaction. An agent executes speculatively
+against a ghost replica $G(\sigma_0)$; a separate trusted gateway admits its
+effects only through a three-gate validation pipeline --- a \emph{ledger gate}
+(nonce freshness with spent-tombstone semantics), an \emph{OCC gate}
+(hash equality over a read-set projection $\piR$, which restores liveness lost
+to global-state validation), and a \emph{semantic gate} (a Fr\'echet
+bound on cumulative trajectory failure that assumes nothing about independence
+between steps). Every admitted or aborted transaction yields a signed,
+canonically serialized, independently replayable receipt.
+
+We report what is implemented and measured, and label what is only specified.
+TLC model checking of five bounded models (up to \plstates{} distinct states)
+is clean, and five seeded mutants reproduce their intended violations ---
+including a true-positive replay flaw that model checking exposed in our own
+garbage-collection design, whose repair we then propagated to the Rust
+gateway. Against a nine-attack adversarial corpus and four security games
+(\benchtrials{} trials each), the modeled attacker's advantage is
+\globaladvantage{}. The in-process enforcement path adds
+$\approx\addedmean{}\,\mu$s mean latency ($p50=\eepfifty{}\,\mu$s end to end)
+on commodity hardware. \ghostark{} verifies what was recorded, signed,
+policy-bounded, and replayable; it does not certify that any agent output is
+true, aligned, or semantically safe.
+\end{abstract}
+
+% ============================================================================
+\section{Introduction}
+\label{sec:intro}
+
+Every serious agent framework today ships with guardrails, and almost none
+ships with isolation. The guardrail is a classifier: given content, it emits a
+probability that the content is unsafe. The deployment question is different
+in kind: \emph{did the bytes that reached the environment correspond to an
+authorized, recorded, non-replayed decision?} A classifier cannot answer that
+question at any confidence, because it is not a question about content at all.
+We call this the \textbf{epistemic deficit} of guardrail-centric agent
+security: the property operators need is a property of \emph{state
+mutations}, and the mechanism they deploy evaluates \emph{utterances}.
+
+The deficit is structural, and it has a database-shaped description. A typical
+API-coupled agent loop (plan $\to$ call tool $\to$ observe $\to$ repeat)
+mutates external state at every step with no validation phase and no
+rollback: in isolation-level terms, the industry ships agents at
+\textsc{read uncommitted}~\cite{berenson1995critique}. If the planner is
+compromised mid-trajectory --- by indirect prompt injection, a poisoned tool
+response, or ordinary hallucination --- the earlier steps have already leaked
+dirty writes into the world. Sandboxing upgrades this to roughly
+\textsc{read committed}: writes are buffered, but a long reasoning phase over
+a shifting environment still flushes stale intent, the classic write-skew
+shape. What is missing is the third rung: a \emph{validation phase} between
+speculation and commit, which is precisely the structure that optimistic
+concurrency control (OCC)~\cite{kung1981occ} and software transactional
+memory~\cite{shavit1995stm,herlihy1993tm} were invented to provide.
+
+\ghostark{} applies that structure to agents. The agent runtime is treated as
+untrusted and runs speculatively against a ghost replica $G(\sigma_0)$; a
+small trusted gateway (Rust, communicating over a Unix domain socket) owns the
+only path to physical effects. A speculative trajectory
+$\tau = \langle a_1,\dots,a_k\rangle$ reaches the environment only by passing
+a three-gate validation pipeline, and every admission or abort emits a signed
+receipt over a deterministic canonical serialization, replayable by
+independent verifiers. The design goal is not to make the agent correct ---
+we take its fallibility as an axiom --- but to make its interaction with the
+world \emph{transactional}: isolated while speculative, validated at commit,
+evidenced forever after.
+
+This paper makes the following contributions, each labeled with its
+implementation status (a discipline we keep throughout; \S\ref{sec:nonclaims}
+enumerates non-claims):
+
+\begin{itemize}
+\item \textbf{A threat model for evidence-layer attacks}
+  (\S\ref{sec:threat}): \emph{assertion-conditioned compliance} (A-CC), where
+  a procedurally valid pipeline signs a structurally flawless record of a
+  functionally corrupted operation, and its scaled form, adaptive agentic
+  worms.
+\item \textbf{A transactional enforcement architecture}
+  (\S\ref{sec:design}): declarative action binding ($\Delta_{\mathrm{DE}}=0$
+  between declared and executed bytes) \statusimpl{}; a ledger gate with
+  spent-tombstone replay semantics \statusimpl{} \statusmodel{}; a semantic
+  gate computing a dependence-free cumulative failure bound \statusimpl{};
+  and an OCC gate over a read-set projection \statusspec{}.
+\item \textbf{A liveness analysis} (\S\ref{sec:formal}): global-state
+  validation starves under concurrent environmental writes (the
+  \emph{starvation trap}); the read-set projection $\piR$ recovers liveness
+  at a precisely stated cost in conflict-detection strength.
+\item \textbf{Model checking with teeth} (\S\ref{sec:tla},
+  \S\ref{sec:eval-tla}): five TLC-checked bounded models plus five seeded
+  mutants that must fail --- including the case study where TLC refuted our
+  own baseline design (garbage collection re-enabled replay) and the repair
+  was propagated spec-first into the implementation.
+\item \textbf{An honest evaluation} (\S\ref{sec:eval}): \globaladvantage{}
+  modeled-attacker advantage across four games $\times$ \benchtrials{}
+  trials; microsecond-scale absolute enforcement cost, reported alongside ---
+  and explicitly instead of --- a misleading relative-overhead figure; and a
+  disclosed accounting bug in our own earlier harness.
+\end{itemize}
+
+\ghostark{} is one subsystem of a larger research program (\emph{verifiable
+agent governance under correlated guardrail failure}); this paper confines
+itself to the transactional control plane and its recorded evidence.
+
+% ============================================================================
+\section{Threat Model}
+\label{sec:threat}
+
+We assume the agent runtime --- the LLM, its context window, its planning
+loop, and the V8/Node process hosting it --- is \emph{compromised or
+compromisable}. Adversarial capability enters through any content channel:
+retrieved documents, tool responses, upstream messages. The trusted computing
+base is confined to the gateway process, its signing keys, the append-only
+ledgers, and the verifier. The network between agent and gateway is a local
+IPC boundary (Unix domain socket); the gateway's outbound side performs the
+only real I/O.
+
+\subsection{Assertion-Conditioned Compliance (A-CC)}
+\label{sec:acc}
+
+Signature pipelines create a new attack surface precisely because they work.
+Define A-CC as the failure mode in which an agent incorporates a false
+assertion --- typically a \emph{function-sourced assertion} (FSA) from a
+compromised or deceptive tool --- into procedurally valid execution, so that
+the pipeline signs a \emph{structurally flawless record of a functionally
+corrupted operation}. The receipt is authentic; the decision it witnesses was
+poisoned upstream. A-CC is an attack on the evidence layer, not the crypto:
+no deterministic function of adversary-controlled bytes can distinguish
+honest from dishonest content, so the defense must be architectural ---
+binding every assertion to a provenance class that records \emph{where bytes
+entered custody}, and refusing floors that fabricated in-context text cannot
+satisfy (\S\ref{sec:custody}).
+
+\subsection{Adaptive agentic worms}
+\label{sec:worms}
+
+A-CC at propagation scale: an infected agent uses the low marginal cost of
+LLM reasoning to synthesize, per victim, a payload and a justification for
+emitting it. Static signatures fail by construction (each instance is
+freshly generated); semantic filters fail correlatedly (the same context
+compromise that produced the payload biases the judge). The architectural
+response is to make \emph{propagation} pass through a commit pipeline:
+a worm's write is only a write if it survives all three gates, and each
+attempt --- admitted or aborted --- leaves a signed receipt, so spread is
+either stopped or evidenced. We claim the collapse mechanics and the receipt
+trail; we do not certify any detector's hit rate (\S\ref{sec:nonclaims}).
+
+\subsection{Modeled attacker actions}
+\label{sec:modeled}
+
+The Tier-0 adversarial corpus (\S\ref{sec:eval-corpus}) operationalizes the
+in-flight attacker: payload field mutation, single-byte flips, prototype
+pollution, receipt replay, mass replay flooding, Unicode normalization
+collisions, homoglyph spoofing, cross-request nonce swaps, and
+double-execution races; plus four security games (mutation resistance,
+replay resistance, cross-transaction binding, serialization ambiguity).
+These model an adversary who can observe, mutate, reorder, and replay
+traffic between the agent runtime and the gateway.
+
+\subsection{Out of scope}
+\label{sec:oos}
+
+Not addressed by this design and not claimed: semantic correctness or
+alignment of model output; compliance with any regulation; hardware
+attestation (no Nitro/TEE flow is implemented or claimed); denial of service
+against the gateway itself; covert channels inside authorized outputs; and
+the \emph{confused deputy} within an authorized clearance --- an agent that
+legitimately holds a floor and routes authorized data to a hostile but
+allowlisted destination is constrained only by routing policy, not by this
+paper's mechanisms.
+
+% ============================================================================
+\section{Design}
+\label{sec:design}
+
+\subsection{Agent loops as isolation levels}
+\label{sec:isolation}
+
+Table~\ref{tab:isolation} summarizes the mapping that motivates the design.
+The point of the table is not taxonomy but a gap: nothing in the deployed
+ecosystem occupies the serializable row, because nothing has a validation
+phase. \ghostark{}'s contribution is that row.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}p{2.0cm}p{2.4cm}p{2.6cm}@{}}
+\toprule
+\textbf{Isolation} & \textbf{Agent analogue} & \textbf{Characteristic anomaly}\\
+\midrule
+Read uncommitted & API-coupled loop; mutate per step & dirty writes: pre-abort
+steps already leaked \\
+Read committed & sandbox + buffered intent pool & write skew: stale reasoning
+flushed onto shifted state \\
+Serializable (OCC) & \ghostark{}: speculate in $G(\sigma_0)$, validate, then
+bind & aborts under conflict; liveness cost analyzed in \S\ref{sec:starvation} \\
+\bottomrule
+\end{tabular}
+\caption{Database isolation levels and their agent-architecture analogues.}
+\label{tab:isolation}
+\end{table}
+
+\subsection{Declarative Action Binding and $\Delta_{\mathrm{DE}}$}
+\label{sec:dab}
+
+The untrusted runtime never transmits an action; it transmits a
+\emph{commitment}. Before requesting execution, the agent runtime serializes
+the intended action into a deterministic normal form (DANF) and derives a
+commitment digest $C_I$. The gateway independently re-derives $C_E$ from the
+exact bytes it would execute. Define the declared--executed divergence
+$\Delta_{\mathrm{DE}} = |\,C_I \oplus C_E\,|$; the gateway refuses execution
+unless $\Delta_{\mathrm{DE}} = 0$. This turns serialization itself into an
+attack surface that must be closed rather than trusted: cross-language
+normalization (TypeScript emitter, Rust checker) is exactly where Unicode
+collisions and field-injection attacks live, which is why the corpus of
+\S\ref{sec:eval-corpus} attacks the encoder, not just the network.
+\statusimpl{}
+
+\subsection{The ghost replica and speculative collapse}
+\label{sec:ghost}
+
+A trajectory executes against $G(\sigma_0)$, a forked view of relevant state
+at transaction start; its writes accumulate in a speculative buffer that
+touches nothing physical. Commit-time validation either \emph{binds} the
+buffer to the environment or triggers \texttt{SpeculativeCollapse}: the
+buffer is discarded, the replica reverts to $G(\sigma_0)$, and an abort
+receipt is emitted. Collapse is the mechanism that makes agent fallibility
+survivable: a hallucinated plan that dies in validation costs a receipt, not
+an environment. The collapse/commit state machine is one of the five
+TLC-checked models (\S\ref{sec:eval-tla}, \scstates{} distinct states).
+
+\subsection{The three-gate validation pipeline}
+\label{sec:gates}
+
+Validation is a conjunction of three independently answerable questions ---
+\emph{is it fresh}, \emph{is it current}, \emph{is it within policy}:
+
+\textbf{Gate 1 --- Ledger (freshness).} Each transaction carries a nonce
+$n_i$. Admission requires
+$n_i \notin \mathcal{L}_{\mathrm{nonce}} \,\wedge\, n_i \notin S_{\mathrm{spent}}$,
+where $\mathcal{L}_{\mathrm{nonce}}$ is the active ledger and
+$S_{\mathrm{spent}}$ a tombstone set of consumed nonces. The tombstone set is
+not an optimization; it is the repair of a real flaw that model checking
+found in our own design (\S\ref{sec:tla}). Expiry \emph{archives} a nonce
+into $S_{\mathrm{spent}}$ rather than forgetting it, so a nonce consumed at
+time $T$ is still rejected at $T+\mathrm{TTL}+1$. \statusimpl{}
+\statusmodel{}
+
+\textbf{Gate 2 --- OCC (currency).} Admission requires
+$\mathcal{H}(\piR(\sigma_{\mathrm{now}})) = \mathcal{H}(\piR(\sigma_0))$:
+the projection of the environment onto the trajectory's declared read-set
+must hash identically at commit as at fork. This is backward validation in
+the sense of Kung--Robinson~\cite{kung1981occ}, with the read-set standing in
+for the read phase's footprint. \S\ref{sec:starvation} develops why the
+projection --- not the global state --- is validated. \statusspec{} (the
+receipt schema for this gate, including the serialized $\piR$ read-set, is
+implemented and tested; runtime enforcement is not).
+
+\textbf{Gate 3 --- Semantic (policy).} Given per-step failure marginals
+$p_1,\dots,p_k$ supplied by upstream assessors for the steps of $\tau$, the
+gate computes the dependence-free Fr\'echet upper bound on the probability
+that \emph{any} step introduced a violation
+(\S\ref{sec:frechet}) and aborts if it exceeds policy. The gate aggregates
+marginals it is \emph{given}; it does not itself classify content ---
+a boundary we state precisely because eliding it is how enforcement systems
+come to overclaim. \statusimpl{}
+
+\begin{figure}[t]
+\small
+\begin{verbatim}
+ speculative trace tau  (in ghost replica G_0)
+        |
+        v
+ [1] Ledger gate   n_i in spent/ledger? --> ABORT
+        |                                   (collapse
+        v                                    + receipt)
+ [2] OCC gate      H(piR(now)) !=
+                   H(piR(sigma_0))?  ----->  ABORT
+        |
+        v
+ [3] Semantic gate min(1, sum p_i) >
+                   policy?           ----->  ABORT
+        |
+        v
+ VerifyAndBind: commit buffer, emit signed receipt
+\end{verbatim}
+\caption{Three-gate validation. Every path --- commit or abort --- terminates
+in a signed receipt. Gate 2 is specified but not yet enforced at runtime.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection{Receipts as the unit of evidence}
+\label{sec:receipts}
+
+Every gate decision emits a receipt: a canonical JSON envelope with an exact,
+validated key set, deterministically serialized, with a content-derived
+identifier (the hash of the unsigned envelope) and a signature over the
+canonical bytes. Canonicalization rejects host-language non-JSON values
+before signing rather than coercing them; identifiers are content-derived
+rather than random so that identity cannot be decoupled from payload;
+ordering lives in per-session monotonic sequence numbers, with wall-clock
+timestamps recorded as evidence, never used as an ordering primitive.
+Receipts verify under independent implementations (Node and Python
+verifiers, exercised by differential tests). Signing is HMAC in local
+development and KMS-based in the intended AWS mode, with verification-critical
+key references restricted to immutable key ARNs. A signature proves signing
+authorization over the payload --- it does not prove the payload's semantic
+truth. \statusimpl{}
+
+\subsection{Custody and the egress boundary}
+\label{sec:custody}
+
+A-CC (\S\ref{sec:acc}) is answered at the custody layer. Tool traffic exits
+only through a loopback sidecar that performs the external request, digests
+the raw response bytes, injects a request nonce that the response must echo,
+and returns a signed envelope --- making \emph{gateway-recorded} a provenance
+class that fabricated in-context text cannot satisfy. Provenance admission is
+meet-based on a lattice, so data cannot launder trust by transiting the
+agent's context. A byte-level reconciler compares \emph{decoded} tool bytes
+against asserted content (decode-before-compare), closing the
+encoding-mismatch corner of FSA attacks. The empirical shape of this
+boundary in end-to-end harness runs: egress that would bypass recording
+\emph{fails closed} --- in this design a silent compromise is definitionally
+an unrecorded egress, and unrecorded egress does not execute. \statusimpl{}
+(single-node; the sidecar's SSRF-class exposures --- DNS rebinding, redirect
+handling --- are relocated into a smaller trusted surface, not dissolved).
+
+% ============================================================================
+\section{Formal Foundations}
+\label{sec:formal}
+
+\subsection{The starvation trap and the read-set projection}
+\label{sec:starvation}
+
+The naive OCC gate validates the world:
+$\mathcal{H}(\sigma_{\mathrm{now}}) = \mathcal{H}(\sigma_0)$. In any live
+environment this is a liveness catastrophe. Let environmental writes
+unrelated to the trajectory arrive as a Poisson process with rate $\lambda$,
+and let a trajectory speculate for time $d$. The probability that
+\emph{global} validation succeeds is $e^{-\lambda d}$: for an agent that
+reasons for 30\,s in an environment averaging one background write per
+second, the commit probability is $e^{-30} \approx 10^{-13}$ --- perpetual
+abort. Worse, the abort-retry loop is self-defeating: retries lengthen
+exposure, and exposure breeds conflict. This is the \textbf{starvation
+trap}: global-state validation converts safety into a denial of liveness.
+
+The repair is the projection operator $\piR$, which restricts validation to
+the trajectory's declared read-set --- the tuples actually consulted while
+speculating. Validation becomes
+$\mathcal{H}(\piR(\sigma_{\mathrm{now}})) = \mathcal{H}(\piR(\sigma_0))$,
+and the abort probability depends only on the write rate \emph{into the
+read-set}, $e^{-\lambda_R d}$ with $\lambda_R \ll \lambda$. The cost is
+stated, not hidden: $\piR$ detects exactly read--write conflicts on declared
+dependencies. Predicate-shaped reads (``all alarms currently firing'') must
+materialize their result set into the projection or the gate inherits the
+phantom problem~\cite{berenson1995critique}; an unfaithfully narrow $\piR$
+weakens conflict detection in proportion to what it omits. Serializability
+under $\piR$ is therefore conditional on read-set faithfulness --- a property
+of instrumentation, not of the gate. \statusspec{}
+
+\subsection{Fr\'echet bounds on cumulative trajectory failure}
+\label{sec:frechet}
+
+Per-step screening misses trajectory-level violations: no single action
+$a_i$ crosses policy, but the sequence does. Model step $i$'s violation as
+an event $F_i$ with marginal $p_i = \mathbb{P}(F_i)$, supplied by upstream
+assessors. The deployment-relevant quantity is
+$\mathbb{P}(F_{\mathrm{any}}) = \mathbb{P}(\bigcup_i F_i)$ --- and the joint
+dependence structure of the $F_i$ is unknown. Assuming independence is not
+conservative here; it is the precise mistake our research program exists to
+measure, because guardrail failures \emph{correlate}: the same poisoned
+context that defeats the step-3 assessment also defeats step 5's. The
+Fr\'echet bounds~\cite{nelsen2006copulas,boole1854laws} are the sharp
+dependence-free envelope:
+\begin{equation}
+\max_i\, p_i \;\le\; \mathbb{P}\Big(\bigcup_{i=1}^{k} F_i\Big) \;\le\;
+\min\Big(1,\; \sum_{i=1}^{k} p_i\Big),
+\label{eq:fh-union}
+\end{equation}
+with the dual intersection envelope
+$\max\!\big(0, \sum_i p_i - (k-1)\big) \le \mathbb{P}(\bigcap_i F_i) \le
+\min_i p_i$. The semantic gate implements the upper bound of
+\eqref{eq:fh-union} as its trigger: it aborts when
+$\min(1, \sum_i p_i)$ exceeds the policy threshold. This is the unique
+choice that remains valid under \emph{every} dependence structure, including
+the adversarially correlated one.
+
+Two consequences are worth stating plainly. First, the bound is
+conservative by construction, and it saturates: as $k$ grows,
+$\sum_i p_i \to 1$ even for well-behaved marginals, and the gate tends
+fail-closed --- the starvation trade of \S\ref{sec:starvation} reappearing at
+the semantic layer. Long-horizon deployments must either scale the policy
+threshold with $k$ or invest in calibrated marginals; the gate makes that
+trade explicit rather than hiding it in an independence assumption. Second,
+the gate's output is only as meaningful as its inputs: it computes a bound
+over supplied marginals and does not manufacture information about content.
+Equation~\eqref{eq:fh-union}'s implementation (\texttt{evaluateSemanticGate})
+is unit-tested against hand-computed bounds. \statusimpl{}
+
+\subsection{Model checking with mutants, and the bug it caught}
+\label{sec:tla}
+
+Five TLA+ models cover the enforcement core: the provenance lattice's
+admission monotonicity, the speculative collapse state machine, the transport
+boundary (where the byte reconciler is shown to be load-bearing rather than a
+parser accident), the nonce ledger, and the execution boundary. Model
+checking that can only pass is theater, so every claimed invariant is paired
+with a \emph{mutant} model seeded with the targeted flaw; the harness
+requires baselines to verify clean \emph{and} mutants to reproduce their
+violations, and it records raw TLC logs as committed artifacts.
+
+The discipline caught us. The original nonce-ledger baseline --- once a
+spec-level operator defect was fixed and it parsed at all --- \emph{violated
+its own} \texttt{NoReplays} \emph{invariant}: \texttt{GarbageCollect}
+removed consumed nonces from the ledger, so a second agent could re-consume
+a garbage-collected nonce. TLC produced the counterexample; the flaw was a
+true positive about the shipped design, not the model. The repair introduced
+the spent-tombstone set (consumption requires
+$n \notin \mathcal{L} \wedge n \notin S_{\mathrm{spent}}$; GC archives
+rather than forgets), after which TLC verifies \texttt{NoReplays} and the
+temporal property \texttt{EventualGC} over the complete bounded state space.
+The Rust gateway initially retained TTL-eviction semantics --- diverging
+from the verified model by exactly the refuted behavior --- and was then
+brought into conformance: \texttt{cleanup\_expired()} archives into a spent
+set, and a nonce consumed at $T$ is rejected at $T+3601$. One bounded
+caveat survives and is stated in \S\ref{sec:nonclaims}: the in-process
+tombstone set is capacity-bounded, and pruning at capacity reopens a
+theoretical replay window for sufficiently old nonces.
+
+We report this episode at length because it is the paper's methodological
+argument in miniature: the value of the formal layer was not a certificate
+but a \emph{refutation}, caught before deployment, with the repair
+propagated spec-first into the implementation and both directions of the
+oracle (clean baseline, violating mutant) kept as regression evidence.
+
+% ============================================================================
+\section{Evaluation}
+\label{sec:eval}
+
+\noindent\textbf{Setup disclosure.} All measurements in this section are
+from recorded runs at repository HEAD on 2026-07-16: Apple M1 (8\,GB RAM),
+macOS (Darwin 24.5.0, arm64), Node v22.22.3, single process, no network, no
+KMS --- the in-process TypeScript enforcement path under the modeled
+attacker. TLC runs use tla2tools v1.8.0 with logs committed to the
+repository. Nothing here is a cloud measurement, and no live-AWS evidence is
+claimed. Every number maps to a re-runnable command in the artifact
+(\S\ref{sec:artifact}).
+
+\subsection{Model checking}
+\label{sec:eval-tla}
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lrl@{}}
+\toprule
+\textbf{Model} & \textbf{Distinct states} & \textbf{Result}\\
+\midrule
+ProvenanceLattice          & \plstates{} & clean \\
+\quad\emph{mutant}         & 61          & violation reproduced \\
+SpeculativeCollapse        & \scstates{} & clean \\
+\quad\emph{mutant}         & 240         & violation reproduced \\
+TransportBoundary          & \tbstates{} & clean \\
+\quad\emph{mutant}         & 22          & violation reproduced \\
+DAB\_NonceLedger           & \nlstates{} & clean (incl.\ temporal) \\
+\quad\emph{mutant}         & 232         & \texttt{NoReplays} violated \\
+DAB\_ExecutionBoundary     & \ebstates{} & clean \\
+\bottomrule
+\end{tabular}
+\caption{TLC results at HEAD (tla2tools v1.8.0; recorded logs committed).
+Baselines must verify clean; mutants must reproduce their seeded violations.
+These are bounded models of the design, not proofs of the implementation.}
+\label{tab:tlc}
+\end{table}
+
+Table~\ref{tab:tlc} summarizes the five baselines and their mutants. The
+two-sided oracle matters: a harness that can only report success cannot
+distinguish a verified invariant from a vacuous one. The mutant rows are the
+evidence that the invariants have teeth; the \texttt{NoReplays} mutant in
+particular reproduces the historical design flaw of \S\ref{sec:tla} as a
+permanent regression witness.
+
+\subsection{Adversarial corpus}
+\label{sec:eval-corpus}
+
+At HEAD, the nine-attack corpus (\S\ref{sec:modeled}) reports every attack
+\emph{detected} in-suite, and the four security games --- mutation
+resistance, replay resistance, cross-transaction binding, serialization
+ambiguity --- report attacker advantage \globaladvantage{} over
+\benchtrials{} trials each ($\Pr[\text{win}] = 0$ across
+$4\times\benchtrials{}$ trials; a zero observed rate over $10^4$ trials is
+consistent, at 95\% confidence, with a true per-trial success probability
+below $\approx 3\times10^{-4}$~\cite{hanley1983rule}, and says nothing about
+attacks outside the modeled family). The aggregate
+\texttt{global\_advantage} $=$ \globaladvantage{} with all suites passing.
+
+The scope qualifier is not fine print; it is the result's semantics. These
+are \emph{in-suite detection rates under the modeled attacker} --- an
+adversary limited to the mutation/replay/encoding/interleaving family of
+\S\ref{sec:modeled}, implemented in-process against the TypeScript
+enforcement path. The result is evidence that the commitment discipline
+closes the modeled channels; it is not a statement about unmodeled
+attackers, the Rust TCB under deployment conditions, or semantic-layer
+deception.
+
+On indirect prompt injection: the published InjecAgent
+benchmark~\cite{zhan2024injecagent} reports attack success rates up to 47\%
+for a ReAct-prompted GPT-4 agent in its enhanced setting. Under \ghostark{}'s
+custody model the corresponding trust-laundering move is \emph{structurally}
+unsatisfiable --- injected in-context text carries no gateway envelope, so it
+cannot meet floors above agent-asserted provenance, and our in-repository
+scenario tests confirm the admission rule blocks the modeled laundering
+pattern. We deliberately do not report this as ``ASR reduced from 47\% to
+0\%'': we have not re-run the InjecAgent dataset against a live model behind
+\ghostark{}, and the published 47\% baseline was measured under different
+conditions. The honest statement is architectural non-satisfiability under
+the modeled floor semantics, evidenced by unit and scenario tests.
+% NOTE: a live InjecAgent replication behind the gateway is future work
+% (docs/defense/DEFENSE_ANCHOR.md); do not upgrade the claim before then.
+
+\subsection{Performance}
+\label{sec:eval-perf}
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{Stage} & \textbf{p50} & \textbf{p95} & \textbf{p99} &
+\textbf{mean} & \textbf{ops/s}\\
+\midrule
+Baseline dispatch   & 0.46 & 0.50 & 0.58  & 0.50 & 2{,}019{,}173 \\
+DANF commit ($C_I$) & 3.38 & 3.75 & 13.13 & 4.03 & 248{,}275 \\
+Gateway verify ($C_E$) & 0.92 & 1.08 & 5.17 & 1.15 & 870{,}902 \\
+End-to-end          & \eepfifty{} & \eepninefive{} & \eepninenine{} &
+\eemean{} & \eethroughput{} \\
+\bottomrule
+\end{tabular}
+\caption{Enforcement-path latency in \emph{microseconds}
+(\benchtrials{} iterations, 1{,}024-byte payloads, in-process, Apple M1).}
+\label{tab:perf}
+\end{table}
+
+Table~\ref{tab:perf} reports the enforcement path's cost. The end-to-end
+commitment--verification cycle costs $\eepfifty{}\,\mu$s at the median
+($\eemean{}\,\mu$s mean, $\eepninenine{}\,\mu$s p99) and sustains
+$\approx$\eethroughput{} ops/s single-threaded --- an absolute added cost of
+$\approx\addedmean{}\,\mu$s mean over baseline dispatch.
+
+We decline to headline the harness's own relative metric, and the reason is
+instructive. Computed as $(\mathrm{DAB}-\mathrm{baseline})/\mathrm{baseline}$,
+the run reports an overhead of $\approx\overheadpct{}$ --- which sounds
+disqualifying until one notices the denominator is a $0.5\,\mu$s no-op
+dispatch. Relative overhead against a near-zero baseline is a
+number without decision content: against any realistic tool call (a
+network round-trip at $10^4$--$10^6\,\mu$s, a KMS signing call at
+$10^3$--$10^4\,\mu$s), an added $\addedmean{}\,\mu$s of in-process
+computation is far below measurement noise. The deployment-relevant
+statement is the absolute one, and the honest caveat is its converse: these
+numbers exclude KMS signing latency and all network costs, which will
+dominate in the intended cloud mode and which we have not measured
+(\S\ref{sec:nonclaims}). ``Fast'' is not a property we claim; ``microseconds
+of in-process arithmetic, unmeasured I/O excluded'' is.
+
+\subsection{A disclosed harness bug}
+\label{sec:eval-bug}
+
+An earlier revision of this benchmark scored two suites backwards: the
+replay game counted a \emph{detected} replay as an attacker win (reporting
+advantage $\approx 0.998$ where correct accounting yields 0), and one
+mutation probe inverted its detection predicate, yielding an aggregate
+``advantage'' of $\approx 0.25$ that contradicted the design's own ledger
+semantics. The error was in the harness's accounting, not the enforcement
+path --- but for a period the repository's own artifact report published the
+red result rather than patching around it, and the fix landed as an ordinary
+reviewed commit. We disclose this for the same reason we ship mutant models:
+an evaluation pipeline that cannot be caught being wrong cannot be trusted
+when it says it is right.
+
+% ============================================================================
+\section{Limitations and Non-Claims}
+\label{sec:nonclaims}
+
+\ghostark{} verifies what was \emph{recorded, signed, policy-bounded, and
+replayable under its verifier rules}. Each item below is a boundary we
+consider part of the contribution, not an escape hatch.
+
+\begin{enumerate}
+\item \textbf{No semantic safety.} Nothing here certifies that agent output
+is true, aligned, or safe. The semantic gate bounds a function of supplied
+marginals; garbage marginals yield a well-computed bound over garbage.
+\item \textbf{Bounded models, not verified implementations.} TLC results are
+exhaustive only within stated bounds and hold for the models; conformance of
+the Rust/TypeScript implementations is tested, not proved.
+\item \textbf{OCC gate unimplemented at runtime.} $\piR$ validation exists as
+specification and tested receipt schema; no runtime enforces it yet.
+Serializability claims are therefore design-level, and conditional on
+read-set faithfulness even then.
+\item \textbf{Modeled attacker only.} The \globaladvantage{}-advantage
+result covers the nine-attack/four-game family, in-process. No claim covers
+unmodeled attacks, the deployed TCB, or availability.
+\item \textbf{Bounded tombstone capacity.} The in-process spent set prunes
+at 500{,}000 entries; a nonce older than both TTL and tombstone capacity has
+a theoretical replay window. Durable external stores (e.g., conditional
+writes against a database) are the intended production posture and are not
+implemented here.
+\item \textbf{No live-cloud evidence.} KMS-mode signing, Bedrock-path
+integration, and all AWS-live behavior are design targets; no live-AWS
+measurement appears in this paper.
+\item \textbf{No attestation.} Signing proves authorization over payload
+bytes; it does not prove runtime integrity, and no enclave/PCR-bound flow is
+claimed.
+\item \textbf{Confused deputy within clearance} (\S\ref{sec:oos}) is
+mitigated by routing policy at best; the lattice checks floors, not intent.
+\item \textbf{Single node.} All ledgers are single-writer; multi-node
+consensus over ledger state is future work, not a property of this system.
+\item \textbf{No detector efficacy claims.} Where upstream assessors supply
+$p_i$, their hit rates are theirs; this paper certifies none of them.
+\end{enumerate}
+
+% ============================================================================
+\section{Related Work}
+\label{sec:related}
+
+\textbf{Transactions and isolation.} The validation-phase structure is
+Kung--Robinson OCC~\cite{kung1981occ}; the speculative-buffer discipline
+descends from STM~\cite{shavit1995stm,herlihy1993tm}; serializability theory
+and the anomaly vocabulary are classical~\cite{papadimitriou1979serial,
+berenson1995critique,bernstein1981concurrency}. \ghostark{}'s difference is
+the transaction participant: a stochastic planner whose failure modes are
+adversarial and correlated, not merely concurrent.
+
+\textbf{Information flow.} The provenance lattice is in the Denning
+lineage~\cite{denning1976lattice} with language-based descendants such as
+JIF~\cite{myers1997jflow}; the custody twist is that labels are
+\emph{cryptographically evidenced} classes (gateway-recorded vs.\
+agent-asserted) rather than compiler-tracked types.
+
+\textbf{Agent security.} Indirect prompt injection is systematized
+in~\cite{greshake2023not}; InjecAgent~\cite{zhan2024injecagent} benchmarks
+it for tool-integrated agents; ReAct~\cite{yao2023react} is the canonical
+coupled loop this paper's Table~\ref{tab:isolation} places at read
+uncommitted. Sandbox isolation (e.g.,
+Firecracker~\cite{agache2020firecracker}) is complementary: it bounds the
+blast radius of a process, while \ghostark{} bounds the \emph{admissibility
+of its effects} and evidences every decision.
+
+\textbf{Transparency.} Receipt chains and independent replay are in the
+spirit of Certificate Transparency~\cite{laurie2014ct}: shrink the trusted
+statement from ``the system behaved'' to ``the log is append-only and the
+artifacts verify''.
+
+\textbf{Formal methods in systems.} The TLA+/TLC
+workflow~\cite{lamport2002specifying,yu1999model} and its industrial use at
+scale~\cite{newcombe2015amazon} inform the harness; the mutant-oracle
+discipline is mutation testing~\cite{demillo1978mutation} applied to
+specifications rather than code.
+
+% ============================================================================
+\section{Artifact Availability}
+\label{sec:artifact}
+
+The repository ships a reviewer container (Ubuntu 22.04 with Node 22, a
+JDK, pinned tla2tools, and TeX Live) and a one-command reproduction:
+\texttt{make reproduce} runs build $\to$ claim-language gate $\to$ TLC
+(baselines and mutants) $\to$ unit/integration (\testcount{} tests,
+\testfiles{} files at HEAD) $\to$ adversarial corpus $\to$ benchmarks, and
+writes a machine-readable pass/fail roll-up whose gating status is the exit
+code. A claim-to-command map (\texttt{README-AE.md}) binds every number in
+this paper to the script that regenerates it. The repository also runs a
+forbidden-claims scanner over its own documentation (\claimfiles{} scannable
+files at HEAD, zero violations) --- the same discipline this section is
+subject to.
+
+% ============================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+The agent-security debate keeps asking how to make the model trustworthy.
+Databases stopped asking the analogous question about transactions fifty
+years ago: assume the client is wrong, isolate its speculation, validate at
+commit, and log everything. \ghostark{} is that posture applied to
+non-deterministic compute --- a ledger gate that model checking humbled and
+then hardened, an OCC discipline honest about its liveness trade, a semantic
+bound honest about its inputs, and a receipt for every decision either way.
+What it refuses to claim is part of the design: a skeptical reviewer should
+be able to distrust the authors, the README, and the model, and still
+replay the digest, verify the signature, map each claim to its evidence, and
+reproduce the failure boundary.
+
+% ============================================================================
+\begin{thebibliography}{99}\small
+
+\bibitem{kung1981occ}
+H.~T. Kung and J.~T. Robinson.
+On optimistic methods for concurrency control.
+\emph{ACM Trans.\ Database Syst.}, 6(2), 1981.
+
+\bibitem{shavit1995stm}
+N.~Shavit and D.~Touitou.
+Software transactional memory.
+In \emph{PODC}, 1995.
+
+\bibitem{herlihy1993tm}
+M.~Herlihy and J.~E.~B. Moss.
+Transactional memory: architectural support for lock-free data structures.
+In \emph{ISCA}, 1993.
+
+\bibitem{papadimitriou1979serial}
+C.~H. Papadimitriou.
+The serializability of concurrent database updates.
+\emph{J.~ACM}, 26(4), 1979.
+
+\bibitem{berenson1995critique}
+H.~Berenson, P.~Bernstein, J.~Gray, J.~Melton, E.~O'Neil, and P.~O'Neil.
+A critique of ANSI SQL isolation levels.
+In \emph{SIGMOD}, 1995.
+
+\bibitem{bernstein1981concurrency}
+P.~A. Bernstein and N.~Goodman.
+Concurrency control in distributed database systems.
+\emph{ACM Comput.\ Surv.}, 13(2), 1981.
+
+\bibitem{denning1976lattice}
+D.~E. Denning.
+A lattice model of secure information flow.
+\emph{Commun.\ ACM}, 19(5), 1976.
+
+\bibitem{myers1997jflow}
+A.~C. Myers and B.~Liskov.
+A decentralized model for information flow control.
+In \emph{SOSP}, 1997.
+
+\bibitem{greshake2023not}
+K.~Greshake, S.~Abdelnabi, S.~Mishra, C.~Endres, T.~Holz, and M.~Fritz.
+Not what you've signed up for: compromising real-world LLM-integrated
+applications with indirect prompt injection.
+In \emph{AISec}, 2023.
+
+\bibitem{zhan2024injecagent}
+Q.~Zhan, Z.~Liang, Z.~Ying, and D.~Kang.
+InjecAgent: benchmarking indirect prompt injections in tool-integrated
+large language model agents.
+In \emph{Findings of ACL}, 2024.
+
+\bibitem{yao2023react}
+S.~Yao, J.~Zhao, D.~Yu, N.~Du, I.~Shafran, K.~Narasimhan, and Y.~Cao.
+ReAct: synergizing reasoning and acting in language models.
+In \emph{ICLR}, 2023.
+
+\bibitem{agache2020firecracker}
+A.~Agache, M.~Brooker, A.~Iordache, A.~Liguori, R.~Neugebauer, P.~Piwonka,
+and D.-M. Popa.
+Firecracker: lightweight virtualization for serverless applications.
+In \emph{NSDI}, 2020.
+
+\bibitem{laurie2014ct}
+B.~Laurie.
+Certificate transparency.
+\emph{Commun.\ ACM}, 57(10), 2014.
+
+\bibitem{lamport2002specifying}
+L.~Lamport.
+\emph{Specifying Systems: The TLA+ Language and Tools for Hardware and
+Software Engineers}.
+Addison-Wesley, 2002.
+
+\bibitem{yu1999model}
+Y.~Yu, P.~Manolios, and L.~Lamport.
+Model checking TLA+ specifications.
+In \emph{CHARME}, 1999.
+
+\bibitem{newcombe2015amazon}
+C.~Newcombe, T.~Rath, F.~Zhang, B.~Munteanu, M.~Brooker, and M.~Deardeuff.
+How Amazon Web Services uses formal methods.
+\emph{Commun.\ ACM}, 58(4), 2015.
+
+\bibitem{demillo1978mutation}
+R.~A. DeMillo, R.~J. Lipton, and F.~G. Sayward.
+Hints on test data selection: help for the practicing programmer.
+\emph{IEEE Computer}, 11(4), 1978.
+
+\bibitem{nelsen2006copulas}
+R.~B. Nelsen.
+\emph{An Introduction to Copulas}, 2nd ed.
+Springer, 2006.
+
+\bibitem{boole1854laws}
+G.~Boole.
+\emph{An Investigation of the Laws of Thought}.
+Walton and Maberly, 1854.
+
+\bibitem{hanley1983rule}
+J.~A. Hanley and A.~Lippman-Hand.
+If nothing goes wrong, is everything all right? Interpreting zero
+numerators.
+\emph{JAMA}, 249(13), 1983.
+
+\end{thebibliography}
+
+\end{document}
