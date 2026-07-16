@@ -11,10 +11,17 @@ bytes.
 bash dab/k8s/run_demo.sh
 ```
 
-It builds `localhost:5000/dab-tools:local`, pushes it to a local registry the
-cluster can pull from, applies the Job + NetworkPolicy, waits, prints both
-containers' logs, and exits 0 iff the in-cluster verifier accepted the receipt.
-A recorded run is in [`RECORDED_K8S.txt`](RECORDED_K8S.txt).
+It builds `ghost-ark/dab-tools:local`, **loads it straight into the cluster
+node's containerd** (no external registry: `kind load` when the `kind` CLI is
+present, otherwise `docker save | ctr import` into the `kindest/node`
+container — docker-desktop Kubernetes is itself kind-based), applies the Job +
+NetworkPolicy, waits, prints both containers' logs, and exits 0 iff the
+in-cluster verifier accepted the receipt.
+
+A recorded run is in [`RECORDED_K8S.txt`](RECORDED_K8S.txt) (verified on
+docker-desktop Kubernetes, `kindest/node` v1.34.3, 2026-07-16: init container
+emitted a CERTIFIED receipt, the independent verifier container logged
+`VERIFIED`, Job `succeeded=1`).
 
 ## What runs
 

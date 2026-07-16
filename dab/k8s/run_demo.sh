@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 #
 # Ghost-Ark DAB Tier-0 — build, load, and run the in-cluster round-trip on the
-# current kube-context. Requires: docker, kubectl, a running cluster, and a
-# local registry at localhost:5000 that the cluster can pull from
-# (docker-desktop Kubernetes supports this out of the box).
+# current kube-context. Requires: docker, kubectl, a running cluster.
 #
 #   bash dab/k8s/run_demo.sh
 #
+# Image loading (no external registry needed):
+#   * `kind` CLI present            -> `kind load docker-image`
+#   * kind-based node (docker-desktop Kubernetes IS kind-based: the node is a
+#     kindest/node container) -> `docker save | docker exec <node> ctr import`
 # Exit 0 iff the Job's independent verifier accepts the gateway's receipt
 # in-cluster.
 
@@ -14,19 +16,29 @@ set -Euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DAB="$(cd "$HERE/.." && pwd)"
-IMAGE="localhost:5000/dab-tools:local"
+IMAGE="ghost-ark/dab-tools:local"
 NS="ghost-ark-dab"
 
 echo "== context ==";        kubectl config current-context
-echo "== ensure registry =="
-if ! curl -sf http://localhost:5000/v2/ >/dev/null; then
-  docker run -d -p 5000:5000 --restart=always --name registry registry:2 >/dev/null
-  sleep 2
-fi
 
-echo "== build + push image =="
+echo "== build image =="
 docker build -f "$DAB/Dockerfile" -t "$IMAGE" "$DAB"
-docker push "$IMAGE"
+
+echo "== load image into the cluster (no registry) =="
+if command -v kind >/dev/null 2>&1 && kind get clusters >/dev/null 2>&1; then
+  kind load docker-image "$IMAGE" --name "$(kind get clusters | head -1)"
+else
+  # docker-desktop Kubernetes is kind-based; find the control-plane node
+  # container and import straight into its containerd k8s.io namespace.
+  NODE="$(docker ps --format '{{.Names}} {{.Image}}' | awk '/kindest\/node/ {print $1; exit}')"
+  if [ -z "${NODE:-}" ]; then
+    echo "Could not find a kindest/node container to load the image into." >&2
+    echo "Point kubectl at a kind or docker-desktop Kubernetes cluster." >&2
+    exit 3
+  fi
+  echo "loading into node: $NODE"
+  docker save "$IMAGE" | docker exec -i "$NODE" ctr -n k8s.io images import -
+fi
 
 echo "== apply manifests =="
 kubectl delete job dab-roundtrip -n "$NS" --ignore-not-found >/dev/null 2>&1 || true

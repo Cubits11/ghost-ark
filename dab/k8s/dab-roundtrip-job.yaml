@@ -48,8 +48,8 @@ spec:
       # that holds the signing key and emits receipts.
       initContainers:
         - name: gateway-emit
-          image: localhost:5000/dab-tools:local
-          imagePullPolicy: Always
+          image: ghost-ark/dab-tools:local
+          imagePullPolicy: Never
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -77,8 +77,8 @@ spec:
       # the deterministic evidence, not the gateway process.
       containers:
         - name: verifier
-          image: localhost:5000/dab-tools:local
-          imagePullPolicy: Always
+          image: ghost-ark/dab-tools:local
+          imagePullPolicy: Never
           command: ["/bin/sh", "-c"]
           args:
             - |

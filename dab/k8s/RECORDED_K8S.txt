@@ -1,0 +1,27 @@
+=== Ghost-Ark DAB Tier-0 — in-cluster round-trip (recorded) ===
+context: docker-desktop   node: desktop-control-plane (kindest/node v1.34.3)
+pod: dab-roundtrip-qxhtn   image: ghost-ark/dab-tools:local (imported into node containerd)
+
+--- gateway-emit (init container: signing authority) ---
+4cb5abf6ad79fbf5abbccafcc269d85cd2651ed4b885b5869f241aedf0a5ba29
+--- gateway emitted receipt ---
+{
+  "protocol": "DAB-TIER0-V1",
+  "status": "CERTIFIED",
+  "c_i": "sha256:9ca3facb3701c518da62dd3464e68afc79c18bdf887250c3e0cb5888cc70dd77",
+  "c_e": "sha256:9ca3facb3701c518da62dd3464e68afc79c18bdf887250c3e0cb5888cc70dd77",
+  "nonce": "nonce-k8s-001",
+  "timestamp": "0",
+  "policy_digest": "sha256:be27d158c3f8c0fa58ba568db4ba41ca099db9d23af503958bb0a6f0fdba2405",
+  "gateway_signature": "e73d83bd0d04a49a882a0bda507faefae8bc48ba6a5b0cd80924bcf644b49879b1509aa0c6ecad819d5db84ab507f2b16fe0ff98b9e5aa55ab6ed2535500eb01"
+}
+--- gateway public key ---
+4cb5abf6ad79fbf5abbccafcc269d85cd2651ed4b885b5869f241aedf0a5ba29
+--- verifier (main container: independent verifier) ---
+independent verifier checking the gateway receipt in-cluster
+VERIFIED
+
+--- Job status ---
+SuccessCriteriaMet=True succeeded=1
+
+RESULT: independent verifier accepted the gateway receipt IN-CLUSTER.

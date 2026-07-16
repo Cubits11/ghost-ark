@@ -890,10 +890,23 @@ digest:
   make reproduce}); exit code 0 iff every gating stage passed.
 \end{itemize}
 
+\subsection{The gateway$\leftrightarrow$verifier round-trip}
+The Rust gateway and the independent verifier now agree on a real ed25519
+signature over a domain-separated canonical message including
+\texttt{policy\_digest}. A recorded, reproducible round-trip
+(\texttt{dab/roundtrip/}) shows a gateway-emitted receipt verifying, and
+tamper / mutation / wrong-key variants each rejected with the specific error;
+the same round-trip is demonstrated on Kubernetes (\texttt{dab/k8s/}: a gateway
+init-container emits the receipt, a separate verifier container accepts it
+in-cluster). Scope: a local DEV ed25519 key (not KMS/HSM/TPM/Nitro). Two
+residuals are stated in the repository inventory and not claimed here: the
+untrusted agent's Unix-socket transport (the agent runtime has no entrypoint)
+and wiring the TLC-verified tombstone module into the running gateway binary
+(it is currently orphaned; the binary uses an inline monotonic ledger).
+
 \subsection{What the artifact deliberately does not show}
-No live-cloud behavior (KMS-mode signing, cloud latency); no end-to-end
-Rust gateway$\leftrightarrow$independent-verifier round-trip (a recorded gap
-in the repository inventory); nothing semantic. The reproduction pipeline
+No live-cloud behavior (KMS-mode signing, cloud latency); nothing semantic.
+The reproduction pipeline
 publishes its own failures: at earlier commits it exited non-zero on real
 blockers --- including a period when the benchmark's inverted accounting
 (\S\ref{sec:eval-bug}) kept the artifact red --- and the RESOLVED entries
