@@ -1,3 +1,7 @@
+// Airy DAB doc style (blank lines after doc comments) is a formatting choice;
+// its stylistic clippy lint is allowed. Correctness lints remain enforced.
+#![allow(clippy::empty_line_after_doc_comments)]
+
 /**
  * Ghost-Ark DAB Tier-0
  *

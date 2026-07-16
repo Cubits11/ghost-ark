@@ -1,3 +1,8 @@
+// The DAB sources use a deliberately airy doc style (blank lines after `///`).
+// That formatting choice is not a defect, so its stylistic clippy lint is
+// allowed crate-wide. Correctness/complexity lints remain enforced.
+#![allow(clippy::empty_line_after_doc_comments)]
+
 /**
  * Ghost-Ark DAB Tier-0
  *
@@ -19,12 +24,9 @@
  *
  */
 
-
 use std::{
-    collections::HashSet,
     io::{Read, Write},
     os::unix::net::{UnixListener, UnixStream},
-    sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -42,11 +44,17 @@ use sha2::{
 
 
 mod signing;
+mod nonce;
 
 use signing::{
     GatewaySigner,
     policy_digest,
 };
+
+// The replay ledger is the TLC-verified spent-tombstone model (nonce.rs),
+// now wired into the running gateway (previously the binary used an inline
+// HashSet with no TTL/tombstone semantics).
+use nonce::NonceLedger;
 
 use std::sync::Arc as StdArc;
 
@@ -72,17 +80,8 @@ const PROTOCOL_VERSION:&str =
 
 
 
-/*
-    Replay protection ledger.
-
-    Production:
-        Redis/KMS/TEE-backed storage.
-
-    Tier-0:
-        in-memory bounded ledger.
-*/
-type NonceLedger =
-    Arc<Mutex<HashSet<String>>>;
+// NonceLedger is now nonce::NonceLedger (Arc<Mutex<ReplayLedger>>), imported
+// above. The verified tombstone model governs replay protection; see nonce.rs.
 
 
 
@@ -471,14 +470,26 @@ fn handle_client(
 
     {
 
-        let mut used =
+        // Consume the nonce through the verified tombstone ledger. `consume`
+        // returns false on replay (nonce in the active ledger OR the spent
+        // tombstone set) and on capacity pressure (fail-closed) — the exact
+        // ConsumeNonce discipline of the TLA+ model. Transaction id is the
+        // nonce (Tier-0 is 1:1); the commitment binds the nonce to c_i to
+        // block nonce/commitment swaps.
+        let mut ledger_guard =
             ledger.lock()
             .unwrap();
 
 
-        if used.contains(
-            &request.nonce
-        ){
+        let accepted =
+            ledger_guard.consume(
+                request.nonce.clone(),
+                request.nonce.clone(),
+                request.c_i.clone(),
+            );
+
+
+        if !accepted {
 
             let receipt =
                 GatewayReceipt{
@@ -520,11 +531,6 @@ fn handle_client(
             return;
 
         }
-
-
-        used.insert(
-            request.nonce.clone()
-        );
 
     }
 
@@ -606,8 +612,7 @@ fn handle_client(
                 request.c_i,
 
 
-            c_e:
-                c_e,
+            c_e,
 
 
             nonce:
@@ -927,19 +932,15 @@ fn main(){
 
 
     let ledger =
-        Arc::new(
-            Mutex::new(
-                HashSet::new()
-            )
-        );
+        nonce::create_nonce_ledger();
 
 
 
 
-    for stream in listener.incoming(){
+    for stream in listener.incoming().flatten(){
 
 
-        if let Ok(stream)=stream{
+        {
 
 
             let ledger_clone =

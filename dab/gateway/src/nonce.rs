@@ -45,7 +45,13 @@
 //! - Hardware-backed ledger
 //!
 
-
+// `exists`/`get`/`size`/`spent_size` and the `NonceRecord` audit fields form a
+// ledger inspection API used by tests and future socket/audit tooling; the
+// hot path (`consume`) does not read all of them, so dead_code is allowed for
+// this module. Doc-style clippy lints are allowed to match the DAB house style.
+#![allow(dead_code)]
+#![allow(clippy::empty_line_after_doc_comments)]
+#![allow(clippy::doc_overindented_list_items)]
 
 use std::{
     collections::{HashMap, HashSet},
@@ -552,4 +558,47 @@ fn current_timestamp()
         .unwrap()
         .as_secs()
 
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fresh_nonce_is_accepted() {
+        let mut l = ReplayLedger::new();
+        assert!(l.consume("n1".into(), "tx1".into(), "cAFE".into()));
+        assert_eq!(l.size(), 1);
+        assert!(l.exists("n1"));
+    }
+
+    #[test]
+    fn within_ttl_replay_is_rejected() {
+        // The core NoReplays behavior: a nonce in the active ledger cannot be
+        // re-consumed. (Post-TTL/tombstone replay is what the TLA+ model
+        // proves exhaustively; it is not wall-clock-testable here.)
+        let mut l = ReplayLedger::new();
+        assert!(l.consume("n1".into(), "tx1".into(), "cAFE".into()));
+        assert!(!l.consume("n1".into(), "tx2".into(), "dEAD".into()));
+        assert_eq!(l.size(), 1);
+    }
+
+    #[test]
+    fn distinct_nonces_coexist() {
+        let mut l = ReplayLedger::new();
+        assert!(l.consume("n1".into(), "tx1".into(), "c1".into()));
+        assert!(l.consume("n2".into(), "tx2".into(), "c2".into()));
+        assert_eq!(l.size(), 2);
+        assert!(l.get("n1").is_some());
+        assert_eq!(l.get("n1").unwrap().commitment, "c1");
+        assert_eq!(l.spent_size(), 0);
+    }
+
+    #[test]
+    fn create_nonce_ledger_shares_state() {
+        let shared = create_nonce_ledger();
+        assert!(shared.lock().unwrap().consume("n1".into(), "tx".into(), "c".into()));
+        assert!(!shared.lock().unwrap().consume("n1".into(), "tx".into(), "c".into()));
+    }
 }
