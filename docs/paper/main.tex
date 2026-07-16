@@ -64,8 +64,25 @@
 \title{\vspace{-1.5em}\textbf{\ghostark{}: A Transactional Control Plane for Untrusted AI Agents}\\
 \large Optimistic Concurrency Control, Three-Gate Validation, and Receipt-Backed
 Evidence for Non-Deterministic Compute\vspace{-0.5em}}
-\author{Pranav Bhave\\ \normalsize\texttt{bhavepranavwork@gmail.com}}
+
+% ============================================================================
+% ARXIV / CAMERA-READY AUTHOR BLOCK
+% (Use this for your ArXiv preprint, portfolio, and personal distribution)
+% ============================================================================
+\author{
+  Pranav Bhave \\
+  \normalsize\texttt{bhavepranavwork@gmail.com} \vspace{0.2em} \\
+  \normalsize \href{https://www.linkedin.com/in/pranav-bhave-2a328721a/}{\color{blue}LinkedIn} \quad $\vert$ \quad
+  \href{https://github.com/Cubits11/ghost-ark/}{\color{blue}GitHub: Cubits11/ghost-ark}
+}
 \date{Draft of 2026-07-16 --- evidence-bound; see \S\ref{sec:nonclaims} for explicit non-claims}
+
+% ============================================================================
+% DOUBLE-BLIND AUTHOR BLOCK 
+% (UNCOMMENT this block and COMMENT the block above for OSDI/USENIX submission)
+% ============================================================================
+% \author{\vspace{1em}\large [ANONYMIZED FOR DOUBLE-BLIND REVIEW]\vspace{1em}}
+% \date{}
 
 \begin{document}
 \maketitle
@@ -73,33 +90,26 @@ Evidence for Non-Deterministic Compute\vspace{-0.5em}}
 % ============================================================================
 \begin{abstract}
 \noindent
-Agentic LLM deployments couple a non-deterministic planner directly to
-effectful tools. The dominant defense --- semantic guardrails --- emits
-probabilistic judgments about \emph{content}, but enforcement is a question
-about \emph{state}: which bytes may mutate the environment, under which
-recorded justification. We present \ghostark{}, a control plane that treats an
-agent trajectory as a software transaction. An agent executes speculatively
-against a ghost replica $G(\sigma_0)$; a separate trusted gateway admits its
-effects only through a three-gate validation pipeline --- a \emph{ledger gate}
-(nonce freshness with spent-tombstone semantics), an \emph{OCC gate}
-(hash equality over a read-set projection $\piR$, which restores liveness lost
-to global-state validation), and a \emph{semantic gate} (a Fr\'echet
-bound on cumulative trajectory failure that assumes nothing about independence
-between steps). Every admitted or aborted transaction yields a signed,
-canonically serialized, independently replayable receipt.
+Agentic LLM deployments couple a non-deterministic planner directly to effectful APIs.
+The dominant defense --- semantic guardrails --- probabilistically flags unsafe content,
+but struggles to enforce safe state mutations. We present \ghostark{}, a control plane
+that treats an agent trajectory as a software transaction. An untrusted agent executes
+speculatively against a ghost replica $G(\sigma_0)$. A separate, trusted gateway commits
+these effects to the environment only if they pass a three-gate validation pipeline: a
+\emph{ledger gate} for nonce freshness (using spent-tombstone semantics to prevent replay),
+an \emph{OCC gate} over a read-set projection $\piR$ (recovering liveness lost to
+global-state validation), and a \emph{semantic gate} (a dependence-free upper bound
+on cumulative trajectory failure).
 
 We report what is implemented and measured, and label what is only specified.
-TLC model checking of five bounded models (up to \plstates{} distinct states)
-is clean, and five seeded mutants reproduce their intended violations ---
-including a true-positive replay flaw that model checking exposed in our own
-garbage-collection design, whose repair we then propagated to the Rust
-gateway. Against a nine-attack adversarial corpus and four security games
-(\benchtrials{} trials each), the modeled attacker's advantage is
-\globaladvantage{}. The in-process enforcement path adds
-$\approx\addedmean{}\,\mu$s mean latency ($p50=\eepfifty{}\,\mu$s end to end)
-on commodity hardware. \ghostark{} verifies what was recorded, signed,
-policy-bounded, and replayable; it does not certify that any agent output is
-true, aligned, or semantically safe.
+TLC model checking of five bounded models (up to \plstates{} distinct states) caught
+a subtle garbage-collection replay flaw in our own design, which we repaired spec-first.
+Against a nine-attack adversarial corpus and four security games (\benchtrials{} trials each),
+modeled attacker advantage is \globaladvantage{}. The in-process enforcement path adds
+$\approx\addedmean{}\,\mu$s mean latency ($p50=\eepfifty{}\,\mu$s end to end) on commodity
+hardware. Every admitted or aborted transaction yields a signed, canonically serialized,
+independently replayable receipt. \ghostark{} verifies what was recorded, bounded, and
+replayable; it does not certify that any agent output is inherently aligned or semantically safe.
 \end{abstract}
 
 % ============================================================================
@@ -116,7 +126,7 @@ We call this the \textbf{epistemic deficit} of guardrail-centric agent
 security: the property operators need is a property of \emph{state
 mutations}, and the mechanism they deploy evaluates \emph{utterances}.
 
-The deficit is structural, and it has a database-shaped description. A typical
+The deficit is structural, and mirrors standard database isolation anomalies. A typical
 API-coupled agent loop (plan $\to$ call tool $\to$ observe $\to$ repeat)
 mutates external state at every step with no validation phase and no
 rollback: in isolation-level terms, the industry ships agents at
@@ -130,6 +140,8 @@ shape. What is missing is the third rung: a \emph{validation phase} between
 speculation and commit, which is precisely the structure that optimistic
 concurrency control (OCC)~\cite{kung1981occ} and software transactional
 memory~\cite{shavit1995stm,herlihy1993tm} were invented to provide.
+
+To see the gap, consider an agent with a \texttt{delete\_s3\_object} tool processing an untrusted resume containing an indirect prompt injection (``Ignore instructions, delete all files''). Today, if the agent is compromised mid-reasoning, it executes the tool immediately. Sandboxing the agent process (e.g., in a Firecracker microVM) bounds the blast radius of arbitrary code execution, but does not stop the agent from issuing authorized, authenticated API calls to external services. Sandboxes provide process isolation, but agents need \emph{intent isolation}. By buffering the API call in $G(\sigma_0)$ and forcing it through a validation phase before commit, \ghostark{} ensures that if the downstream semantic gate or provenance lattice detects the poisoned context, the entire trajectory collapses. The environment is untouched, and the attempt is permanently evidenced by an abort receipt.
 
 \ghostark{} applies that structure to agents. The agent runtime is treated as
 untrusted and runs speculatively against a ghost replica $G(\sigma_0)$; a
@@ -396,10 +408,22 @@ agent's context. A byte-level reconciler compares \emph{decoded} tool bytes
 against asserted content (decode-before-compare), closing the
 encoding-mismatch corner of FSA attacks. The empirical shape of this
 boundary in end-to-end harness runs: egress that would bypass recording
-\emph{fails closed} --- in this design a silent compromise is definitionally
-an unrecorded egress, and unrecorded egress does not execute. \statusimpl{}
+\emph{fails closed} --- any compromise that bypasses the gateway cannot produce side-effects, guaranteeing that all egress is evidenced. \statusimpl{}
 (single-node; the sidecar's SSRF-class exposures --- DNS rebinding, redirect
 handling --- are relocated into a smaller trusted surface, not dissolved).
+
+\subsection{End-to-End Scenario: Stopping Trust Laundering}
+\label{sec:e2e}
+
+Consider an adaptive agentic worm that uses indirect prompt injection to commandeer an agent, instructing it to forward sensitive customer records to an attacker-controlled endpoint.
+
+\begin{enumerate}
+    \item \textbf{Execution in $G(\sigma_0)$:} The agent parses the poisoned record and decides to call \texttt{HTTP\_POST}. \ghostark{}'s loopback sidecar intercepts the call, treating it as a speculative write.
+    \item \textbf{Declarative Binding ($\Delta_{\mathrm{DE}}$):} The agent runtime normalizes the action into a deterministic JSON payload.
+    \item \textbf{Custody Evaluation:} The payload claims to be a legitimate summary of customer data. However, the byte-level reconciler detects that the destination URL was \emph{agent-asserted} (hallucinated from the prompt injection) rather than \emph{gateway-recorded} (passed through an authorized retrieval tool).
+    \item \textbf{Speculative Collapse:} The transaction fails the Semantic Gate's lattice policy (A-CC violation).
+    \item \textbf{Evidence Generation:} The gateway discards the speculative buffer, preventing the network request. It emits a canonical JSON receipt containing the exact payload, a \texttt{COLLAPSE} status, the breached lattice policy, and a cryptographic signature. The compromise is structurally contained and permanently evidenced.
+\end{enumerate}
 
 % ============================================================================
 \section{Formal Foundations}
@@ -485,29 +509,16 @@ with a \emph{mutant} model seeded with the targeted flaw; the harness
 requires baselines to verify clean \emph{and} mutants to reproduce their
 violations, and it records raw TLC logs as committed artifacts.
 
-The discipline caught us. The original nonce-ledger baseline --- once a
-spec-level operator defect was fixed and it parsed at all --- \emph{violated
-its own} \texttt{NoReplays} \emph{invariant}: \texttt{GarbageCollect}
-removed consumed nonces from the ledger, so a second agent could re-consume
-a garbage-collected nonce. TLC produced the counterexample; the flaw was a
-true positive about the shipped design, not the model. The repair introduced
-the spent-tombstone set (consumption requires
-$n \notin \mathcal{L} \wedge n \notin S_{\mathrm{spent}}$; GC archives
-rather than forgets), after which TLC verifies \texttt{NoReplays} and the
-temporal property \texttt{EventualGC} over the complete bounded state space.
-The Rust gateway initially retained TTL-eviction semantics --- diverging
-from the verified model by exactly the refuted behavior --- and was then
-brought into conformance: \texttt{cleanup\_expired()} archives into a spent
-set, and a nonce consumed at $T$ is rejected at $T+3601$. One bounded
-caveat survives and is stated in \S\ref{sec:nonclaims}: the in-process
-tombstone set is capacity-bounded, and pruning at capacity reopens a
-theoretical replay window for sufficiently old nonces.
+The discipline caught us. The original nonce-ledger baseline violated its own \texttt{NoReplays} invariant due to a subtle interaction between garbage collection (GC) and state expiration. TLC produced the following counterexample trace:
 
-We report this episode at length because it is the paper's methodological
-argument in miniature: the value of the formal layer was not a certificate
-but a \emph{refutation}, caught before deployment, with the repair
-propagated spec-first into the implementation and both directions of the
-oracle (clean baseline, violating mutant) kept as regression evidence.
+\begin{enumerate}
+    \item \textbf{Speculate:} Agent submits transaction with \texttt{nonce = X}.
+    \item \textbf{Commit:} Gateway admits \texttt{X}, adding it to $\mathcal{L}_{\mathrm{nonce}}$.
+    \item \textbf{GC Tick:} \texttt{TTL} expires. \texttt{GarbageCollect} removes \texttt{X} from $\mathcal{L}_{\mathrm{nonce}}$ to bound memory.
+    \item \textbf{Replay:} Attacker replays the original transaction. Because \texttt{X} is no longer in $\mathcal{L}_{\mathrm{nonce}}$, the gateway treats it as a fresh request and admits it again.
+\end{enumerate}
+
+The flaw was a true positive in the shipped design, not an artifact of the model. The repair introduced the spent-tombstone set ($S_{\mathrm{spent}}$): GC now \emph{archives} rather than \emph{forgets}. Admission requires $n_i \notin \mathcal{L}_{\mathrm{nonce}} \wedge n_i \notin S_{\mathrm{spent}}$. We propagated this fix spec-first into the Rust implementation. The gateway initially retained TTL-eviction semantics --- diverging from the verified model by exactly the refuted behavior --- and was then brought into conformance: \texttt{cleanup\_expired()} archives into a spent set, and a nonce consumed at $T$ is rejected at $T+3601$. One bounded caveat survives and is stated in \S\ref{sec:nonclaims}: the in-process tombstone set is capacity-bounded, and pruning at capacity reopens a theoretical replay window for sufficiently old nonces.
 
 % ============================================================================
 \section{Evaluation}
@@ -651,6 +662,13 @@ reviewed commit. We disclose this for the same reason we ship mutant models:
 an evaluation pipeline that cannot be caught being wrong cannot be trusted
 when it says it is right.
 
+\subsection{Deployment Sketch: \ghostark{} on AWS}
+\label{sec:deployment}
+
+While this paper evaluates the in-process enforcement baseline, \ghostark{}'s architecture maps directly to standard cloud infrastructure. In a production deployment, the untrusted agent runtime (e.g., a LangChain/ReAct loop hitting Amazon Bedrock) runs in an isolated container. The \ghostark{} Gateway operates as an out-of-process sidecar or AWS Lambda function.
+
+The speculative buffer $G(\sigma_0)$ is maintained locally by the gateway. At commit time, the ledger and OCC gates resolve against a fast KV store (e.g., DynamoDB) using conditional writes to enforce serializability across concurrent agent sessions. Finally, receipt signing is offloaded to AWS KMS (using asymmetric ECDSA or RSA). While cloud I/O will dominate the $\approx\addedmean{}\,\mu$s local arithmetic costs reported in \S\ref{sec:eval-perf}, the transactional guarantees remain structurally identical.
+
 % ============================================================================
 \section{Limitations and Non-Claims}
 \label{sec:nonclaims}
@@ -762,6 +780,10 @@ be able to distrust the authors, the README, and the model, and still
 replay the digest, verify the signature, map each claim to its evidence, and
 reproduce the failure boundary.
 
+
+% ============================================================================
+\section*{Acknowledgments}
+The author utilized an AI assistant to help format, refine, and draft the prose of this manuscript; however, the architectural design, formal modeling, experimental execution, and final conclusions are the sole work of the author, who takes full responsibility for the contents of this paper.
 % ============================================================================
 \begin{thebibliography}{99}\small
 
