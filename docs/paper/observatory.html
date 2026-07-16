@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghost-Ark Evidence Observatory</title>
+<style>*{margin:0;padding:0}</style>
+</head>
+<body>
+<style>
+  :root {
+    /* light &mdash; a precise daytime instrument */
+    --ground: #eef1f6;
+    --surface: #ffffff;
+    --panel: #f8fafc;
+    --ink: #0d1622;
+    --ink-soft: #33415a;
+    --muted: #5a6b84;
+    --faint: #8493a8;
+    --line: #d8e0ea;
+    --line-strong: #c3cddb;
+    --signal: #0c8577;        /* teal &mdash; confirmed / visible */
+    --signal-ink: #0a6a5f;
+    --signal-soft: rgba(12,133,119,0.12);
+    --caveat: #b45309;        /* amber &mdash; honest residual / boundary */
+    --caveat-soft: rgba(180,83,9,0.11);
+    --alert: #be123c;         /* rose &mdash; refuted / mutant */
+    --alert-soft: rgba(190,18,60,0.10);
+    --shadow: 0 1px 2px rgba(13,22,34,0.05), 0 8px 24px rgba(13,22,34,0.06);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #080b12;
+      --surface: #10151f;
+      --panel: #0d121b;
+      --ink: #e7eef7;
+      --ink-soft: #b6c2d4;
+      --muted: #8695ab;
+      --faint: #5c6a80;
+      --line: #1e2736;
+      --line-strong: #2b384b;
+      --signal: #5eead4;
+      --signal-ink: #7ef0dd;
+      --signal-soft: rgba(94,234,212,0.10);
+      --caveat: #f0b866;
+      --caveat-soft: rgba(240,184,102,0.10);
+      --alert: #fb7185;
+      --alert-soft: rgba(251,113,133,0.10);
+      --shadow: 0 1px 0 rgba(255,255,255,0.02) inset, 0 10px 30px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1f6; --surface: #ffffff; --panel: #f8fafc; --ink: #0d1622;
+    --ink-soft: #33415a; --muted: #5a6b84; --faint: #8493a8; --line: #d8e0ea;
+    --line-strong: #c3cddb; --signal: #0c8577; --signal-ink: #0a6a5f;
+    --signal-soft: rgba(12,133,119,0.12); --caveat: #b45309;
+    --caveat-soft: rgba(180,83,9,0.11); --alert: #be123c; --alert-soft: rgba(190,18,60,0.10);
+    --shadow: 0 1px 2px rgba(13,22,34,0.05), 0 8px 24px rgba(13,22,34,0.06);
+  }
+  :root[data-theme="dark"] {
+    --ground: #080b12; --surface: #10151f; --panel: #0d121b; --ink: #e7eef7;
+    --ink-soft: #b6c2d4; --muted: #8695ab; --faint: #5c6a80; --line: #1e2736;
+    --line-strong: #2b384b; --signal: #5eead4; --signal-ink: #7ef0dd;
+    --signal-soft: rgba(94,234,212,0.10); --caveat: #f0b866;
+    --caveat-soft: rgba(240,184,102,0.10); --alert: #fb7185; --alert-soft: rgba(251,113,133,0.10);
+    --shadow: 0 1px 0 rgba(255,255,255,0.02) inset, 0 10px 30px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 620px at 78% -8%, var(--signal-soft), transparent 62%),
+      radial-gradient(900px 500px at 10% 108%, var(--caveat-soft), transparent 60%),
+      var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: clamp(20px, 4vw, 56px) clamp(16px, 4vw, 40px) 80px; }
+
+  /* ---- type ---- */
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--signal-ink); font-weight: 600;
+  }
+  h1 {
+    font-family: var(--mono); font-weight: 620; letter-spacing: -0.01em;
+    font-size: clamp(2.1rem, 5.4vw, 3.5rem); line-height: 1.02; margin: 0.32em 0 0;
+    text-wrap: balance;
+  }
+  h1 .ghost { color: var(--muted); }
+  h2 {
+    font-family: var(--mono); font-weight: 600; letter-spacing: -0.005em;
+    font-size: clamp(1.15rem, 2.6vw, 1.5rem); margin: 0; text-wrap: balance;
+  }
+  .lede { font-size: clamp(1.02rem, 2vw, 1.16rem); color: var(--ink-soft); max-width: 64ch; margin: 1.1em 0 0; }
+  p { margin: 0.8em 0 0; }
+  .muted { color: var(--muted); }
+  a { color: var(--signal-ink); text-decoration: none; border-bottom: 1px solid var(--signal-soft); }
+  a:hover { border-bottom-color: var(--signal); }
+  a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 3px; }
+
+  /* ---- masthead ---- */
+  .mast { display: flex; flex-direction: column; gap: 4px; }
+  .stamp {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 22px;
+    font-family: var(--mono); font-size: 12.5px; color: var(--muted);
+    border: 1px solid var(--line); background: var(--surface);
+    border-radius: 999px; padding: 6px 13px; width: fit-content;
+  }
+  .stamp b { color: var(--ink); font-weight: 600; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 3px var(--signal-soft); }
+
+  /* ---- status strip ---- */
+  .strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 34px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 15px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+  }
+  .stat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--signal); opacity: 0.85; }
+  .stat .k { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .stat .v { font-family: var(--mono); font-size: 1.5rem; font-weight: 640; margin-top: 6px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .stat .s { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .stat.warn::before { background: var(--caveat); }
+  .stat.warn .v { color: var(--caveat); }
+
+  /* ---- panels ---- */
+  .grid { display: grid; gap: 18px; margin-top: 40px; }
+  .cols-2 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 760px) { .cols-2 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    padding: clamp(18px, 2.4vw, 26px); box-shadow: var(--shadow);
+  }
+  .card > .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .card .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--signal-ink); }
+  .card p { color: var(--ink-soft); font-size: 0.97rem; }
+  .section-label { font-family: var(--mono); font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin: 52px 0 0; }
+
+  /* ---- instrument (canvas) ---- */
+  .plot-wrap { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 10px; }
+  canvas { display: block; width: 100%; height: auto; }
+  .controls { display: grid; gap: 14px; margin-top: 16px; }
+  .ctl { display: grid; grid-template-columns: 90px 1fr 78px; align-items: center; gap: 12px; }
+  .ctl label { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+  .ctl output { font-family: var(--mono); font-size: 13px; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  input[type="range"] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 4px; background: var(--line-strong); outline-offset: 4px; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--signal); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--signal); cursor: pointer; }
+  input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--signal); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--signal); cursor: pointer; }
+  .readout { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; font-family: var(--mono); font-size: 13px; }
+  .readout .r { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 22px; height: 3px; border-radius: 2px; display: inline-block; }
+  .readout b { font-variant-numeric: tabular-nums; }
+
+  /* ---- pipeline ---- */
+  .pipe { display: grid; gap: 10px; margin-top: 18px; }
+  .gate { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 14px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  .gate .n { font-family: var(--mono); font-size: 13px; color: var(--faint); font-weight: 600; }
+  .gate .body .t { font-family: var(--mono); font-weight: 600; font-size: 0.98rem; }
+  .gate .body .d { font-size: 0.87rem; color: var(--muted); margin-top: 2px; }
+  .gate .body .d code { font-family: var(--mono); font-size: 0.85em; color: var(--ink-soft); }
+  .flow { text-align: center; color: var(--faint); font-family: var(--mono); font-size: 12px; }
+  .terminal { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 14px; padding: 13px 15px; border-radius: 12px; }
+  .terminal.commit { background: var(--signal-soft); border: 1px solid var(--signal); }
+  .terminal .t { font-family: var(--mono); font-weight: 600; }
+
+  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; white-space: nowrap; font-weight: 600; }
+  .pill.ok { color: var(--signal-ink); background: var(--signal-soft); border: 1px solid var(--signal); }
+  .pill.spec { color: var(--caveat); background: var(--caveat-soft); border: 1px solid var(--caveat); }
+
+  /* ---- receipt specimen ---- */
+  .receipt { font-family: var(--mono); font-size: 12.5px; margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .receipt .rrow { display: grid; grid-template-columns: 150px 1fr; gap: 12px; padding: 9px 15px; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .receipt .rrow:last-child { border-bottom: 0; }
+  .receipt .rk { color: var(--muted); }
+  .receipt .rv { color: var(--ink); word-break: break-all; }
+  .receipt .rv.hash { color: var(--signal-ink); }
+  .receipt .rv .note { color: var(--faint); }
+  .receipt .status-line { background: var(--signal-soft); }
+
+  /* ---- evidence table ---- */
+  .table-scroll { overflow-x: auto; margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 620px; }
+  th, td { text-align: left; padding: 11px 15px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td .claim { color: var(--ink); }
+  td code { font-family: var(--mono); font-size: 0.82rem; color: var(--signal-ink); background: var(--signal-soft); padding: 2px 6px; border-radius: 5px; white-space: nowrap; }
+  td .res { font-family: var(--mono); font-size: 0.82rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  /* ---- boundary ---- */
+  .boundary { background: var(--caveat-soft); border: 1px solid var(--caveat); }
+  .boundary .tag { color: var(--caveat); }
+  .boundary ul { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 10px; }
+  .boundary li { display: grid; grid-template-columns: 20px 1fr; gap: 12px; font-size: 0.94rem; color: var(--ink-soft); }
+  .boundary li .x { color: var(--caveat); font-family: var(--mono); }
+  .boundary li b { color: var(--ink); font-weight: 600; }
+
+  footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal { animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast reveal">
+    <span class="eyebrow">Ghost-Ark &middot; DAB Tier-0 &middot; Evidence Observatory</span>
+    <h1>Make the invisible <span class="ghost">visible.</span></h1>
+    <p class="lede">
+      Ghost-Ark treats an untrusted agent's trajectory as a software transaction:
+      it speculates in a ghost replica, commits only through validation, and signs
+      a receipt either way. This console reads the faint signals that discipline
+      leaves behind. <b>Every figure here is a recorded run</b> &mdash; distrust the
+      author, the README, and the model, then replay the digest, verify the
+      signature, and reproduce the failure boundary.
+    </p>
+    <span class="stamp"><span class="dot"></span> Evidence-bound at repository HEAD &middot; <b>2026-07-16</b> &middot; claim gate <b>0 / 601</b></span>
+  </header>
+
+  <section class="strip reveal" aria-label="Recorded results at a glance">
+    <div class="stat"><div class="k">Gateway &harr; verifier</div><div class="v">5 / 5</div><div class="s">round-trip, real ed25519</div></div>
+    <div class="stat"><div class="k">Socket E2E</div><div class="v">3 / 3</div><div class="s">over /ipc/dab.sock</div></div>
+    <div class="stat"><div class="k">Kubernetes</div><div class="v">&#10003;</div><div class="s">verified in-cluster</div></div>
+    <div class="stat"><div class="k">TLC models</div><div class="v">5 + 5</div><div class="s">clean + mutants violate</div></div>
+    <div class="stat"><div class="k">Rust tests</div><div class="v">20</div><div class="s">clippy &minus;D warnings clean</div></div>
+    <div class="stat warn"><div class="k">Adversary advantage</div><div class="v">0</div><div class="s">4 games &times; 10,000</div></div>
+  </section>
+
+  <p class="section-label">Instruments</p>
+  <div class="grid cols-2">
+
+    <section class="card reveal">
+      <div class="head"><h2>The correlation you can't assume away</h2><span class="tag">&sect;4.2 &middot; live</span></div>
+      <p>
+        Guardrail failures correlate. The semantic gate triggers on the
+        dependence-free Fr&eacute;chet upper bound &mdash; valid under <i>every</i> joint law.
+        Drag the marginal and the trajectory length: an independence assumption
+        (dashed) always sits <i>inside</i> the envelope, quietly under-reporting
+        risk exactly where correlated failure lives.
+      </p>
+      <div class="plot-wrap"><canvas id="frechet" width="720" height="380" aria-label="Fr&eacute;chet envelope plot"></canvas></div>
+      <div class="controls">
+        <div class="ctl"><label for="fp">marginal p</label><input id="fp" type="range" min="0" max="150" value="60"><output id="fpo">0.060</output></div>
+        <div class="ctl"><label for="fk">steps k</label><input id="fk" type="range" min="2" max="20" value="8"><output id="fko">8</output></div>
+      </div>
+      <div class="readout">
+        <span class="r"><span class="swatch" style="background:var(--signal)"></span> upper (gate) <b id="rUpper"></b></span>
+        <span class="r"><span class="swatch" style="background:var(--muted)"></span> lower <b id="rLower"></b></span>
+        <span class="r"><span class="swatch" style="background:var(--alert)"></span> independence <b id="rIndep"></b></span>
+      </div>
+    </section>
+
+    <section class="card reveal">
+      <div class="head"><h2>The weakness we measured</h2><span class="tag">&sect;5.5 &middot; live</span></div>
+      <p>
+        Most papers state a caveat and stop. The ledger's tombstone set is
+        capacity-bounded, so pruning reopens a replay window &mdash; and we
+        <i>measured</i> it. Driving the real ledger yields an exact law:
+        window = max(0, K &minus; C). Below capacity the window is empty; above it,
+        every extra tombstone is one more replayable nonce.
+      </p>
+      <div class="plot-wrap"><canvas id="replay" width="720" height="380" aria-label="Replay window plot"></canvas></div>
+      <div class="controls">
+        <div class="ctl"><label for="rc">capacity C</label><input id="rc" type="range" min="1" max="64" value="8"><output id="rco">8</output></div>
+        <div class="ctl"><label for="rk">tombstones K</label><input id="rk" type="range" min="0" max="96" value="32"><output id="rko">32</output></div>
+      </div>
+      <div class="readout">
+        <span class="r"><span class="swatch" style="background:var(--caveat)"></span> replay window <b id="rWin"></b></span>
+        <span class="r muted">retained = min(K, C) = <b id="rRet"></b></span>
+        <span class="r muted">membership: HashSet-arbitrary</span>
+      </div>
+    </section>
+  </div>
+
+  <p class="section-label">The three-gate pipeline</p>
+  <section class="card reveal">
+    <p>A speculative trajectory reaches the world only by passing three
+      independently answerable questions. Every path &mdash; commit or any-gate abort &mdash;
+      terminates in a signed receipt.</p>
+    <div class="pipe">
+      <div class="gate">
+        <span class="n">1</span>
+        <div class="body"><div class="t">Ledger gate &mdash; is it fresh?</div>
+          <div class="d">Nonce rejected if in the active ledger <code>&or;</code> the spent-tombstone set. Wired from the TLC-verified model.</div></div>
+        <span class="pill ok">Implemented &middot; Wired &middot; TLC-checked</span>
+      </div>
+      <div class="flow">&darr; &nbsp; no</div>
+      <div class="gate">
+        <span class="n">2</span>
+        <div class="body"><div class="t">OCC gate &mdash; is it current?</div>
+          <div class="d"><code>H(&pi;_R(&sigma;_now)) = H(&pi;_R(&sigma;&#8320;))</code> over the declared read-set &mdash; recovers liveness from the starvation trap.</div></div>
+        <span class="pill spec">Specified &middot; schema tested</span>
+      </div>
+      <div class="flow">&darr; &nbsp; no</div>
+      <div class="gate">
+        <span class="n">3</span>
+        <div class="body"><div class="t">Semantic gate &mdash; within policy?</div>
+          <div class="d">Aborts when the Fr&eacute;chet bound <code>min(1, &Sigma;p&#7522;)</code> exceeds policy. Bounds supplied marginals; classifies nothing.</div></div>
+        <span class="pill ok">Implemented &middot; unit-tested</span>
+      </div>
+      <div class="flow">&darr; &nbsp; no</div>
+      <div class="terminal commit">
+        <span class="n" style="color:var(--signal-ink)">&#10003;</span>
+        <div class="t">VerifyAndBind &mdash; commit buffer, emit signed receipt</div>
+        <span class="pill ok">Certified</span>
+      </div>
+    </div>
+  </section>
+
+  <p class="section-label">A signal from the ghost trace</p>
+  <div class="grid cols-2">
+    <section class="card reveal">
+      <div class="head"><h2>Receipt specimen</h2><span class="tag">recorded</span></div>
+      <p>A real certified receipt from the recorded round-trip &mdash; the invisible
+        decision made into an auditable, replayable object. The signature is a
+        genuine ed25519 signature over the domain-separated canonical message.</p>
+      <div class="receipt" role="table" aria-label="DAB certified receipt">
+        <div class="rrow"><span class="rk">protocol</span><span class="rv">DAB-TIER0-V1</span></div>
+        <div class="rrow status-line"><span class="rk">status</span><span class="rv" style="color:var(--signal-ink);font-weight:600">CERTIFIED</span></div>
+        <div class="rrow"><span class="rk">c_i (declared)</span><span class="rv hash">sha256:9ca3facb&hellip;70dd77</span></div>
+        <div class="rrow"><span class="rk">c_e (executed)</span><span class="rv hash">sha256:9ca3facb&hellip;70dd77 <span class="note">&nbsp;&mdash; &Delta;_DE = 0</span></span></div>
+        <div class="rrow"><span class="rk">nonce</span><span class="rv">nonce-roundtrip-001</span></div>
+        <div class="rrow"><span class="rk">policy_digest</span><span class="rv hash">sha256:be27d158&hellip;ba2405</span></div>
+        <div class="rrow"><span class="rk">signature</span><span class="rv hash">08262ba9&hellip;18f707 <span class="note">&nbsp;(ed25519)</span></span></div>
+      </div>
+      <p class="muted" style="font-size:0.86rem">Independent verifier accepts this and rejects a brutal forgery corpus &mdash; tampered field, protocol downgrade, non-hex / truncated / all-zero / transplanted signatures, wrong key &mdash; each with its specific error.</p>
+    </section>
+
+    <section class="card reveal">
+      <div class="head"><h2>Model checking with teeth</h2><span class="tag">tla2tools 1.8.0</span></div>
+      <p>Every invariant is paired with a seeded <i>mutant</i> that must fail &mdash; so a
+        clean pass can't be vacuous. The nonce-ledger mutant reproduces the exact
+        replay flaw model checking once found in our own design.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Model</th><th>Distinct states</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td class="claim">ProvenanceLattice</td><td class="res">403,949</td><td><span class="pill ok">clean</span></td></tr>
+            <tr><td class="claim">SpeculativeCollapse</td><td class="res">529</td><td><span class="pill ok">clean</span></td></tr>
+            <tr><td class="claim">TransportBoundary</td><td class="res">64</td><td><span class="pill ok">clean</span></td></tr>
+            <tr><td class="claim">DAB_NonceLedger</td><td class="res">1,321</td><td><span class="pill ok">clean</span></td></tr>
+            <tr><td class="claim">DAB_ExecutionBoundary</td><td class="res">51,106</td><td><span class="pill ok">clean</span></td></tr>
+            <tr><td class="claim">+ 5 mutants</td><td class="res">&mdash;</td><td><span class="pill spec" style="color:var(--alert);background:var(--alert-soft);border-color:var(--alert)">violation reproduced</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <p class="section-label">Claim &rarr; evidence &rarr; command</p>
+  <section class="card reveal" style="padding-top:20px">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Claim</th><th>Reproduce</th><th>Recorded result</th></tr></thead>
+        <tbody>
+          <tr><td class="claim">Gateway receipt verifies against the independent verifier</td><td><code>run_in_docker.sh</code></td><td class="res">ROUND-TRIP: OK (5/5)</td></tr>
+          <tr><td class="claim">Wired tombstone ledger rejects replay over the real socket</td><td><code>run_socket_e2e.sh</code></td><td class="res">SOCKET-E2E: OK (3/3)</td></tr>
+          <tr><td class="claim">Custody round-trip runs on Kubernetes</td><td><code>k8s/run_demo.sh</code></td><td class="res">VERIFIED &middot; succeeded=1</td></tr>
+          <tr><td class="claim">Modeled-attacker advantage is zero</td><td><code>run_all.ts</code></td><td class="res">global_advantage = 0</td></tr>
+          <tr><td class="claim">Enforcement path adds microseconds, not milliseconds</td><td><code>make benchmark</code></td><td class="res">p50 5.5&micro;s &middot; +6.6&micro;s mean</td></tr>
+          <tr><td class="claim">Bounded replay window = max(0, K &minus; C)</td><td><code>dab-replay-stress</code></td><td class="res">LAW CONFIRMED</td></tr>
+          <tr><td class="claim">Docs stay within the claim boundary</td><td><code>npm run scan:claims</code></td><td class="res">0 / 601 files</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="section-label">The boundary is the point</p>
+  <section class="card boundary reveal">
+    <div class="head"><h2>What Ghost-Ark does <i>not</i> claim</h2><span class="tag">non-claims</span></div>
+    <p style="color:var(--ink-soft)">A skeptical reviewer should be able to distrust everything and still verify the record. These are boundaries we consider part of the contribution &mdash; not an escape hatch.</p>
+    <ul>
+      <li><span class="x">&mdash;</span><span><b>No semantic safety.</b> The gate bounds a function of supplied marginals; garbage in, well-computed garbage out. It certifies no detector's hit rate.</span></li>
+      <li><span class="x">&mdash;</span><span><b>Bounded models, not verified implementations.</b> TLC is exhaustive only within stated bounds; conformance of the Rust/TypeScript code is tested, not proved.</span></li>
+      <li><span class="x">&mdash;</span><span><b>DEV key, not production custody.</b> A local ed25519 key &mdash; not KMS, HSM, TPM, or Nitro attestation. Signing proves authorization over bytes, not runtime integrity.</span></li>
+      <li><span class="x">&mdash;</span><span><b>Modeled attacker only.</b> The zero-advantage result covers the nine-attack / four-game family, in-process &mdash; not unmodeled attacks or availability.</span></li>
+      <li><span class="x">&mdash;</span><span><b>No live-cloud evidence.</b> KMS-mode signing and the full AWS path are design targets; nothing here is a cloud measurement.</span></li>
+      <li><span class="x">&mdash;</span><span><b>Single node.</b> Ledgers are single-writer; multi-node consensus is future work, not a property of this system.</span></li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>Ghost-Ark &middot; Declarative Action Binding &middot; Tier-0</span>
+    <span><a href="https://github.com/Cubits11/ghost-ark">github.com/Cubits11/ghost-ark</a></span>
+  </footer>
+</div>
+
+<script>
+  "use strict";
+  /* Ghost-Ark Evidence Observatory &mdash; instrument console */
+  const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  function setupCanvas(cv) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cssW = cv.clientWidth || cv.parentElement.clientWidth;
+    const cssH = Math.round(cssW * (380 / 720));
+    cv.width = Math.round(cssW * dpr);
+    cv.height = Math.round(cssH * dpr);
+    cv.style.height = cssH + "px";
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: cssW, h: cssH };
+  }
+
+  const PAD = { l: 52, r: 16, t: 18, b: 34 };
+
+  function drawAxes(ctx, w, h, opts) {
+    const ink = cssVar("--ink"), muted = cssVar("--muted"), line = cssVar("--line-strong"), faint = cssVar("--faint");
+    ctx.clearRect(0, 0, w, h);
+    const gx0 = PAD.l, gx1 = w - PAD.r, gy0 = PAD.t, gy1 = h - PAD.b;
+    // grid
+    ctx.strokeStyle = line; ctx.globalAlpha = 0.35; ctx.lineWidth = 1;
+    for (let i = 0; i <= opts.yTicks; i++) {
+      const y = gy1 - (i / opts.yTicks) * (gy1 - gy0);
+      ctx.beginPath(); ctx.moveTo(gx0, y); ctx.lineTo(gx1, y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // axis labels
+    ctx.fillStyle = muted; ctx.font = '11px ui-monospace, Menlo, monospace';
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let i = 0; i <= opts.yTicks; i++) {
+      const y = gy1 - (i / opts.yTicks) * (gy1 - gy0);
+      const val = opts.yMin + (i / opts.yTicks) * (opts.yMax - opts.yMin);
+      ctx.fillText(opts.yFmt(val), gx0 - 8, y);
+    }
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let i = 0; i <= opts.xTicks; i++) {
+      const x = gx0 + (i / opts.xTicks) * (gx1 - gx0);
+      const val = opts.xMin + (i / opts.xTicks) * (opts.xMax - opts.xMin);
+      ctx.fillText(opts.xFmt(val), x, gy1 + 8);
+    }
+    ctx.fillStyle = faint; ctx.font = '10px ui-monospace, Menlo, monospace';
+    ctx.textAlign = "center"; ctx.fillText(opts.xLabel, (gx0 + gx1) / 2, h - 12);
+    return { gx0, gx1, gy0, gy1 };
+  }
+
+  // ---------- Fr&eacute;chet envelope ----------
+  const fCanvas = document.getElementById("frechet");
+  const fp = document.getElementById("fp"), fk = document.getElementById("fk");
+  const fpo = document.getElementById("fpo"), fko = document.getElementById("fko");
+  const rUpper = document.getElementById("rUpper"), rLower = document.getElementById("rLower"), rIndep = document.getElementById("rIndep");
+
+  function drawFrechet() {
+    const { ctx, w, h } = setupCanvas(fCanvas);
+    const k = +fk.value;
+    const pMark = +fp.value / 1000;
+    const pMax = 0.15;
+    const g = drawAxes(ctx, w, h, {
+      xMin: 0, xMax: pMax, yMin: 0, yMax: 1, xTicks: 5, yTicks: 4,
+      xFmt: (v) => v.toFixed(2), yFmt: (v) => v.toFixed(1),
+      xLabel: "per-step failure marginal  p", yTicks: 4,
+    });
+    const X = (p) => g.gx0 + (p / pMax) * (g.gx1 - g.gx0);
+    const Y = (y) => g.gy1 - Math.max(0, Math.min(1, y)) * (g.gy1 - g.gy0);
+    const upper = (p) => Math.min(1, k * p);
+    const lower = (p) => p;
+    const indep = (p) => 1 - Math.pow(1 - p, k);
+
+    // envelope fill
+    const signal = cssVar("--signal");
+    ctx.beginPath();
+    ctx.moveTo(X(0), Y(upper(0)));
+    for (let px = 0; px <= 200; px++) { const p = (px / 200) * pMax; ctx.lineTo(X(p), Y(upper(p))); }
+    for (let px = 200; px >= 0; px--) { const p = (px / 200) * pMax; ctx.lineTo(X(p), Y(lower(p))); }
+    ctx.closePath();
+    ctx.fillStyle = signal; ctx.globalAlpha = 0.10; ctx.fill(); ctx.globalAlpha = 1;
+
+    const plot = (fn, color, dash, wdt) => {
+      ctx.beginPath(); ctx.setLineDash(dash || []); ctx.lineWidth = wdt || 2; ctx.strokeStyle = color;
+      for (let px = 0; px <= 240; px++) { const p = (px / 240) * pMax; const x = X(p), y = Y(fn(p)); px === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+      ctx.stroke(); ctx.setLineDash([]);
+    };
+    plot(lower, cssVar("--muted"), [], 1.5);
+    plot(indep, cssVar("--alert"), [5, 4], 2);
+    plot(upper, signal, [], 2.4);
+
+    // marker at p
+    const mx = X(pMark);
+    ctx.strokeStyle = cssVar("--faint"); ctx.globalAlpha = 0.5; ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.moveTo(mx, g.gy0); ctx.lineTo(mx, g.gy1); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    const dot = (y, color) => { ctx.beginPath(); ctx.arc(mx, Y(y), 3.6, 0, 7); ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = cssVar("--surface"); ctx.lineWidth = 1.5; ctx.stroke(); };
+    dot(lower(pMark), cssVar("--muted"));
+    dot(indep(pMark), cssVar("--alert"));
+    dot(upper(pMark), signal);
+
+    fpo.textContent = pMark.toFixed(3); fko.textContent = k;
+    rUpper.textContent = upper(pMark).toFixed(3);
+    rLower.textContent = lower(pMark).toFixed(3);
+    rIndep.textContent = indep(pMark).toFixed(3);
+  }
+
+  // ---------- Replay window ----------
+  const rCanvas = document.getElementById("replay");
+  const rc = document.getElementById("rc"), rk = document.getElementById("rk");
+  const rco = document.getElementById("rco"), rko = document.getElementById("rko");
+  const rWin = document.getElementById("rWin"), rRet = document.getElementById("rRet");
+
+  function drawReplay() {
+    const { ctx, w, h } = setupCanvas(rCanvas);
+    const C = +rc.value, K = +rk.value;
+    const Kmax = 96, Wmax = Math.max(24, Kmax - 1);
+    const g = drawAxes(ctx, w, h, {
+      xMin: 0, xMax: Kmax, yMin: 0, yMax: Wmax, xTicks: 6, yTicks: 4,
+      xFmt: (v) => Math.round(v), yFmt: (v) => Math.round(v),
+      xLabel: "tombstones created  K", yTicks: 4,
+    });
+    const X = (kk) => g.gx0 + (kk / Kmax) * (g.gx1 - g.gx0);
+    const Y = (ww) => g.gy1 - Math.max(0, Math.min(Wmax, ww)) / Wmax * (g.gy1 - g.gy0);
+    const win = (kk) => Math.max(0, kk - C);
+    const caveat = cssVar("--caveat");
+
+    // knee line at K = C
+    ctx.strokeStyle = cssVar("--faint"); ctx.globalAlpha = 0.5; ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.moveTo(X(C), g.gy0); ctx.lineTo(X(C), g.gy1); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.fillStyle = cssVar("--faint"); ctx.font = '10px ui-monospace, Menlo, monospace'; ctx.textAlign = "left";
+    ctx.fillText("K = C", X(C) + 5, g.gy0 + 12);
+
+    // law line
+    ctx.beginPath(); ctx.lineWidth = 2.4; ctx.strokeStyle = caveat;
+    ctx.moveTo(X(0), Y(win(0)));
+    for (let kk = 0; kk <= Kmax; kk++) ctx.lineTo(X(kk), Y(win(kk)));
+    ctx.stroke();
+
+    // marker at chosen K
+    const mx = X(K), my = Y(win(K));
+    ctx.beginPath(); ctx.arc(mx, my, 5, 0, 7); ctx.fillStyle = caveat; ctx.fill();
+    ctx.strokeStyle = cssVar("--surface"); ctx.lineWidth = 2; ctx.stroke();
+
+    rco.textContent = C; rko.textContent = K;
+    rWin.textContent = win(K); rRet.textContent = Math.min(K, C);
+  }
+
+  // ---------- wiring ----------
+  let raf = null;
+  function renderAll() { drawFrechet(); drawReplay(); }
+  function schedule() { if (raf) return; raf = requestAnimationFrame(() => { raf = null; renderAll(); }); }
+
+  [fp, fk].forEach((el) => el.addEventListener("input", drawFrechet));
+  [rc, rk].forEach((el) => el.addEventListener("input", drawReplay));
+  window.addEventListener("resize", schedule);
+  const mo = new MutationObserver(schedule);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", schedule);
+
+  renderAll();
+</script>
+
+</body>
+</html>
