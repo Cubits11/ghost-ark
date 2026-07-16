@@ -116,6 +116,9 @@ pub enum VerificationError {
 
 
 
+// Domain-hash helper retained for evidence/transparency tooling and exercised
+// by the stability test below; not on the hot verification path.
+#[allow(dead_code)]
 fn hash(
     input:&str
 )->String{

@@ -1,0 +1,94 @@
+# Ghost-Ark DAB Tier-0 — in-cluster gateway<->verifier round-trip.
+#
+# Demonstrates the custody boundary on Kubernetes: a gateway container (the
+# signing authority) emits a CERTIFIED receipt into a shared evidence volume,
+# and a SEPARATE, independent verifier container checks it. The Job succeeds
+# ONLY if the independent verifier accepts the gateway's receipt in-cluster.
+#
+# This is the runnable analogue of dab/roundtrip/ (recorded transcript) on k8s.
+#
+# Scope / non-claims: single-node cluster, DEV ed25519 key (not KMS/HSM/TPM/
+# Nitro), hermetic emit-receipt (no external egress). It shows the receipt
+# custody + independent verification path runs on k8s — not production key
+# custody, availability, or multi-node consensus.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ghost-ark-dab
+  labels:
+    app.kubernetes.io/part-of: ghost-ark-dab
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dab-roundtrip
+  namespace: ghost-ark-dab
+  labels:
+    app: dab-roundtrip
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: dab-roundtrip
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: evidence
+          emptyDir: {}
+      # The gateway runs first, as an init container: it is the ONLY component
+      # that holds the signing key and emits receipts.
+      initContainers:
+        - name: gateway-emit
+          image: localhost:5000/dab-tools:local
+          imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              PAYLOAD_B64=$(printf 'hello-ghost-ark' | base64 | tr -d '\n')
+              dab-gateway emit-receipt \
+                --payload-b64 "$PAYLOAD_B64" \
+                --nonce nonce-k8s-001 \
+                --timestamp 0 \
+                --pubkey-out /evidence/gateway.pub \
+                > /evidence/receipt.json
+              echo '--- gateway emitted receipt ---'
+              cat /evidence/receipt.json
+              echo '--- gateway public key ---'
+              cat /evidence/gateway.pub
+          volumeMounts:
+            - name: evidence
+              mountPath: /evidence
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      # The independent verifier runs second: it trusts only the public key and
+      # the deterministic evidence, not the gateway process.
+      containers:
+        - name: verifier
+          image: localhost:5000/dab-tools:local
+          imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo 'independent verifier checking the gateway receipt in-cluster'
+              dab-verifier /evidence/receipt.json /evidence/gateway.pub
+          volumeMounts:
+            - name: evidence
+              mountPath: /evidence
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

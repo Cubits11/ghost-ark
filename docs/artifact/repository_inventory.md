@@ -169,11 +169,22 @@ forgetting), and TLC now verifies `NoReplays` over the complete bounded state
 space. **This pipeline still does not edit specs to force a pass** — the repair
 is committed spec design, and the recorded logs are real runs of it.
 
-**Divergence closed:** the Rust implementation (`dab/gateway/src/nonce.rs`) now
-implements tombstones matching the TLA+ model. `consume()` checks both the
-active `entries` map AND the `spent` HashSet. `cleanup_expired()` archives
-evicted nonces into `spent` rather than forgetting them. A nonce consumed at
-time T is now rejected at T+3601. Capacity pressure continues to fail closed.
+**Divergence closed at the module level:** the Rust file
+`dab/gateway/src/nonce.rs` implements tombstones matching the TLA+ model.
+`consume()` checks both the active `entries` map AND the `spent` HashSet.
+`cleanup_expired()` archives evicted nonces into `spent` rather than forgetting
+them. A nonce consumed at time T is rejected at T+3601. Capacity pressure fails
+closed.
+
+**Correction (2026-07-16) — the module is not yet wired in:** `main.rs`
+declares no `mod nonce;`, so `nonce.rs` is **not compiled into the shipped
+gateway binary**, and its unit tests do not run under `cargo test`. The running
+gateway uses an inline monotonic `HashSet` ledger (replay-safe within a process,
+but without the TTL/capacity/tombstone semantics the model verifies). So the
+model↔binary conformance for tombstones is **not** exercised today; only the
+model↔module correspondence is. See §7.5 residuals. Do not claim the running
+gateway implements the verified tombstone model until `nonce.rs` is wired into
+`main.rs` and its tests run.
 
 **Bounded caveat (stated, not hidden):** the in-process `spent` HashSet is
 bounded at `MAX_SPENT_ENTRIES` (500,000). When this limit is reached, oldest
@@ -207,30 +218,53 @@ full-suite import/transform contention (88 s import time), but **pass in isolati
 negative without editing committed test logic. This is an environment accommodation,
 not a correctness change.
 
-### 7.5 DAB reproduction plumbing is broken
-- `dab/bench/attacks/*.ts` have no CLI entrypoint, so the AE Appendix's
-  `npx ts-node dab/bench/attacks/mutation.ts` prints nothing.
-- `dab/bench/run_all.js` and `dab/bench/run.ts` (referenced by `dab/reproduce.sh`
-  and `dab/agent-runtime/package.json`) do not exist.
-- `dab/docker-compose.yml` build contexts (`./agent`, `./dab-gateway`) do not match
-  the real directories (`agent-runtime`, `gateway`); `dab/Dockerfile.agent` and
-  `dab/Dockerfile.gateway` are **empty (0 bytes)**.
-- The gateway emits `gateway_signature: "DEV_SIGNATURE:<sha256>"` and no
-  `policy_digest`; the Rust verifier requires a hex-encoded ed25519 signature over a
-  message that includes `policy_digest`. Gateway receipts therefore **cannot** verify
-  against the independent verifier. This is a TCB correctness gap, out of scope for a
-  packaging pass, and is left for the author.
-  - *Dated note (2026-07-16):* this sub-item has partially evolved —
-    `policy_digest` is now present throughout `dab/gateway/src/receipts.rs` and
-    the `DEV_SIGNATURE` marker is gone. **No end-to-end gateway↔independent-
-    verifier run has been recorded**, so the gap is downgraded to "unverified",
-    not "closed"; nothing should cite the Rust receipt path as working until a
-    recorded round-trip exists.
-- No `Cargo.lock` → `cargo build --locked` fails.
+### 7.5 DAB reproduction plumbing — round-trip CLOSED 2026-07-16; residuals noted
+Historical state and its resolution, item by item:
 
-`make attack` / `make benchmark` therefore run the **TypeScript** suites directly
-(real, self-contained code) rather than the broken container path. The container
-path is documented but not claimed to work.
+- `dab/bench/attacks/*.ts` have no CLI entrypoint (the AE Appendix's
+  `npx ts-node dab/bench/attacks/mutation.ts` prints nothing). **Open**, but
+  `dab/bench/run_all.ts` is the real, shipped aggregate entrypoint and is what
+  the benchmark uses.
+- ~~`dab/docker-compose.yml` build contexts (`./agent`, `./dab-gateway`) and two
+  empty (0-byte) `Dockerfile.agent`/`Dockerfile.gateway`~~ — **RESOLVED**: the
+  empty Dockerfiles are removed; `dab/Dockerfile` (multi-stage, both binaries)
+  is added; `dab/docker-compose.yml` is rewritten to a working, hermetic
+  gateway→verifier round-trip that builds and runs.
+- ~~The gateway emits `DEV_SIGNATURE:<sha256>` with no `policy_digest`, so
+  gateway receipts **cannot** verify against the independent verifier~~ —
+  **RESOLVED and RECORDED**: the live certified-receipt path
+  (`build_certified_receipt` in `dab/gateway/src/main.rs`, signing in
+  `dab/gateway/src/signing.rs`) now emits `policy_digest` and a real hex
+  ed25519 signature over the verifier's exact canonical message. The verifier
+  crate (its `Cargo.toml` was empty and it had no `fn main`) is now a proper
+  `lib` + CLI `bin`; **verification logic is unchanged** — the fix conformed the
+  gateway to the verifier's contract. A recorded gateway↔verifier round-trip
+  (certified verifies; tamper/mutation/wrong-key rejected) is in
+  `dab/roundtrip/RECORDED_ROUNDTRIP.txt`, reproduced by
+  `bash dab/roundtrip/run_in_docker.sh`, and demonstrated on Kubernetes by
+  `dab/k8s/`.
+- ~~No `Cargo.lock` → `cargo build --locked` fails~~ — **RESOLVED**: both crates
+  now commit a `Cargo.lock`; `cargo build --locked` / `cargo test --locked`
+  work.
+
+**Residuals that remain open (stated, not hidden):**
+- The untrusted **agent** runtime (`dab/agent-runtime/`) is a library with no
+  runnable entrypoint, so the full agent→gateway **Unix-socket** transport is a
+  documented deployment sketch (`dab/k8s/README.md`), not an exercised path. The
+  `emit-receipt` mode used by the round-trip runs the same
+  `build_certified_receipt` signing code as the socket handler.
+- `dab/gateway/src/nonce.rs` (the TLC-verified spent-tombstone ledger),
+  `receipts.rs`, and `verifier.rs` are **orphaned**: `main.rs` declares no
+  `mod`, so they are not compiled into the shipped gateway binary. The running
+  gateway's replay protection is an inline monotonic `HashSet` (rejects all
+  replays within a process; no TTL/capacity/tombstone semantics). This corrects
+  any earlier reading of §7.2 as "the running binary implements the tombstone
+  model" — the *module* exists and matches the model, but it is not wired in.
+  Wiring `nonce.rs` into `main.rs` is the honest next step.
+
+`make attack` / `make benchmark` continue to run the **TypeScript** suites
+directly (real, self-contained code); the Rust binaries are exercised by the
+round-trip harness and their own `cargo test`.
 
 ### 7.6 The DAB benchmark scores two suites backwards — RESOLVED (`cd66782`)
 Historical state: when the suites were actually executed (via the new

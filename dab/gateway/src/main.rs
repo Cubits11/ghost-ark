@@ -50,6 +50,9 @@ use signing::{
 
 use std::sync::Arc as StdArc;
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD as BASE64;
+
 
 
 
@@ -87,6 +90,11 @@ type NonceLedger =
 
 
 
+// `version`, `payload_encoding`, and `issued_at` are received as part of the
+// agent's wire schema and recorded, but the Tier-0 gateway does not branch on
+// them (payload is assumed base64; ordering lives in the nonce, not issued_at).
+// They are retained so the request shape stays stable and auditable.
+#[allow(dead_code)]
 #[derive(Debug,Deserialize)]
 struct GatewayRequest {
 
@@ -162,6 +170,10 @@ struct GatewayReceipt {
 
 
 
+// Some variants are reserved for the structured-error refactor of the socket
+// handler (which currently writes receipts inline); keep them documented rather
+// than silently dropped.
+#[allow(dead_code)]
 #[derive(Debug)]
 enum GatewayError {
 
@@ -309,7 +321,7 @@ fn decode_payload(
 )->Result<Vec<u8>,GatewayError>{
 
 
-    base64::decode(encoded)
+    BASE64.decode(encoded)
         .map_err(
             |_| GatewayError::InvalidRequest(
                 "Invalid base64 payload"

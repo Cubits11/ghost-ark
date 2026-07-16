@@ -1,0 +1,39 @@
+Ghost-Ark DAB Tier-0 round-trip
+gateway  = /dab/gateway
+verifier = /dab/verifier
+------------------------------------------------------------
+[build] release binaries
+gateway  bin: /dab/gateway/target/release/dab-gateway
+verifier bin: /dab/verifier/target/release/dab-verifier
+------------------------------------------------------------
+[1] emit CERTIFIED receipt and verify
+{
+  "protocol": "DAB-TIER0-V1",
+  "status": "CERTIFIED",
+  "c_i": "sha256:9ca3facb3701c518da62dd3464e68afc79c18bdf887250c3e0cb5888cc70dd77",
+  "c_e": "sha256:9ca3facb3701c518da62dd3464e68afc79c18bdf887250c3e0cb5888cc70dd77",
+  "nonce": "nonce-roundtrip-001",
+  "timestamp": "0",
+  "policy_digest": "sha256:be27d158c3f8c0fa58ba568db4ba41ca099db9d23af503958bb0a6f0fdba2405",
+  "gateway_signature": "08262ba957f9841974e1598961923f02971669ef46d78f896228a87d3dbcdd58fb7d8d660cbbc2bb12fe47ec9ece8ef1df579167afc8468c4195f51c33b97601"
+}
+gateway_public_key = 4cb5abf6ad79fbf5abbccafcc269d85cd2651ed4b885b5869f241aedf0a5ba29
+VERIFIED
+PASS  certified receipt -> VERIFIED
+------------------------------------------------------------
+[2] tamper policy_digest, expect REJECTED
+REJECTED: InvalidSignature
+PASS  tampered receipt -> REJECTED (exit 1)
+------------------------------------------------------------
+[3] emit --mutate (c_i != c_e), expect MUTATION_DETECTED_HALT + REJECTED
+PASS  gateway emitted MUTATION_DETECTED_HALT
+REJECTED: InvalidStatus
+PASS  mutation receipt -> REJECTED (exit 1)
+------------------------------------------------------------
+[4] verify certified receipt with a DIFFERENT key, expect REJECTED
+wrong_public_key = 3ee2a8a7283cb2fd728943daa127ef09e483071a8b4bc699ba4522f09b14cfde
+REJECTED: InvalidSignature
+PASS  wrong key -> REJECTED (exit 1)
+------------------------------------------------------------
+SUMMARY: 5 passed, 0 failed
+ROUND-TRIP: OK

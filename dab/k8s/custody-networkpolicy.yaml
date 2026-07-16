@@ -1,0 +1,32 @@
+# Ghost-Ark DAB Tier-0 — custody-boundary NetworkPolicy.
+#
+# Encodes the paper's isolation intent (§ deployment sketch): a pod running the
+# untrusted agent has NO external network routes; the only path to the outside
+# is through the gateway. This policy denies all egress from pods labeled
+# `dab-role: agent` except DNS, so an infected agent cannot exfiltrate directly
+# — its effects must pass the gateway's commit pipeline or not leave at all.
+#
+# Note: enforcement requires a CNI that implements NetworkPolicy. On clusters
+# whose CNI ignores NetworkPolicy (some single-node dev setups), this object
+# applies cleanly but is not enforced; it is shipped as the declarative custody
+# boundary, and its enforcement is a property of the target CNI, not a claim of
+# this repository.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dab-agent-deny-egress
+  namespace: ghost-ark-dab
+spec:
+  podSelector:
+    matchLabels:
+      dab-role: agent
+  policyTypes:
+    - Egress
+  egress:
+    # DNS only (so in-cluster name resolution works); no other egress.
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

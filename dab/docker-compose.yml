@@ -1,24 +1,58 @@
-version: '3.8'
-
+# Ghost-Ark DAB Tier-0 — hermetic gateway <-> independent-verifier round-trip.
+#
+#   docker compose -f dab/docker-compose.yml up --build --abort-on-container-exit
+#
+# The gateway (signing authority) emits a CERTIFIED receipt into a shared
+# evidence volume; the independent verifier then checks it. `verifier` exits 0
+# iff it accepts the gateway's receipt. Both run with NO network (network_mode:
+# none) to make explicit that the emit/verify path needs no external egress.
+#
+# This replaces the previous non-building stub (wrong build contexts ./agent and
+# ./dab-gateway, and two empty Dockerfiles). The full agent<->gateway Unix-socket
+# custody boundary is sketched in dab/k8s/README.md; the runnable, verified
+# artifacts are this compose file and the k8s Job in dab/k8s/.
+#
+# Scope: DEV ed25519 key (not KMS/HSM/TPM/Nitro), single host. See
+# dab/roundtrip/README.md for the full non-claims.
 services:
-  agent-runtime:
-    build: 
-      context: ./agent
-    # EXP 1: Agent has NO external network routes (eBPF / kernel namespace drops)
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
     network_mode: none
     volumes:
-      - uds_ipc:/ipc
-    depends_on:
-      - dab-gateway
+      - evidence:/evidence
+    user: "10001:10001"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        PAYLOAD_B64=$$(printf 'hello-ghost-ark' | base64 | tr -d '\n')
+        dab-gateway emit-receipt \
+          --payload-b64 "$$PAYLOAD_B64" \
+          --nonce nonce-compose-001 \
+          --timestamp 0 \
+          --pubkey-out /evidence/gateway.pub \
+          > /evidence/receipt.json
+        echo '--- gateway emitted receipt ---'
+        cat /evidence/receipt.json
 
-  dab-gateway:
-    build: 
-      context: ./dab-gateway
-    network_mode: bridge
+  verifier:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: none
+    depends_on:
+      gateway:
+        condition: service_completed_successfully
     volumes:
-      - uds_ipc:/ipc
-    environment:
-      - KMS_DEV_PRIVATE_KEY=/keys/gateway.pem
+      - evidence:/evidence
+    user: "10001:10001"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo 'independent verifier checking gateway receipt'
+        dab-verifier /evidence/receipt.json /evidence/gateway.pub
 
 volumes:
-  uds_ipc:
+  evidence:

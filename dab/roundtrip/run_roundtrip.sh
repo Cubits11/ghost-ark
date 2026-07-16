@@ -63,9 +63,12 @@ line
 
 # ---- 2. Tampered receipt is rejected --------------------------------------
 echo "[2] tamper policy_digest, expect REJECTED"
-sed 's/"policy_digest":"[^"]*"/"policy_digest":"sha256:ATTACKER"/' \
+# Match pretty-printed JSON ("key": "value" with optional whitespace).
+sed -E 's/("policy_digest"[[:space:]]*:[[:space:]]*")[^"]*"/\1sha256:ATTACKER"/' \
   "$WORK/certified.json" > "$WORK/tampered.json"
-if "$VERIFIER" "$WORK/tampered.json" "$PUBKEY" ; then
+if ! grep -q 'sha256:ATTACKER' "$WORK/tampered.json"; then
+  bad "tamper sed did not modify the receipt (test bug, not a crypto result)"
+elif "$VERIFIER" "$WORK/tampered.json" "$PUBKEY" ; then
   bad "tampered receipt should NOT have verified"
 else
   ok "tampered receipt -> REJECTED (exit $?)"
