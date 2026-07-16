@@ -21,25 +21,27 @@ commands in each row) at HEAD before trusting any status below.
 
 The single-command entrypoint is `make reproduce`. It is **fail-closed and
 honest**: it runs real commands, records real exit codes, and does **not** print
-a green banner unless every required stage actually passed. At the time this
-inventory was written, `make reproduce` exits **non-zero** because of the
-pre-existing HEAD blockers in §7. That is the correct behavior for an
-artifact-evaluation harness — it reports the repository's real state rather than
-a manufactured one.
+a green banner unless every required stage actually passed. When this inventory
+was first written (2026-07-15), `make reproduce` exited **non-zero** because of
+real HEAD blockers; that red result was published rather than patched around.
+As of **2026-07-16** the previously red gating stages have been resolved by
+ordinary reviewed fixes (details preserved in §7.1–§7.3 and §7.6 as RESOLVED
+entries), and the compute stages pass. The harness itself is unchanged: it
+still reports whatever is true.
 
-| Stage | Command | Local status (2026-07-15) |
+| Stage | Command | Local status (2026-07-16) |
 |-------|---------|---------------------------|
 | Lint (types) | `npm run lint` | **PASS** |
-| Unit/integration | `npm test` (630 tests) | **FLAKY** — 6 CDK-synth timeouts under full-suite load; pass in isolation. Harness runs with raised timeout (§7.4). |
-| Claim gate | `npm run scan:claims` | **FAIL** — 11 forbidden-claim violations in committed dissertation chapters (§7.3) |
+| Unit/integration | `npm test` (640 tests / 97 files) | **PASS via harness** — `make unit` green at HEAD; plain `npm test` retains the load-sensitivity accommodation of §7.4 |
+| Claim gate | `npm run scan:claims` | **PASS** — 0 violations at HEAD; scanner coverage extended to `.tex`/`.bib` so the conference manuscript (`docs/paper/`) is inside the gate (§7.3, resolved) |
 | Proofs (proofs/tla) | `make proof` | **PASS** — ProvenanceLattice / SpeculativeCollapse / TransportBoundary + mutants parse and check |
-| Proofs (proofs/dab) | `make proof` | **FAIL/QUARANTINED** — invalid TLA+; corrected baseline refutes its own invariant (§7.1–7.2) |
+| Proofs (proofs/dab) | `make proof` | **PASS (bounded)** — baseline `NoReplays`+`EventualGC` clean over the complete bounded space; mutant counterexample reproduced (§7.1–7.2; capacity caveat stated) |
 | Attack suites (root security) | `make attack` | **PASS** — `tests/security/**` (policy fuzzer, negative corpus, tenant boundary) |
-| Attack suites (DAB bench) | `make attack` | **FAIL** — bench runs, but two suites have inverted accounting → `global_advantage ≈ 0.25`, `all_passed=false` (§7.6) |
-| Benchmarks (TS) | `make benchmark` | **RUNS** — latency/throughput/overhead exported to `artifacts/benchmarks/`; numbers are real but see §7.6 |
-| DAB container path | `docker compose -f dab/docker-compose.yml up` | **BROKEN** — wrong build contexts, empty Dockerfiles, receipt-shape mismatch (§7.5) |
-| Dissertation PDF | `make dissertation` | **BLOCKED** — needs pandoc+latexmk (in container); gated by the RED claim scanner (§7.3) |
-| Rust TCB (DAB) | `cargo build --locked` | **BLOCKED locally** — no cargo on this host; no `Cargo.lock` for `--locked` (§7.5) |
+| Attack suites (DAB bench) | `make attack` | **PASS** — accounting corrected (`cd66782`); `global_advantage = 0` over 10,000 trials, `all_passed = true` (recorded 2026-07-16; §7.6, resolved) |
+| Benchmarks (TS) | `make benchmark` | **RUNS** — latency/throughput/overhead exported to `artifacts/benchmarks/`; interpretation guidance in `README-AE.md` (row 3: absolute µs, not the no-op-relative ratio) |
+| DAB container path | `docker compose -f dab/docker-compose.yml up` | **BROKEN** — wrong build contexts, empty Dockerfiles (§7.5; receipt-shape items have partially evolved, see the dated note there) |
+| Dissertation PDF | `make dissertation` | **TOOLCHAIN-GATED** — claim gate is green at HEAD; needs pandoc+latexmk (present in the reviewer container); a claim-clean PDF build has not yet been exercised on this host |
+| Rust TCB (DAB) | `cargo build --locked` | **BLOCKED locally** — no `Cargo.lock` for `--locked` (§7.5) |
 
 ---
 
@@ -180,14 +182,22 @@ older than both the TTL and the tombstone capacity. Production deployments
 should use a durable external store (Redis, DynamoDB conditional writes, or
 TPM-backed counters) where tombstone capacity is not memory-bound.
 
-### 7.3 Claim gate is RED at HEAD
-`npm run scan:claims` reports **11 violations**, all in committed dissertation
-chapters (`00`, `03`, `05`, `06`, `08`, `10`): absolute-assurance phrasing
-outside the Ghost-Ark claim boundary that the scanner flags (run the scanner to
-see the exact lines and words).
-`make dissertation` runs the scanner as a fail-closed gate and will not emit a PDF
-until the prose is brought within the claim boundary. The pipeline does **not**
-rewrite the prose.
+### 7.3 Claim gate is RED at HEAD — RESOLVED 2026-07-16
+Historical state (2026-07-15): `npm run scan:claims` reported **11 violations**,
+all in committed dissertation chapters (`00`, `03`, `05`, `06`, `08`, `10`) —
+absolute-assurance phrasing outside the Ghost-Ark claim boundary.
+`make dissertation` refused to emit a PDF while the gate was red, and the
+pipeline did **not** rewrite the prose.
+
+**Resolution:** the dissertation prose was brought within the claim boundary by
+ordinary reviewed edits, and the scanner now reports **0 violations at HEAD**.
+Coverage was additionally **extended** (not weakened) on 2026-07-16: `.tex` and
+`.bib` are now scannable extensions, so the conference manuscript
+(`docs/paper/main.tex`) is inside the same gate — this immediately caught, and
+forced the repair of, two blanket-assurance phrases introduced into the
+manuscript during author editing. The scanner's own unit suites
+(`checkForbiddenClaims.test.ts`, `claimScannerHardening.test.ts`, 57 tests)
+pass with the extended coverage.
 
 ### 7.4 Full `npm test` is flaky under load
 Six CDK-synth integration tests (`tests/integration/api/template-*.test.ts`,
@@ -210,18 +220,24 @@ not a correctness change.
   message that includes `policy_digest`. Gateway receipts therefore **cannot** verify
   against the independent verifier. This is a TCB correctness gap, out of scope for a
   packaging pass, and is left for the author.
+  - *Dated note (2026-07-16):* this sub-item has partially evolved —
+    `policy_digest` is now present throughout `dab/gateway/src/receipts.rs` and
+    the `DEV_SIGNATURE` marker is gone. **No end-to-end gateway↔independent-
+    verifier run has been recorded**, so the gap is downgraded to "unverified",
+    not "closed"; nothing should cite the Rust receipt path as working until a
+    recorded round-trip exists.
 - No `Cargo.lock` → `cargo build --locked` fails.
 
 `make attack` / `make benchmark` therefore run the **TypeScript** suites directly
 (real, self-contained code) rather than the broken container path. The container
 path is documented but not claimed to work.
 
-### 7.6 The DAB benchmark scores two suites backwards
-When the suites are actually executed (via the new `dab/bench/run_all.ts`), the
-aggregate reports `global_advantage ≈ 0.25` and `all_passed = false` — contradicting
-`dab/reproduce.sh`, which hardcodes `global_advantage == 0`, and the dissertation's
-"100% detection." The cause is **inverted accounting in the benchmark, not a real
-defense failure**:
+### 7.6 The DAB benchmark scores two suites backwards — RESOLVED (`cd66782`)
+Historical state: when the suites were actually executed (via the new
+`dab/bench/run_all.ts`), the aggregate reported `global_advantage ≈ 0.25` and
+`all_passed = false` — contradicting `dab/reproduce.sh`, which hardcodes
+`global_advantage == 0`, and the dissertation's "100% detection." The cause was
+**inverted accounting in the benchmark, not a real defense failure**:
 - `formal_games.ts::replayGame` sets `replayAccepted = ledger.has(nonce)` and counts
   that as attacker `success`. But a nonce already in the ledger means the replay was
   **detected**; the game scores a detected replay as an attacker win, yielding
@@ -230,10 +246,21 @@ defense failure**:
   where `safe = Object.hasOwn(payload, "amount")` is `true` (the own property is
   present and un-shadowed). It labels a safe outcome as "not detected."
 
-The modeled ledger and own-property checks work; the scoring is wrong. This pipeline
-does **not** rewrite the game logic — the intended semantics belong to the author.
-It runs the suites honestly and lets the real (red) result stand, so the AEC report
-reflects the repository's actual state.
+The modeled ledger and own-property checks work; the scoring was wrong. The
+pipeline did **not** rewrite the game logic — it ran the suites honestly and let
+the real (red) result stand until the author's accounting fix landed as an
+ordinary reviewed commit (`cd66782`).
+
+**Resolution, with recorded evidence (2026-07-16):**
+`node --experimental-strip-types dab/bench/run_all.ts --trials 10000` at HEAD
+reports `global_advantage = 0` and `all_passed = true`; all four formal games
+(Mutation Resistance, Replay Resistance, Cross Transaction Binding,
+Serialization Ambiguity) report `advantage = 0` over 10,000 trials each, and
+all nine corpus attacks report `detected = true`. Scope is unchanged and
+normative: these are in-suite results under the modeled attacker (see the
+non-claim header in `dab/bench/run_all.ts`); the period during which this
+repository published its own red result is retained above as methodological
+history — see also the manuscript's §5.4 ("A disclosed harness bug").
 
 ## 8. What the pipeline adds vs. what it deliberately leaves alone
 
