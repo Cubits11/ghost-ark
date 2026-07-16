@@ -24,15 +24,18 @@ if ! (cd "$ROOT" && node tools/research/check-forbidden-claims.mjs); then
   exit 2
 fi
 
-echo "[paper] 2/2 latexmk"
+echo "[paper] 2/2 compile"
 if command -v latexmk >/dev/null 2>&1; then
   (cd "$HERE" && latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex)
+elif command -v tectonic >/dev/null 2>&1; then
+  (cd "$HERE" && tectonic main.tex)
 elif command -v docker >/dev/null 2>&1 && docker image inspect ghost-ark-reviewer:latest >/dev/null 2>&1; then
   docker run --rm -v "$ROOT:/work" -w /work/docs/paper ghost-ark-reviewer:latest \
     latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
 else
-  echo "[paper] No latexmk on host and no ghost-ark-reviewer:latest image." >&2
-  echo "[paper] Build it first:  docker compose -f docker-compose.reviewer.yml build" >&2
+  echo "[paper] No latexmk or tectonic on host and no ghost-ark-reviewer:latest image." >&2
+  echo "[paper] Fastest fix:  brew install tectonic   (or build the reviewer image:" >&2
+  echo "[paper] docker compose -f docker-compose.reviewer.yml build)" >&2
   echo "[paper] NOT claiming success; no PDF was produced." >&2
   exit 3
 fi

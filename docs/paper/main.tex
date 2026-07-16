@@ -279,7 +279,8 @@ phase. \ghostark{}'s contribution is that row.
 \midrule
 Read uncommitted & API-coupled loop; mutate per step & dirty writes: pre-abort
 steps already leaked \\
-Read committed & sandbox + buffered intent pool & write skew: stale reasoning
+Read committed & sandbox + buffered intent pool (e.g., NemoClaw-style
+isolated execution~\cite{nemoclaw2026}) & write skew: stale reasoning
 flushed onto shifted state \\
 Serializable (OCC) & \ghostark{}: speculate in $G(\sigma_0)$, validate, then
 bind & aborts under conflict; liveness cost analyzed in \S\ref{sec:starvation} \\
@@ -578,15 +579,33 @@ permanent regression witness.
 \label{sec:eval-corpus}
 
 At HEAD, the nine-attack corpus (\S\ref{sec:modeled}) reports every attack
-\emph{detected} in-suite, and the four security games --- mutation
-resistance, replay resistance, cross-transaction binding, serialization
-ambiguity --- report attacker advantage \globaladvantage{} over
-\benchtrials{} trials each ($\Pr[\text{win}] = 0$ across
+\emph{detected} in-suite, and the four security games report attacker
+advantage \globaladvantage{} over \benchtrials{} trials each
+(Table~\ref{tab:games}) ($\Pr[\text{win}] = 0$ across
 $4\times\benchtrials{}$ trials; a zero observed rate over $10^4$ trials is
 consistent, at 95\% confidence, with a true per-trial success probability
 below $\approx 3\times10^{-4}$~\cite{hanley1983rule}, and says nothing about
 attacks outside the modeled family). The aggregate
 \texttt{global\_advantage} $=$ \globaladvantage{} with all suites passing.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Security game} & \textbf{Trials} & \textbf{Adversary advantage}\\
+\midrule
+Mutation resistance        & \benchtrials{} & 0 \\
+Replay resistance          & \benchtrials{} & 0 \\
+Cross-transaction binding  & \benchtrials{} & 0 \\
+Serialization ambiguity    & \benchtrials{} & 0 \\
+\bottomrule
+\end{tabular}
+\caption{Formal security games at HEAD (recorded run, 2026-07-16). Advantage
+is the fraction of trials the modeled attacker wins. In-suite results under
+the modeled attacker; the non-claim header of \texttt{run\_all.ts} is
+normative.}
+\label{tab:games}
+\end{table}
 
 The scope qualifier is not fine print; it is the result's semantics. These
 are \emph{in-suite detection rates under the modeled attacker} --- an
@@ -756,10 +775,14 @@ agent-asserted) rather than compiler-tracked types.
 in~\cite{greshake2023not}; InjecAgent~\cite{zhan2024injecagent} benchmarks
 it for tool-integrated agents; ReAct~\cite{yao2023react} is the canonical
 coupled loop this paper's Table~\ref{tab:isolation} places at read
-uncommitted. Sandbox isolation (e.g.,
-Firecracker~\cite{agache2020firecracker}) is complementary: it bounds the
-blast radius of a process, while \ghostark{} bounds the \emph{admissibility
-of its effects} and evidences every decision.
+uncommitted. Sandbox isolation is complementary at two layers ---
+infrastructure microVMs (Firecracker~\cite{agache2020firecracker}) and
+agent-focused confinement stacks such as NVIDIA NemoClaw, which runs the
+agent under Landlock/seccomp/network-namespace isolation with policy-gated
+egress~\cite{nemoclaw2026}. Both bound the blast radius of a \emph{process};
+\ghostark{} bounds the \emph{admissibility of its effects} and evidences
+every decision --- Table~\ref{tab:isolation}'s read-committed row is exactly
+the sandbox posture, strengthened here with a validation phase.
 
 \textbf{Transparency.} Receipt chains and independent replay are in the
 spirit of Certificate Transparency~\cite{laurie2014ct}: shrink the trusted
@@ -808,6 +831,76 @@ reproduce the failure boundary.
 % ============================================================================
 \section*{Acknowledgments}
 The author utilized an AI assistant to help format, refine, and draft the prose of this manuscript; however, the architectural design, formal modeling, experimental execution, and final conclusions are the sole work of the author, who takes full responsibility for the contents of this paper.
+% ============================================================================
+\appendix
+\section{Artifact Appendix}
+\label{sec:appendix}
+
+\subsection{Abstract}
+The artifact is the complete repository: the TypeScript enforcement runtime
+and receipt schema, the Rust gateway sources, five TLA+ models with five
+mutants and their recorded TLC logs, the nine-attack adversarial corpus and
+four security games, the performance harness, the claim-language scanner
+that gates the repository's own documentation (including this manuscript's
+\texttt{.tex} source), and a one-command reproduction pipeline that writes a
+machine-readable pass/fail roll-up. It reproduces every number in
+Tables~\ref{tab:tlc}--\ref{tab:perf}.
+
+\subsection{Checklist}
+\begin{itemize}
+\item \textbf{Program:} Node.js 22 (TypeScript via native type-stripping),
+  JDK $\ge$ 11 for TLC (pinned \texttt{tla2tools.jar}), optionally Rust
+  stable for the gateway tests.
+\item \textbf{Run-time environment:} Linux x86\_64 or macOS arm64; or the
+  provided Ubuntu 22.04 reviewer container (zero host setup beyond Docker).
+\item \textbf{Hardware:} any commodity machine; the paper's latency numbers
+  are from an Apple M1 (8\,GB) and reproduce within machine variance.
+\item \textbf{Metrics:} attacker advantage, detection flags, TLC
+  distinct-state counts, latency percentiles, test counts, claim-gate status.
+\item \textbf{Expected wall-clock:} proofs $\sim$15--25\,s; corpus + games
+  $\sim$30--60\,s; full unit suite $\sim$2.5--3.5\,min;
+  \texttt{make reproduce} end-to-end $\sim$4--5\,min (46\,s on the reference
+  machine with a warm dependency cache).
+\item \textbf{Public availability:} the repository is public; an immutable
+  archived snapshot (e.g., Zenodo DOI) is the intended citable artifact.
+\end{itemize}
+
+\subsection{Claims mapped to commands}
+The authoritative map is \texttt{README-AE.md} at the repository root; the
+digest:
+\begin{itemize}
+\item Table~\ref{tab:tlc} (models clean, mutants violate, state counts):
+  \texttt{make proof} $\rightarrow$
+  \texttt{artifacts/proofs/proofs\_summary.json}. Exact match.
+\item Table~\ref{tab:games} and the nine-attack corpus:
+  \texttt{node -{}-experimental-strip-types dab/bench/run\_all.ts
+  -{}-trials 10000} $\rightarrow$ \texttt{global\_advantage: 0},
+  \texttt{all\_passed: true}. Exact match.
+\item Table~\ref{tab:perf}: same command (the \texttt{performance} block) or
+  \texttt{make benchmark}. Microsecond scale reproduces; exact values are
+  machine-dependent.
+\item Test counts (\testcount{}/\testfiles{}): \texttt{make unit}. Exact.
+\item Claim gate (\claimfiles{} files, 0 violations):
+  \texttt{npm run scan:claims}. Exact.
+\item Semantic-gate bound (\S\ref{sec:frechet}):
+  \texttt{npx vitest run
+  tests/unit/receipt-schema/semanticAuditReceipt.test.ts}. Exact.
+\item Full roll-up: \texttt{make reproduce} (container:
+  \texttt{docker compose -f docker-compose.reviewer.yml run -{}-rm reviewer
+  make reproduce}); exit code 0 iff every gating stage passed.
+\end{itemize}
+
+\subsection{What the artifact deliberately does not show}
+No live-cloud behavior (KMS-mode signing, cloud latency); no end-to-end
+Rust gateway$\leftrightarrow$independent-verifier round-trip (a recorded gap
+in the repository inventory); nothing semantic. The reproduction pipeline
+publishes its own failures: at earlier commits it exited non-zero on real
+blockers --- including a period when the benchmark's inverted accounting
+(\S\ref{sec:eval-bug}) kept the artifact red --- and the RESOLVED entries
+retain that history. An evaluator who wants to test the fail-closed behavior
+can reintroduce any forbidden phrase into a scanned file and watch the claim
+stage refuse.
+
 % ============================================================================
 \begin{thebibliography}{99}\small
 
@@ -873,6 +966,12 @@ A.~Agache, M.~Brooker, A.~Iordache, A.~Liguori, R.~Neugebauer, P.~Piwonka,
 and D.-M. Popa.
 Firecracker: lightweight virtualization for serverless applications.
 In \emph{NSDI}, 2020.
+
+\bibitem{nemoclaw2026}
+NVIDIA.
+NemoClaw architecture overview.
+\url{https://docs.nvidia.com/nemoclaw/latest/about/how-it-works}, 2026.
+Accessed 2026-07-16.
 
 \bibitem{laurie2014ct}
 B.~Laurie.
