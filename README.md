@@ -36,10 +36,7 @@ This verifier executes entirely locally against the supplied public key.
 
 ```mermaid
 graph TD
-
-    A[Untrusted LLM Agent]
-        -->|Speculative Intent|
-        B(Ghost Replica / Execution Buffer)
+    A[Untrusted LLM Agent] -->|Speculative Intent| B(Ghost Replica / Execution Buffer)
 
     B --> C{Three-Gate Validation}
 
