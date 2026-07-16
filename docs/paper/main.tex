@@ -23,6 +23,10 @@
 \usepackage{enumitem}
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{fillbetween}
+\usetikzlibrary{positioning, arrows.meta}
 
 \captionsetup{font=small,labelfont=bf}
 \setlist{nosep,leftmargin=1.2em}
@@ -356,26 +360,38 @@ a boundary we state precisely because eliding it is how enforcement systems
 come to overclaim. \statusimpl{}
 
 \begin{figure}[t]
-\small
-\begin{verbatim}
- speculative trace tau  (in ghost replica G_0)
-        |
-        v
- [1] Ledger gate   n_i in spent/ledger? --> ABORT
-        |                                   (collapse
-        v                                    + receipt)
- [2] OCC gate      H(piR(now)) !=
-                   H(piR(sigma_0))?  ----->  ABORT
-        |
-        v
- [3] Semantic gate min(1, sum p_i) >
-                   policy?           ----->  ABORT
-        |
-        v
- VerifyAndBind: commit buffer, emit signed receipt
-\end{verbatim}
-\caption{Three-gate validation. Every path --- commit or abort --- terminates
-in a signed receipt. Gate 2 is specified but not yet enforced at runtime.}
+\centering
+\begin{tikzpicture}[
+  node distance=4.2mm,
+  box/.style={draw, rounded corners, align=center, font=\scriptsize,
+              minimum width=3.5cm, minimum height=6.5mm},
+  gate/.style={draw, align=center, font=\scriptsize, fill=blue!5,
+               minimum width=3.5cm, minimum height=7mm},
+  ar/.style={-{Latex[length=1.4mm]}},
+]
+\node[box, fill=gray!8] (trace) {speculative trace $\tau$ \ (in $G(\sigma_0)$)};
+\node[gate, below=of trace] (g1)
+  {\textbf{1. Ledger} \ $n_i \in$ spent/ledger?};
+\node[gate, below=of g1] (g2)
+  {\textbf{2. OCC} \ $\mathcal{H}(\piR(\sigma_{\mathrm{now}})){\ne}\mathcal{H}(\piR(\sigma_0))$?};
+\node[gate, below=of g2] (g3)
+  {\textbf{3. Semantic} \ $\min(1,\textstyle\sum p_i){>}$ policy?};
+\node[box, below=of g3, fill=green!8] (commit)
+  {\textbf{VerifyAndBind} \ commit + signed receipt};
+\node[box, right=1.1cm of g2, fill=red!6, minimum width=2.7cm] (abort)
+  {\textbf{Speculative} \\ \textbf{Collapse} \\ revert $+$ abort receipt};
+\draw[ar] (trace) -- (g1);
+\draw[ar] (g1) -- node[left, font=\tiny] {no} (g2);
+\draw[ar] (g2) -- node[left, font=\tiny] {no} (g3);
+\draw[ar] (g3) -- node[left, font=\tiny] {no} (commit);
+\draw[ar] (g1.east) -- node[above, font=\tiny, pos=0.35] {yes} (abort.west |- g1.east);
+\draw[ar] (g2.east) -- node[above, font=\tiny, pos=0.35] {yes} (abort.west);
+\draw[ar] (g3.east) -- node[above, font=\tiny, pos=0.35] {yes} (abort.west |- g3.east);
+\end{tikzpicture}
+\caption{Three-gate validation. Every path --- commit or any-gate abort ---
+terminates in a signed receipt. Gate~2 (OCC over $\piR$) is specified but not
+yet enforced at runtime; gates~1 and~3 are implemented and, for the ledger,
+wired from the TLC-verified tombstone model.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -465,7 +481,37 @@ materialize their result set into the projection or the gate inherits the
 phantom problem~\cite{berenson1995critique}; an unfaithfully narrow $\piR$
 weakens conflict detection in proportion to what it omits. Serializability
 under $\piR$ is therefore conditional on read-set faithfulness --- a property
-of instrumentation, not of the gate. \statusspec{}
+of instrumentation, not of the gate (Figure~\ref{fig:starvation}).
+\statusspec{}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{semilogyaxis}[
+  width=\columnwidth, height=4.5cm,
+  xlabel={speculation time $d$ (s)}, ylabel={commit probability},
+  xmin=0, xmax=60, ymin=1e-14, ymax=3,
+  ytick={1,1e-3,1e-6,1e-9,1e-12},
+  legend pos=south west,
+  legend style={font=\scriptsize, fill=white, fill opacity=0.85, draw=none},
+  tick label style={font=\scriptsize}, label style={font=\small},
+  grid=both, grid style={gray!18},
+]
+\addplot[thick, red, domain=0:60, samples=90] {exp(-1.0*x)};
+\addlegendentry{global: $e^{-\lambda d},\ \lambda{=}1$}
+\addplot[thick, blue, domain=0:60, samples=90] {exp(-0.02*x)};
+\addlegendentry{read-set $\pi_R$: $e^{-\lambda_R d},\ \lambda_R{=}0.02$}
+\draw[dashed, gray] (axis cs:30,1e-14) -- (axis cs:30,3);
+\end{semilogyaxis}
+\end{tikzpicture}
+\caption{The starvation trap (\S\ref{sec:starvation}). Global-state validation
+decays as $e^{-\lambda d}$ --- perpetual abort ($\approx 10^{-13}$ at
+$d{=}30$\,s, dashed line, for $\lambda{=}1$ background write/s). Validating only
+the read-set projection $\piR$, whose write rate $\lambda_R \ll \lambda$, keeps
+the commit probability near $1$. The curves are the analytic Poisson model, not
+measurements; read-set faithfulness is the stated cost.}
+\label{fig:starvation}
+\end{figure}
 
 \subsection{Fr\'echet bounds on cumulative trajectory failure}
 \label{sec:frechet}
@@ -492,7 +538,39 @@ $\max\!\big(0, \sum_i p_i - (k-1)\big) \le \mathbb{P}(\bigcap_i F_i) \le
 \eqref{eq:fh-union} as its trigger: it aborts when
 $\min(1, \sum_i p_i)$ exceeds the policy threshold. This is the unique
 choice that remains valid under \emph{every} dependence structure, including
-the adversarially correlated one.
+the adversarially correlated one (Figure~\ref{fig:frechet}).
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\columnwidth, height=4.7cm,
+  xlabel={per-step failure marginal $p$ (equal $p_i$, $k{=}8$)},
+  ylabel={$\mathbb{P}\big(\bigcup_i F_i\big)$},
+  xmin=0, xmax=0.15, ymin=0, ymax=1.03,
+  legend pos=north west,
+  legend style={font=\scriptsize, fill=white, fill opacity=0.85, draw=none},
+  tick label style={font=\scriptsize}, label style={font=\small},
+  grid=both, grid style={gray!18},
+]
+\addplot[name path=fhupper, thick, blue, domain=0:0.15, samples=120]
+  {min(1, 8*x)};
+\addlegendentry{FH upper $\min(1,\sum p_i)$ (gate)}
+\addplot[name path=fhlower, thick, black, domain=0:0.15, samples=120] {x};
+\addlegendentry{FH lower $\max_i p_i$}
+\addplot[gray!22] fill between[of=fhupper and fhlower];
+\addplot[thick, red, dashed, domain=0:0.15, samples=120] {1-(1-x)^8};
+\addlegendentry{independence $1-(1-p)^k$}
+\end{axis}
+\end{tikzpicture}
+\caption{The dependence-free Fr\'echet envelope for union failure over $k{=}8$
+steps, equal marginals (\S\ref{sec:frechet}). The semantic gate triggers on the
+upper bound, which holds under \emph{every} dependence structure. An
+independence assumption (dashed) lies strictly inside the envelope: it would
+clear trajectories the worst case flags, under-reporting risk precisely where
+correlated guardrail failure lives. Analytic bounds, not measurements.}
+\label{fig:frechet}
+\end{figure}
 
 Two consequences are worth stating plainly. First, the bound is
 conservative by construction, and it saturates: as $k$ grows,
