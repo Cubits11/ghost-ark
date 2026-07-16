@@ -23,3 +23,8 @@ docs/dissertation/ghost-ark-usenix.pdf
 # TLC trace-exploration scratch files
 proofs/**/*_TTrace_*.tla
 proofs/**/*_TTrace_*.bin
+
+# Rust build output (DAB gateway/verifier). Never track compiled artifacts;
+# Cargo.lock files ARE tracked (for reproducible, --locked builds).
+target/
+**/target/
