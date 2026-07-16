@@ -41,6 +41,16 @@ use sha2::{
 };
 
 
+mod signing;
+
+use signing::{
+    GatewaySigner,
+    policy_digest,
+};
+
+use std::sync::Arc as StdArc;
+
+
 
 
 const SOCKET_PATH:&str =
@@ -135,6 +145,11 @@ struct GatewayReceipt {
     timestamp:String,
 
 
+    /// Binds the receipt to the enforcing policy. Part of the signed message;
+    /// the independent verifier requires it.
+    policy_digest:String,
+
+
     gateway_signature:String,
 
 }
@@ -224,27 +239,60 @@ fn now_timestamp()->String {
 
 
 /*
-    Placeholder.
+    Build a CERTIFIED receipt and sign it with the gateway's DEV ed25519 key
+    over the canonical, domain-separated message the independent verifier
+    checks. This is the ONLY certified-receipt construction path; the socket
+    handler and the one-shot `emit-receipt` mode both call it, so recorded
+    round-trip evidence exercises exactly the shipped signing code.
 
-    Replace with:
-
-    AWS KMS
-    Nitro Enclave key
-    TPM key
-    HSM
-
+    DEV key custody only — not KMS/HSM/TPM/Nitro. See src/signing.rs.
 */
-fn sign_receipt(
-    message:&str
-)->String {
+fn build_certified_receipt(
+    signer:&GatewaySigner,
+    c_i:String,
+    c_e:String,
+    nonce:String,
+    timestamp:String,
+)->GatewayReceipt {
 
 
-    format!(
-        "DEV_SIGNATURE:{}",
-        sha256_bytes(
-            message.as_bytes()
-        )
-    )
+    let pd =
+        policy_digest();
+
+
+    let signature =
+        signer.sign_fields(
+            &c_i,
+            &c_e,
+            &nonce,
+            &timestamp,
+            &pd,
+        );
+
+
+    GatewayReceipt{
+
+        protocol:
+            PROTOCOL_VERSION.into(),
+
+        status:
+            "CERTIFIED".into(),
+
+        c_i,
+
+        c_e,
+
+        nonce,
+
+        timestamp,
+
+        policy_digest:
+            pd,
+
+        gateway_signature:
+            signature,
+
+    }
 
 }
 
@@ -327,7 +375,8 @@ fn execute_request(
 
 fn handle_client(
     mut stream:UnixStream,
-    ledger:NonceLedger
+    ledger:NonceLedger,
+    signer:StdArc<GatewaySigner>,
 ){
 
 
@@ -439,6 +488,9 @@ fn handle_client(
 
                 timestamp:
                     now_timestamp(),
+
+                policy_digest:
+                    "NULL".into(),
 
                 gateway_signature:
                     "".into(),
@@ -554,6 +606,10 @@ fn handle_client(
                 now_timestamp(),
 
 
+            policy_digest:
+                "NULL".into(),
+
+
             gateway_signature:
                 "".into(),
 
@@ -607,59 +663,14 @@ fn handle_client(
 
 
 
-
-    let signing_material =
-        format!(
-            "{}|{}|{}|{}",
+    let receipt =
+        build_certified_receipt(
+            &signer,
             request.c_i,
             c_e,
             request.nonce,
-            timestamp
+            timestamp,
         );
-
-
-
-    let signature =
-        sign_receipt(
-            &signing_material
-        );
-
-
-
-
-
-
-
-    let receipt =
-        GatewayReceipt{
-
-
-        protocol:
-            PROTOCOL_VERSION.into(),
-
-
-        status:
-            "CERTIFIED".into(),
-
-
-        c_i:
-            request.c_i,
-
-
-        c_e,
-
-
-        nonce:
-            request.nonce,
-
-
-        timestamp,
-
-
-        gateway_signature:
-            signature,
-
-    };
 
 
 
@@ -682,7 +693,180 @@ fn handle_client(
 
 
 
+/*
+    One-shot, hermetic receipt emission (no socket, no network execution).
+
+    Exercises the SAME build_certified_receipt() signing path used by the
+    socket handler, so recorded round-trip evidence reflects the shipped code.
+
+    Usage:
+      dab-gateway emit-receipt --payload-b64 <b64> --nonce <n>
+                               [--timestamp <t>] [--mutate]
+                               [--pubkey-out <path>]
+
+    Prints the receipt JSON to stdout and the gateway public key (hex) to
+    stderr (and to --pubkey-out when given). With --mutate, the declared
+    commitment is deliberately set to differ from the derived execution
+    commitment, producing a MUTATION_DETECTED_HALT receipt for negative tests.
+*/
+fn run_emit_receipt(
+    args:&[String]
+)->i32 {
+
+
+    let mut payload_b64 =
+        String::new();
+
+    let mut nonce =
+        "nonce-emit".to_string();
+
+    let mut timestamp =
+        "0".to_string();
+
+    let mut mutate =
+        false;
+
+    let mut pubkey_out:Option<String> =
+        None;
+
+
+    let mut i = 0;
+
+    while i < args.len() {
+
+        match args[i].as_str() {
+
+            "--payload-b64" => {
+                i += 1;
+                if i < args.len() { payload_b64 = args[i].clone(); }
+            }
+
+            "--nonce" => {
+                i += 1;
+                if i < args.len() { nonce = args[i].clone(); }
+            }
+
+            "--timestamp" => {
+                i += 1;
+                if i < args.len() { timestamp = args[i].clone(); }
+            }
+
+            "--pubkey-out" => {
+                i += 1;
+                if i < args.len() { pubkey_out = Some(args[i].clone()); }
+            }
+
+            "--mutate" => {
+                mutate = true;
+            }
+
+            _ => {}
+
+        }
+
+        i += 1;
+
+    }
+
+
+    let signer =
+        match GatewaySigner::from_dev_env() {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("signer init failed: {e}");
+                return 2;
+            }
+        };
+
+
+    let payload_bytes =
+        match decode_payload(&payload_b64) {
+            Ok(v) => v,
+            Err(_) => {
+                eprintln!("invalid base64 payload");
+                return 2;
+            }
+        };
+
+
+    // Gateway independently derives C_E from the physical bytes.
+    let c_e =
+        sha256_bytes(&payload_bytes);
+
+
+    // Honest declaration matches derivation; --mutate forges a divergence.
+    let c_i =
+        if mutate {
+            sha256_bytes(b"__mutated_declaration__")
+        } else {
+            c_e.clone()
+        };
+
+
+    let pubkey_hex =
+        signer.public_key_hex();
+
+    if let Some(path) = &pubkey_out {
+        let _ = std::fs::write(path, &pubkey_hex);
+    }
+
+    eprintln!("{pubkey_hex}");
+
+
+    let receipt =
+        if c_i != c_e {
+
+            GatewayReceipt{
+                protocol: PROTOCOL_VERSION.into(),
+                status: "MUTATION_DETECTED_HALT".into(),
+                c_i,
+                c_e,
+                nonce,
+                timestamp,
+                policy_digest: "NULL".into(),
+                gateway_signature: "".into(),
+            }
+
+        } else {
+
+            build_certified_receipt(
+                &signer,
+                c_i,
+                c_e,
+                nonce,
+                timestamp,
+            )
+
+        };
+
+
+    match serde_json::to_string_pretty(&receipt) {
+        Ok(json) => {
+            println!("{json}");
+            0
+        }
+        Err(_) => {
+            eprintln!("serialization failed");
+            2
+        }
+    }
+
+}
+
+
+
+
 fn main(){
+
+
+    let argv:Vec<String> =
+        std::env::args().collect();
+
+    if argv.len() > 1 && argv[1] == "emit-receipt" {
+        std::process::exit(
+            run_emit_receipt(&argv[2..])
+        );
+    }
 
 
     let _ =
@@ -702,9 +886,31 @@ fn main(){
 
 
 
+    let signer =
+        StdArc::new(
+            GatewaySigner::from_dev_env()
+                .expect("gateway dev signer init failed")
+        );
+
+
+
     println!(
         "DAB Gateway TCB online"
     );
+
+    // Publish the verifying key so the independent verifier can check receipts.
+    let pubkey_hex =
+        signer.public_key_hex();
+
+    println!(
+        "gateway_public_key {pubkey_hex}"
+    );
+
+    let _ =
+        std::fs::write(
+            "/ipc/gateway.pub",
+            &pubkey_hex,
+        );
 
 
 
@@ -727,13 +933,17 @@ fn main(){
             let ledger_clone =
                 ledger.clone();
 
+            let signer_clone =
+                signer.clone();
+
 
             std::thread::spawn(
                 move || {
 
                     handle_client(
                         stream,
-                        ledger_clone
+                        ledger_clone,
+                        signer_clone
                     );
 
                 }

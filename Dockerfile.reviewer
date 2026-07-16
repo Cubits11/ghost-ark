@@ -62,8 +62,15 @@ WORKDIR /work
 # --- source + dependencies ----------------------------------------------------
 # The root lockfile references many npm workspaces, so all workspace manifests
 # must be present before install. Copy the full tree, then install deterministically.
+#
+# --legacy-peer-deps: a dashboard-workspace peerOptional conflict (vite@8 wants
+# esbuild ^0.27/^0.28; the lockfile resolves esbuild@0.25, which works at runtime
+# because the peer is optional) makes a strict clean-room `npm ci` refuse to
+# install. This flag skips the optional-peer check ONLY; it does not alter any
+# resolved version. It is the container analogue of the vitest-timeout
+# accommodation (inventory §7.4) — an environment fix, not a dependency change.
 COPY . .
-RUN npm ci || npm install
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
 # LocalStack endpoints + dummy credentials are injected by
 # docker-compose.reviewer.yml (kept out of the image to avoid baking any
