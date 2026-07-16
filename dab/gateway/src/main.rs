@@ -43,18 +43,17 @@ use sha2::{
 };
 
 
-mod signing;
-mod nonce;
-
-use signing::{
+// nonce/signing now live in the gateway library (src/lib.rs) so they are
+// shared with the replay-window measurement and tests.
+use dab_gateway::signing::{
     GatewaySigner,
     policy_digest,
 };
 
 // The replay ledger is the TLC-verified spent-tombstone model (nonce.rs),
-// now wired into the running gateway (previously the binary used an inline
+// wired into the running gateway (previously the binary used an inline
 // HashSet with no TTL/tombstone semantics).
-use nonce::NonceLedger;
+use dab_gateway::nonce::{self, NonceLedger};
 
 use std::sync::Arc as StdArc;
 

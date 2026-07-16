@@ -767,6 +767,63 @@ reviewed commit. We disclose this for the same reason we ship mutant models:
 an evaluation pipeline that cannot be caught being wrong cannot be trusted
 when it says it is right.
 
+\subsection{The replay window, measured}
+\label{sec:replaywindow}
+
+The ledger gate's one honest weakness (\S\ref{sec:nonclaims}, item 5) is that
+its in-process tombstone set is capacity-bounded: at capacity, pruning
+reopens a replay window for old nonces. Most papers state such a caveat and
+stop. We measure it. Driving the real \texttt{ReplayLedger} at capacity $C$
+after creating $K$ tombstones (TTL$=0$ for a deterministic boundary) and
+counting how many consumed nonces become replayable (\texttt{!exists}, exactly
+the condition under which \texttt{consume} would re-accept) yields, across
+capacities from $8$ to $100$ and $K$ up to $1000$ (recorded in
+\texttt{RECORDED\_REPLAY\_WINDOW.txt}), an exact law:
+\begin{equation}
+\text{replay window} \;=\; \max\!\big(0,\; K - C\big).
+\label{eq:window}
+\end{equation}
+Figure~\ref{fig:window} shows the knee at $K{=}C$: below capacity the window
+is empty (every tombstone is retained), above it the window grows one-for-one.
+The measurement also surfaces a \emph{second} finding the caveat alone hides:
+because the in-process set is a \texttt{HashSet}, the pruned membership is
+implementation-arbitrary, not age-ordered --- so a durable production store
+must use time-ordered eviction, not merely more capacity. The bound is now a
+number an operator can size against, not a hand-wave: with the default
+$C{=}500{,}000$ the window stays empty until more than half a million distinct
+nonces outlive their TTL between compactions.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\columnwidth, height=4.5cm,
+  xlabel={tombstones created $K$ (capacity $C{=}8$)},
+  ylabel={replay window},
+  xmin=0, xmax=33, ymin=-1.5, ymax=26,
+  legend pos=north west,
+  legend style={font=\scriptsize, fill=white, fill opacity=0.85, draw=none},
+  tick label style={font=\scriptsize}, label style={font=\small},
+  grid=both, grid style={gray!18},
+]
+\addplot[thick, blue, domain=0:33, samples=100] {max(0, x-8)};
+\addlegendentry{$\max(0, K-C)$}
+\addplot[only marks, mark=*, mark size=1.6pt, red] coordinates {
+  (1,0) (2,0) (4,0) (8,0) (12,4) (16,8) (24,16) (32,24)
+};
+\addlegendentry{measured (\texttt{dab-replay-stress})}
+\draw[dashed, gray] (axis cs:8,-1.5) -- (axis cs:8,26);
+\node[font=\tiny, gray, anchor=south west] at (axis cs:8.3,20) {$K{=}C$};
+\end{axis}
+\end{tikzpicture}
+\caption{The bounded replay window, measured (\S\ref{sec:replaywindow}). Below
+capacity the window is empty; above it, every additional tombstone is one more
+replayable nonce. Measured points fall exactly on
+$\max(0,K-C)$~\eqref{eq:window}. This is a measurement of the mechanism's own
+stated limitation, not of its strength.}
+\label{fig:window}
+\end{figure}
+
 \subsection{Deployment Sketch: \ghostark{} on AWS}
 \label{sec:deployment}
 
@@ -813,10 +870,12 @@ read-set faithfulness even then.
 result covers the nine-attack/four-game family, in-process. No claim covers
 unmodeled attacks, the deployed TCB, or availability.
 \item \textbf{Bounded tombstone capacity.} The in-process spent set prunes
-at 500{,}000 entries; a nonce older than both TTL and tombstone capacity has
-a theoretical replay window. Durable external stores (e.g., conditional
-writes against a database) are the intended production posture and are not
-implemented here.
+at 500{,}000 entries (env-tunable); a nonce older than both TTL and tombstone
+capacity has a replay window --- \emph{measured} to be exactly $\max(0,K-C)$
+for $K$ tombstones at capacity $C$, with implementation-arbitrary membership
+(\S\ref{sec:replaywindow}, Figure~\ref{fig:window}). Durable external stores
+with time-ordered eviction (e.g., conditional writes against a database) are
+the intended production posture and are not implemented here.
 \item \textbf{No live-cloud evidence.} KMS-mode signing, Bedrock-path
 integration, and all AWS-live behavior are design targets; no live-AWS
 measurement appears in this paper.

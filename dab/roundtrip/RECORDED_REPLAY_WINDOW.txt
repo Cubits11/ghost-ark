@@ -1,0 +1,18 @@
+# DAB Tier-0 bounded replay-window measurement
+# window = replayable nonces after capacity prune (TTL=0)
+capacity	tombstones	retained	window	expected	ok
+8	1	1	0	0	yes
+8	2	2	0	0	yes
+8	4	4	0	0	yes
+8	8	8	0	0	yes
+8	12	8	4	4	yes
+8	16	8	8	8	yes
+8	24	8	16	16	yes
+8	32	8	24	24	yes
+16	100	16	84	84	yes
+64	200	64	136	136	yes
+100	1000	100	900	900	yes
+
+LAW CONFIRMED: replay window = max(0, tombstones_created - capacity).
+Membership is HashSet-arbitrary (not age-ordered) — a production store
+must use time-ordered eviction. Capacity default is 500000 (env-tunable).
