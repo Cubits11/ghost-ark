@@ -188,8 +188,12 @@ that run under `cargo test`, and the wired behavior is exercised end-to-end
 over the real Unix socket: `dab/roundtrip/RECORDED_SOCKET_E2E.txt` shows a
 second request with the same nonce answered `REPLAY_REJECTED` by the wired
 ledger. The whole gateway crate is `cargo clippy -D warnings` clean. Bounded
-caveat unchanged: the in-process `spent` set prunes at 500,000 (durable
-external store is the production posture).
+caveat, now **measured** (not just stated): `dab-replay-stress` drives the real
+ledger and confirms the replay window is exactly `max(0, K - C)` for `K`
+tombstones at capacity `C`, with HashSet-arbitrary (not age-ordered) membership
+(`dab/roundtrip/RECORDED_REPLAY_WINDOW.txt`). Caps are env-tunable
+(`DAB_MAX_SPENT_ENTRIES`, `DAB_NONCE_TTL_SECONDS`); default 500,000; durable
+store with time-ordered eviction is the production posture.
 
 **Bounded caveat (stated, not hidden):** the in-process `spent` HashSet is
 bounded at `MAX_SPENT_ENTRIES` (500,000). When this limit is reached, oldest

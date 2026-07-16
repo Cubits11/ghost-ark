@@ -190,9 +190,24 @@ pub struct ReplayLedger {
     /// Tombstone set: nonces that have
     /// been consumed and later evicted
     /// from the active map. A nonce in
-    /// this set can never be re-consumed.
+    /// this set can never be re-consumed
+    /// UNTIL the set is pruned at capacity.
     spent:
         HashSet<String>,
+
+
+    /// Tombstone capacity. When `spent` exceeds
+    /// this, oldest tombstones are pruned — the
+    /// source of the bounded replay window.
+    /// Per-instance so it can be configured
+    /// (production) and measured (experiments).
+    max_spent:
+        usize,
+
+
+    /// Nonce TTL before archival to `spent`.
+    ttl_seconds:
+        u64,
 
 
 }
@@ -204,11 +219,46 @@ pub struct ReplayLedger {
 
 
 
+impl Default for ReplayLedger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+
 impl ReplayLedger {
 
 
-    /// Create empty ledger.
+    /// Create empty ledger with default (or env-configured) capacity/TTL.
+    /// `DAB_MAX_SPENT_ENTRIES` and `DAB_NONCE_TTL_SECONDS` override the
+    /// compiled defaults; a durable external store remains the production
+    /// posture for capacity that must not be memory-bound.
     pub fn new()
+    -> Self {
+
+        let max_spent =
+            std::env::var("DAB_MAX_SPENT_ENTRIES")
+                .ok()
+                .and_then(|v| v.parse::<usize>().ok())
+                .unwrap_or(MAX_SPENT_ENTRIES);
+
+        let ttl_seconds =
+            std::env::var("DAB_NONCE_TTL_SECONDS")
+                .ok()
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(NONCE_TTL_SECONDS);
+
+        Self::with_config(max_spent, ttl_seconds)
+
+    }
+
+
+    /// Create empty ledger with explicit capacity/TTL. Deterministic — used by
+    /// the replay-window measurement (`dab-replay-stress`) and tests.
+    pub fn with_config(
+        max_spent:usize,
+        ttl_seconds:u64,
+    )
     -> Self {
 
 
@@ -219,6 +269,10 @@ impl ReplayLedger {
 
             spent:
                 HashSet::new(),
+
+            max_spent,
+
+            ttl_seconds,
 
         }
 
@@ -462,7 +516,7 @@ impl ReplayLedger {
 
             if now - record.created_at
                 >=
-                NONCE_TTL_SECONDS
+                self.ttl_seconds
             {
                 to_archive.push(
                     nonce.clone()
@@ -493,14 +547,14 @@ impl ReplayLedger {
         // property of the in-process impl.
         // Production deployments should use
         // a durable external store.
-        if self.spent.len() > MAX_SPENT_ENTRIES {
+        if self.spent.len() > self.max_spent {
 
             // HashSet has no ordering, so in
             // the degenerate case we drain
             // arbitrarily. A production impl
             // would use a time-ordered eviction.
             let excess =
-                self.spent.len() - MAX_SPENT_ENTRIES;
+                self.spent.len() - self.max_spent;
 
             let to_remove:Vec<String> =
                 self.spent.iter()
@@ -514,6 +568,14 @@ impl ReplayLedger {
 
         }
 
+    }
+
+
+    /// Force TTL archival + capacity prune now. The gateway performs the
+    /// equivalent implicitly on every `consume()`; this hook lets the
+    /// replay-window measurement drive the boundary deterministically.
+    pub fn compact(&mut self) {
+        self.cleanup_expired();
     }
 
 
