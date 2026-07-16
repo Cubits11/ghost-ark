@@ -1,0 +1,36 @@
+TLC2 Version 2026.07.15.134331 (rev: 227f61b)
+Running breadth-first search Model-Checking with fp 26 and seed 8158474311764439541 with 8 workers on 8 cores with 1820MB heap and 64MB offheap memory [pid: 14388] (Mac OS X 15.5 aarch64, Oracle Corporation 23.0.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/pranavbhave/Documents/GitHub/ghost-ark/proofs/dab/DAB_NonceLedger.tla
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-14692567333428313891/Naturals.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-14692567333428313891/FiniteSets.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-14692567333428313891/_TLCTrace.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-14692567333428313891/Sequences.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-14692567333428313891/TLC.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-14692567333428313891/TLCExt.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-14692567333428313891/Integers.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module DAB_NonceLedger
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module DAB_NonceLedger
+Starting... (2026-07-16 01:41:15)
+Implied-temporal checking--satisfiability problem has 5 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-07-16 01:41:15.
+Progress(7) at 2026-07-16 01:41:15: 3,511 states generated, 1,321 distinct states found, 0 states left on queue.
+Checking 5 branches of temporal properties for the complete state space with 6605 total distinct states at (2026-07-16 01:41:15)
+Finished checking temporal properties in 00s at 2026-07-16 01:41:15
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.6E-13
+3511 states generated, 1321 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 7.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 15 and the 95th percentile is 4).
+Finished in 00s at (2026-07-16 01:41:15)

@@ -7,10 +7,14 @@
 #   - baseline specs must report NO violation
 #   - mutant specs MUST report a violation (a clean mutant means the invariant
 #     is vacuous, which is itself a failure)
-#   - the DAB NonceLedger specs are QUARANTINED: they are invalid TLA+ at HEAD
-#     (LaTeX \setminus for TLA+ set-difference \), and once corrected the baseline
-#     violates its own NoReplays invariant. This runner does NOT edit them to
-#     force a pass. See docs/artifact/repository_inventory.md sections 7.1-7.2.
+#   - proofs/dab history: earlier HEADs shipped invalid TLA+ (LaTeX \setminus),
+#     and the minimally-corrected baseline violated its own NoReplays invariant
+#     (a true positive about the design; the Rust ledger's TTL eviction still
+#     diverges from the verified tombstone model — see
+#     docs/artifact/repository_inventory.md sections 7.1-7.2). The specs were
+#     quarantined rather than edited to force a pass; the committed specs now
+#     model the spent-set tombstone design and gate like every other family.
+#     This runner still does NOT edit specs to force a pass.
 #
 # Emits a machine-readable summary to artifacts/proofs/proofs_summary.json.
 #
@@ -142,16 +146,22 @@ done
 log "  TenantIsolation (declared stub — recorded, not executed)"
 RESULTS+=('{"module":"TenantIsolation","expect":"n/a","status":"DECLARED_STUB","met":true,"parsed":null,"distinct_states":null,"log":"proofs/tla/TenantIsolation.tla","label":"tla-stub","gating":false}')
 
-# proofs/dab — QUARANTINED. Recorded as expected-broken so the artifact tells the
-# truth. These are NOT gating in the "pass" sense; they gate GREEN by staying red.
-log "running proofs/dab family (QUARANTINED — invalid TLA+ at HEAD; see inventory 7.1-7.2)"
-for entry in "DAB_NonceLedger" "DAB_NonceLedger_Mutant"; do
-  log "  $entry (quarantined)"
-  json="$(run_spec "$ROOT/proofs/dab" "$entry" "DAB_NonceLedger.cfg" "clean" "dab-quarantined" || true)"
-  # Mark quarantined so it does not silently read as a normal failure.
-  json="${json/\"label\":\"dab-quarantined\"/\"label\":\"dab-quarantined\",\"quarantined\":true}"
+# proofs/dab — previously quarantined (invalid TLA+, then a true-positive
+# NoReplays violation; history in inventory §7.1-7.2). The committed baseline
+# now models the spent-set tombstone design with an explicit Terminating step;
+# the mutant preserves the TOCTOU counterexample and MUST still violate.
+# DAB_ExecutionBoundary passes but abstracts its signature oracle to TRUE —
+# a pipeline shape check, not cryptographic evidence (inventory §7.1).
+log "running proofs/dab family (expect: baseline clean, mutant violation)"
+for entry in \
+  "DAB_NonceLedger:clean:DAB_NonceLedger.cfg" \
+  "DAB_NonceLedger_Mutant:violation:DAB_NonceLedger.cfg" \
+  "DAB_ExecutionBoundary:clean:DAB_ExecutionBoundary.cfg" \
+; do
+  module="${entry%%:*}"; rest="${entry#*:}"; expect="${rest%%:*}"; cfg="${rest##*:}"
+  log "  $module (expect $expect)"
+  if json="$(run_spec "$ROOT/proofs/dab" "$module" "$cfg" "$expect" "dab")"; then :; else OVERALL=1; fi
   RESULTS+=("$json")
-  OVERALL=1
 done
 
 # Assemble summary JSON
@@ -166,8 +176,8 @@ done
 
 log "summary written to ${SUMMARY#"$ROOT"/}"
 if [ "$OVERALL" -eq 0 ]; then
-  log "PROOFS: all gating specs met expectation (proofs/dab remains quarantined by design)"
+  log "PROOFS: all gating specs met expectation"
 else
-  log "PROOFS: NOT all clear — proofs/dab is quarantined (expected) and/or a tla spec regressed"
+  log "PROOFS: NOT all clear — a gating spec missed its expectation; see summary"
 fi
 exit "$OVERALL"

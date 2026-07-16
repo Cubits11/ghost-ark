@@ -35,7 +35,7 @@ RejectNonce(a, n) ==
 
 GarbageCollect(n) ==
     /\ n \in ledger
-    /\ ledger' = ledger \setminus {n}
+    /\ ledger' = ledger \ {n}
     /\ UNCHANGED <<agentState, agentNonce>>
 
 Next == 
