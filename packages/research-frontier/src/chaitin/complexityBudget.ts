@@ -46,13 +46,13 @@ export function upperBound(payload: Uint8Array | string): UpperBoundWitness {
   const buf = toBytes(payload);
   const measurements: CompressionMeasurement[] = [
     {
-      algorithm: "brotli-11",
+      algorithm: "brotli-11" as CompressorId,
       compressed_bytes: brotliCompressSync(buf, {
         params: { [constants.BROTLI_PARAM_QUALITY]: 11 },
       }).length,
     },
     {
-      algorithm: "deflate-raw-9",
+      algorithm: "deflate-raw-9" as CompressorId,
       compressed_bytes: deflateRawSync(buf, { level: 9 }).length,
     },
   ].sort((a, b) => a.algorithm.localeCompare(b.algorithm));

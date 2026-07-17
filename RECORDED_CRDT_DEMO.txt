@@ -1,0 +1,24 @@
+Ghost-Ark — Distributed CRDT Swarm Recovery (GHOST-CRDT-V1)
+policy: LWW-Map (CvRDT) with monotonic Lamport clocks and Node ID tie-breakers.
+provides: EVENTUAL CONSISTENCY (Not a Paxos/Raft strong consistency replacement)
+------------------------------------------------------------------------
+[NETWORK] Blasting 3-Node Swarm with 1000 concurrent agent intents...
+[NETWORK] Forcing 50% collisions on the 'swarm_config' key.
+[NETWORK] Simulating random Q2 EVALUATION_UNDECIDABLE aborts (20% drop rate)...
+[NETWORK] Waiting for CRDT asynchronous broadcast queues to drain...
+------------------------------------------------------------------------
+[QUIESCENCE ACHIEVED] Elapsed: 225ms
+Node-A State Root: sha256:1cf35dd311be94d4e2fda8ab6329d3eff4e9fe4c448348cd834cd9a87b0082ec
+Node-B State Root: sha256:1cf35dd311be94d4e2fda8ab6329d3eff4e9fe4c448348cd834cd9a87b0082ec
+Node-C State Root: sha256:1cf35dd311be94d4e2fda8ab6329d3eff4e9fe4c448348cd834cd9a87b0082ec
+
+VERDICT: ABSOLUTE CONVERGENCE. The LWW-Map completely mitigated the swarm collapse.
+------------------------------------------------------------------------
+GHOST-CRDT-V1 Receipts Emitted: 2367
+  MERGED:    1584
+  DISCARDED: 783 (Conflict resolution drops applied gracefully)
+------------------------------------------------------------------------
+CLAIM BOUNDARY: We explicitly sacrifice serializable isolation on concurrent
+colliding keys to physically bypass the starvation trap. We trade a phantom
+anomaly for resilient liveness. This is exactly how a distributed swarm survives
+its own collapse rate.
