@@ -11,6 +11,10 @@
       "status": "HELD",
       "rationale": "Standard cryptographic hardness assumption for SHA-256, relied on by all Merkle constructions."
     },
+    "A_DEV_HMAC_KEY_CUSTODY": {
+      "status": "UNMET",
+      "rationale": "Löbian licensing receipts are signed with a hard-coded dev-only HMAC key (no KMS, no real key custody). Local HMAC is development-only; the receipt's assurance rests on replayable evidence (the re-checkable Kripke countermodel), not on this signature, so the module is annotated SYNTH_ONLY."
+    },
     "A_WITNESS_KEY_MANIFEST_AUTHENTIC": {
       "status": "PARTIAL",
       "rationale": "The witness key manifest (trust root) is delivered out-of-band and assumed authentic; no live attestation of its provenance yet."

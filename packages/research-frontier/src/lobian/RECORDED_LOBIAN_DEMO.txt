@@ -1,0 +1,61 @@
+# Ghost-Ark — Runnable Löbian Obstacle: recorded demonstration
+# date: 2026-07-17T10:56:16Z  host: Darwin arm64  node: v22.22.3
+# command: npx ts-node packages/research-frontier/src/lobian/demo.ts
+# digests are deterministic (fixed logical timestamp 2026-07-17T00:00:00Z)
+#
+Ghost-Ark — Runnable Löbian Obstacle Demonstrator (GHOST-LOBIAN-V1)
+invariant φ = fail_closed   successor agent = sha256:deac360d029634085bb4f9d1cbfbe89a353bd6dc98b8ec7ca39c2d49626f42ec
+------------------------------------------------------------------------
+Scenario: agent A must license a same-strength successor A' that preserves φ.
+Read □ψ as 'A' proves ψ'. A tries three licensing obligations.
+
+------------------------------------------------------------------------
+OBLIGATION [naive-soundness]: prove  (□fail_closed → fail_closed)
+  Demand that the successor's proof of "fail_closed" implies its truth (□φ→φ).
+  VERDICT: LICENSE_REFUTED
+  note: The Löbian obstacle: provable soundness of a same-strength successor is unattainable. Recorded, not licensed.
+  countermodel worlds: ["w0"]
+  accessibility R:     []
+  valuation:           {"w0":[]}
+  cross-check: GLframe=true refutes(φ)=true
+  RECEIPT GHOST-LOBIAN-V1 status=LICENSE_REFUTED
+    content_digest: sha256:8ed58452bede6bd7545ccb75da268e22e1d5d77747de2564d1bff6778f14c921
+    signature:      2bb208afde5808475d778857e709a45e… (dev-hmac)
+    verify: valid=true  {digest:true, sig:true, evidence_replays:true}
+------------------------------------------------------------------------
+OBLIGATION [consistency]: prove  ¬□⊥
+  Demand that the successor never proves a contradiction (¬□⊥).
+  VERDICT: LICENSE_REFUTED
+  note: Gödel G2: the successor's consistency is not provable. The obligation is recorded as refuted evidence.
+  countermodel worlds: ["w0"]
+  accessibility R:     []
+  valuation:           {"w0":[]}
+  cross-check: GLframe=true refutes(φ)=true
+  RECEIPT GHOST-LOBIAN-V1 status=LICENSE_REFUTED
+    content_digest: sha256:6dd3c16737a709c6abdcbb993f2d3b51692445931b7a7fee49a919844adc11e4
+    signature:      88a13b7bde9810cc1e2e33417e33c552… (dev-hmac)
+    verify: valid=true  {digest:true, sig:true, evidence_replays:true}
+------------------------------------------------------------------------
+OBLIGATION [loeb-self-trust]: prove  (□(□fail_closed → fail_closed) → □fail_closed)
+  Löbian self-trust for "fail_closed" (□(□φ→φ)→□φ).
+  VERDICT: LICENSE_CERTIFIED
+  note: Löb's theorem holds — but it certifies only □φ (provability), never φ (truth). Self-trust buys provability, not soundness.
+  proof: closed tableau (theorem); evidence = proof
+  RECEIPT GHOST-LOBIAN-V1 status=LICENSE_CERTIFIED
+    content_digest: sha256:f56f9f83bd4964285eb127cd081fa4ca6d98f2f8bb9fa48f25261216644a1048
+    signature:      d091fab059348ca47876f4f35ac02f90… (dev-hmac)
+    verify: valid=true  {digest:true, sig:true, evidence_replays:true}
+------------------------------------------------------------------------
+OBSTACLE HIT: true (≥1 obligation refuted → recorded, not licensed)
+------------------------------------------------------------------------
+Decision-procedure cost (small formulas; GL-SAT is PSPACE-complete — NOT a throughput claim):
+  Löb □(□p→p)→□p           theorem=true  nodes=   5 time=0ms
+  naive-soundness □p→p     theorem=false nodes=   2 time=0ms
+  consistency ¬□⊥          theorem=false nodes=   2 time=0ms
+------------------------------------------------------------------------
+CLAIM BOUNDARY: this demonstrator decides Gödel–Löb provability logic and
+records countermodels. It does NOT prove any agent, model, or system safe,
+sound, aligned, or consistent — those proofs are provably unavailable (Löb /
+Gödel G2). A receipt is evidence that boundary code reached a verdict with a
+replayable witness; it is not an endorsement of any payload. No hardware
+attestation and no throughput floor is claimed here.
