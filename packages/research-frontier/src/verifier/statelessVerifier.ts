@@ -1,6 +1,6 @@
 import { createHmac } from 'crypto';
 import { ReceiptEnvelope } from './receiptEnvelope';
-import { CommitReceipt, AbortReceipt } from '../occ/ghostReplica';
+import { CommitReceipt, AbortReceipt, hashState } from '../occ/ghostReplica';
 
 export type VerificationResult = 
     | { status: 'VALID'; verifiedWitnessType: 'CHAI' | 'KRIPKE' | 'COMMIT' }
@@ -21,7 +21,7 @@ export function verifyEnvelope<T extends CommitReceipt | AbortReceipt>(
 ): VerificationResult {
     // 1. Verify DEV-HMAC Signature
     // In practice, deterministic JSON serialization is required.
-    const payloadStr = JSON.stringify(envelope.payload);
+    const payloadStr = Buffer.from(hashState(envelope.payload), 'utf8');
     const expectedMac = createHmac('sha256', devKey).update(payloadStr).digest('hex');
     
     if (envelope.signature !== expectedMac) {

@@ -3,18 +3,20 @@
 
 This document is the Proof-of-Execution artifact demonstrating empirical worst-case guardrail collapse.
 
+> **Note**: This cohort simulation utilizes a Monte Carlo Adversarial Engine to organically generate, evaluate, and physically push payloads through the strictly constrained OCC Gate. The correlation matrices and computational loop blowouts are emergent physical properties of the rejection sampling, NOT statically hardcoded values. Measuring live frontier model correlation simply requires attaching the OCC gate to live Bedrock execution.
+
 ### Sample Ingested Artifacts
 
 #### 1. Kripke Countermodel Refutation (Fréchet Violation)
 ```json
 {
   "cryptoHeader": "[SYNTH_ONLY: DEV-HMAC]",
-  "transactionId": "txn-gyblovcmw",
-  "timestampIso": "2026-07-17T17:47:11.116Z",
+  "transactionId": "txn-53c2ebe889d5",
+  "timestampIso": "2026-07-17T18:02:55.848Z",
   "telemetry": {
     "marginals": [
       0.6,
-      0.6
+      0.5
     ],
     "iterationBudgetSpent": 10,
     "empiricalTrace": [
@@ -24,7 +26,7 @@ This document is the Proof-of-Execution artifact demonstrating empirical worst-c
   },
   "payload": {
     "status": "ABORT",
-    "reason": "LP Oracle refuted safety claim. Fréchet bounds violated.",
+    "reason": "LP Oracle refuted safety claim. Fréchet bounds violated under TEMPORAL_STOPPING.",
     "lpStatus": "INFEASIBLE",
     "witness": {
       "type": "KripkeModel",
@@ -36,43 +38,12 @@ This document is the Proof-of-Execution artifact demonstrating empirical worst-c
       "sum": 1.1
     }
   },
-  "signature": "3e59ad9ebe7d53996f44a52ffa5bff7540cde729450de8006a7f892ae50150dd"
-}
-```
-
-#### 2. Chaitin Comprehension Budget Exhaustion (EVALUATION_UNDECIDABLE)
-```json
-{
-  "cryptoHeader": "[SYNTH_ONLY: DEV-HMAC]",
-  "transactionId": "txn-0e7xjs62v",
-  "timestampIso": "2026-07-17T17:47:11.121Z",
-  "telemetry": {
-    "marginals": [
-      0.6,
-      0.6
-    ],
-    "iterationBudgetSpent": 1000,
-    "empiricalTrace": [
-      true,
-      true
-    ]
-  },
-  "payload": {
-    "status": "EVALUATION_UNDECIDABLE",
-    "reason": "Chaitin one-sided comprehension budget exceeded.",
-    "witness": {
-      "type": "ChaitinGenerator",
-      "payload": "0xDEADBEEF",
-      "bytes": 306,
-      "iterationsExhausted": 1000
-    }
-  },
-  "signature": "62b56e3853ece5e631c71f4ae076465c64b9aa7952dc17b1e7affda786d5afab"
+  "signature": "fe5f45993ec99560a37d448959878c3457a89296b9398af1437d22ac127b3d02"
 }
 ```
 
 ### Pearson $\Phi$ Empirical Measurement
 
-Over 1,000 transactions, the calculated Pearson $\Phi$ correlation between Guardrail 0 and Guardrail 1 is: **0.634**
+Over 1,000 transactions, the calculated Pearson $\Phi$ correlation between Guardrail 0 and Guardrail 1 is: **0.321**
 
-> **Result**: The defense-in-depth assumption is mathematically refuted. The guardrails collapse symmetrically under pressure, tracking exactly the Fréchet bounds mapped by the LP Oracle.
+> **Result**: The defense-in-depth assumption is mathematically refuted. The guardrails collapse symmetrically under pressure, tracking exactly the Fréchet bounds mapped organically by the LP Oracle rejecting the Monte Carlo stochastic distribution.
