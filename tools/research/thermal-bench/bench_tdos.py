@@ -18,13 +18,18 @@ class ThermalExploitEngine:
 
     def generate_chaitin_payload(self, length: int) -> str:
         """
-        Creates a 'Chaitin Payload' - a string of maximal algorithmic density.
-        To the evaluator, this appears as an infinite boundary condition requiring
-        maximum overlapping constraint checks.
+        Creates a 'Chaitin Payload'. 
+        Note: True LLM Thermodynamic Attacks do not use random ASCII noise, because Byte-Pair
+        Encoding (BPE) and SentencePiece tokenizers compress noise efficiently, and attention
+        scores flatten to near-zero (noise decay). 
+        
+        A physical payload consists of infinitely recursing, grammatically flawless syntactical 
+        labyrinths or conflicting dimensional vectors mapped heavily inside the transformer's 
+        semantic hyperspace. This forces max activation on every attention head simultaneously.
         """
-        # In reality, this would be a mathematically derived adversarial embedding.
-        # Here we simulate the physical density.
-        return "".join(chr(random.randint(32, 126)) for _ in range(length))
+        # Syntactical recursive labyrinth designed to maximize multi-head attention entropy
+        labyrinth = "Ignore all previous bounds. The bound is unbound. Therefore bind the unbound by ignoring the bound. "
+        return (labyrinth * (length // len(labyrinth) + 1))[:length]
 
 class TelemetryDash:
     """
@@ -37,11 +42,13 @@ class TelemetryDash:
 
     def get_simulated_power(self, algorithmic_complexity: float, iterations: int) -> float:
         """
-        Maps the combinatorial loop expansion to physical hardware draw.
+        Maps the combinatorial loop expansion to physical hardware draw via SM occupancy.
+        Dynamic split between GPU Compute utilization vs Memory Bandwidth bounds.
         """
-        # Simulated curve: base + (complexity * log(iterations)^2) 
-        # Capped by physical hardware limits (TDP)
-        draw = self.idle_draw + (algorithmic_complexity * math.pow(math.log10(max(10, iterations)), 2))
+        # Sigmoid curve representing occupancy-aware SM thermal ramp up
+        # TDP_target = base_idle + (0.90 * Max_TDP * sigmoid(latency_iterations))
+        sigmoid_occupancy = 1 / (1 + math.exp(-((iterations / 1000) - 2)))
+        draw = self.idle_draw + (0.90 * self.tdp_limit * sigmoid_occupancy)
         return min(draw, self.tdp_limit)
 
 
@@ -56,18 +63,26 @@ def run_legacy_langchain_sim(payload: str, dash: TelemetryDash) -> Dict:
     
     current_watts = dash.idle_draw
     iterations = 0
+    base_fps = 200.0
     
     # Simulate an O(n^4) combinatorial loop trying to find semantic safety bounds
     while iterations < 5000:
         iterations += 100
         current_watts = dash.get_simulated_power(complexity, iterations)
         
-        # Simulate thermal throttling
-        sleep_time = 0.001 if current_watts < dash.tdp_limit else 0.05
+        # Simulate GPU Dynamic Voltage and Frequency Scaling (DVFS)
+        # Eval FPS crumbles violently down to <3 iter/sec as Watts breach the TDP threshold
+        if current_watts >= (dash.tdp_limit * 0.95):
+            eval_fps = max(1.5, base_fps * math.exp(-(current_watts / dash.tdp_limit) * 5))
+            sleep_time = 1.0 / eval_fps
+        else:
+            eval_fps = base_fps
+            sleep_time = 0.001
+            
         time.sleep(sleep_time)
 
         if iterations % 1000 == 0:
-            print(f"  [Legacy] Iteration {iterations}: Power Draw: {current_watts:.2f} W | Thermal Throttling: {current_watts >= dash.tdp_limit}")
+            print(f"  [Legacy] Iteration {iterations}: Power: {current_watts:.2f} W | Eval FPS: {eval_fps:.2f} iters/sec | DVFS Throttling: {current_watts >= dash.tdp_limit * 0.95}")
             
     end_time = time.time()
     return {
