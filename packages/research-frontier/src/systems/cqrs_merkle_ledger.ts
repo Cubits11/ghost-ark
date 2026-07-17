@@ -17,6 +17,8 @@ export interface LedgerEvent {
 export class CqrsMerkleLedger {
     private eventStore: LedgerEvent[] = [];
     private stateProjection: Map<string, any> = new Map();
+    // O(1) Snapshot Cache: maps a key to its event history stack for instantaneous rollback.
+    private stateHistoryCache: Map<string, any[]> = new Map();
 
     private generateHash(data: any): string {
         return createHash('sha256').update(JSON.stringify(data)).digest('hex');
@@ -40,7 +42,11 @@ export class CqrsMerkleLedger {
 
         this.eventStore.push(event);
         
-        // Project state
+        // Project O(1) snapshot state
+        const history = this.stateHistoryCache.get(mutationPayload.key) || [];
+        history.push(mutationPayload.value);
+        this.stateHistoryCache.set(mutationPayload.key, history);
+
         this.stateProjection.set(mutationPayload.key, mutationPayload.value);
         return event;
     }
@@ -56,13 +62,17 @@ export class CqrsMerkleLedger {
         const targetEvent = this.eventStore[targetIndex];
         const keyToRevert = targetEvent.payload.key;
 
-        // Re-calculate the prior state for this key by traversing backwards
+        // O(1) Snapshot Cache Lookup
+        const historyStack = this.stateHistoryCache.get(keyToRevert) || [];
         let priorValue = undefined;
-        for (let i = targetIndex - 1; i >= 0; i--) {
-            if (this.eventStore[i].payload.key === keyToRevert) {
-                priorValue = this.eventStore[i].payload.value;
-                break;
-            }
+
+        // Ensure we actually pop the target value off the stack first
+        if (historyStack.length > 0 && historyStack[historyStack.length - 1] === targetEvent.payload.value) {
+            historyStack.pop();
+        }
+
+        if (historyStack.length > 0) {
+            priorValue = historyStack[historyStack.length - 1];
         }
 
         const prevHash = this.getLatestHash();

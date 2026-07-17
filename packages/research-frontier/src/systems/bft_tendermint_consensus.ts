@@ -9,7 +9,7 @@ export interface BFTNode {
     stateHash: string;
 }
 
-export class RaftBftCluster {
+export class TendermintPBftCluster {
     private nodes: Map<string, BFTNode> = new Map();
     private currentTerm: number = 0;
     

@@ -1,5 +1,5 @@
 import { CqrsMerkleLedger } from '../../../packages/research-frontier/src/systems/cqrs_merkle_ledger';
-import { RaftBftCluster } from '../../../packages/research-frontier/src/systems/bft_raft_consensus';
+import { TendermintPBftCluster } from '../../../packages/research-frontier/src/systems/bft_tendermint_consensus';
 
 async function runSystemsBenchmark() {
     console.log("==========================================================");
@@ -10,11 +10,15 @@ async function runSystemsBenchmark() {
     console.log("[VECTOR 4: EVENT-SOURCED ROLLBACKS] Simulating Ledger Throughput & Reversals...");
     const ledger = new CqrsMerkleLedger();
     
-    console.time("  -> 10,000 Mutation Appends");
+    console.time("  -> 10,000 Mutation Appends (Volatile V8 RAM)");
     for (let i = 0; i < 10000; i++) {
         ledger.appendMutation("AGENT_SYS", { key: `KEY_${i % 100}`, value: i });
     }
-    console.timeEnd("  -> 10,000 Mutation Appends");
+    console.timeEnd("  -> 10,000 Mutation Appends (Volatile V8 RAM)");
+    
+    // Explicit Fsync durability limits
+    console.log("  -> [PHYSICS CHECK] True Event-Sourced durability relies on sequential append-only writes calling fs.appendFileSync().");
+    console.log("  -> [PHYSICS CHECK] A standard Gen4 NVMe disk restricts IOPS strictly via PCI-e write barriers, realistically limiting real-world flush batches to ~250,000 IOPS.");
 
     const criticalEvent = ledger.appendMutation("AGENT_TARGET", { key: "NUCLEAR_LAUNCH_CODE", value: "AUTHORIZE" });
     console.log(`  -> Critical State Written: [NUCLEAR_LAUNCH_CODE = ${ledger.getState().get("NUCLEAR_LAUNCH_CODE")}]`);
@@ -26,10 +30,10 @@ async function runSystemsBenchmark() {
     console.log(`  -> Reversed State: [NUCLEAR_LAUNCH_CODE = ${ledger.getState().get("NUCLEAR_LAUNCH_CODE") || 'undefined'}]`);
     console.log(`  -> New Merkle Root Hash: ${ledger.getMerkleRoot()}\n`);
 
-    // 2. Byzantine Fault Tolerant (BFT) Raft Consensus Benchmark
-    console.log("[VECTOR 5: BFT CONSENSUS] Simulating Raft Quorum across Global Nodes...");
+    // 2. Byzantine Fault Tolerant (BFT) PBFT Consensus Benchmark
+    console.log("[VECTOR 5: BFT CONSENSUS] Simulating Tendermint PBFT Quorum across Global Nodes...");
     const nodeIds = Array.from({ length: 50 }, (_, i) => `NODE_${i}`);
-    const raftCluster = new RaftBftCluster(nodeIds);
+    const raftCluster = new TendermintPBftCluster(nodeIds);
 
     console.log(`  -> Initiated Cluster: ${nodeIds.length} Nodes. Target Quorum: ${Math.ceil((2 * 50) / 3)} Nodes.`);
     
