@@ -21,7 +21,7 @@ This document formally records the empirical performance and concurrency bounds 
 **Scope:** `dab/` workspace Rust native runtime.
 **Evidence:** The benchmark `step2_cryptographic_tax_benchmark` in `dab/gateway/src/phase1.rs`.
 **Verification command:** `cd dab/gateway && cargo test --release step2_cryptographic_tax_benchmark -- --nocapture`
-**Assumptions:** Real zkVM receipt verification (e.g., RISC Zero or SP1) will map relatively predictably to a heavy CPU-bound hashing workload.
+**Assumptions:** The benchmark uses SHA-256 hashing as a synthetic stand-in for a proof-verification workload. Whether a real prover (e.g., RISC Zero, SP1) would exhibit a similar CPU-bound cost profile is an untested modeling hypothesis, not a measurement or a claim about any proof system.
 **Non-claims:** This does not claim integration with a live ZK prover, nor does it guarantee constant-time verification for arbitrarily large proofs.
 **Known gaps:** We simulate the tax; we have not yet integrated the actual RISC Zero/SP1 crates.
 **Last validated:** 2026-07-17
