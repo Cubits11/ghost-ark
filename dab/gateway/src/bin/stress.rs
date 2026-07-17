@@ -1,7 +1,11 @@
 //! Ghost-Ark TCB Concurrent Stress Test
 //! 
 //! This bypasses the Node.js FFI boundary to measure the true hardware limits,
-//! lock contention, and cryptographic overhead of the Rust Gateway.
+//! concurrent-admission contention (lock-free sharded DashSet ledger), and real
+//! ed25519 cryptographic overhead of the Rust Gateway. Unlike the in-process
+//! TypeScript micro-benchmark (dab/bench/performance.ts), which times a SHA-256
+//! commitment-digest cycle single-threaded, this measures wall-clock throughput
+//! of NUM_THREADS workers doing real replay-admission + real ed25519 signing.
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 use dab_gateway::nonce::create_nonce_ledger;
@@ -38,10 +42,11 @@ fn main() {
                 let commitment = format!("c_i-{}-{}", t, i);
                 let timestamp = "1710000000"; // Mock timestamp
 
-                // 1. Enter the Global Mutex (The Bottleneck)
-                let mut lock = ledger_clone.lock().unwrap();
-                let accepted = lock.consume(nonce.clone(), tx_id, commitment.clone());
-                drop(lock); // Release Mutex explicitly before crypto
+                // 1. Lock-free replay admission. nonce.rs was refactored from
+                //    Arc<Mutex<ReplayLedger>> to a sharded DashSet, so consume()
+                //    takes &self and needs no external lock — that is the point of
+                //    the refactor: there is no global mutex to serialize on.
+                let accepted = ledger_clone.consume(nonce.clone(), tx_id, commitment.clone());
 
                 if accepted {
                     // 2. Heavy Cryptography (ed25519) outside the lock

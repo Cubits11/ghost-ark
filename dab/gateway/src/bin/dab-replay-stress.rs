@@ -19,7 +19,7 @@ use dab_gateway::nonce::ReplayLedger;
 
 fn measure_window(capacity: usize, tombstones: usize) -> usize {
     // TTL=0: every consumed nonce is immediately archival-eligible.
-    let mut ledger = ReplayLedger::with_config(capacity, 0);
+    let ledger = ReplayLedger::with_config(capacity, 0);
 
     let nonces: Vec<String> = (0..tombstones).map(|i| format!("n-{i}")).collect();
     for (i, n) in nonces.iter().enumerate() {
@@ -27,7 +27,7 @@ fn measure_window(capacity: usize, tombstones: usize) -> usize {
         let _ = ledger.consume(n.clone(), format!("tx-{i}"), format!("c-{i}"));
     }
     // Force the final archival + capacity prune so the boundary is clean.
-    ledger.compact();
+    ledger.run_garbage_collection();
 
     // Replayable = originally-consumed nonces no longer tracked anywhere.
     nonces.iter().filter(|n| !ledger.exists(n)).count()

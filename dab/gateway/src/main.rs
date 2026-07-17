@@ -79,8 +79,9 @@ const PROTOCOL_VERSION:&str =
 
 
 
-// NonceLedger is now nonce::NonceLedger (Arc<Mutex<ReplayLedger>>), imported
-// above. The verified tombstone model governs replay protection; see nonce.rs.
+// NonceLedger is now nonce::NonceLedger (Arc<ReplayLedger> over a lock-free
+// sharded DashSet), imported above. The verified tombstone model governs replay
+// protection; see nonce.rs.
 
 
 
@@ -475,13 +476,12 @@ fn handle_client(
         // ConsumeNonce discipline of the TLA+ model. Transaction id is the
         // nonce (Tier-0 is 1:1); the commitment binds the nonce to c_i to
         // block nonce/commitment swaps.
-        let mut ledger_guard =
-            ledger.lock()
-            .unwrap();
-
-
+        // Lock-free: the ledger is Arc<ReplayLedger> over a sharded DashSet;
+        // consume() takes &self, so no external Mutex guard is needed. The
+        // NoReplays discipline is unchanged — consume() still rejects a nonce in
+        // the active ledger OR the spent tombstone set.
         let accepted =
-            ledger_guard.consume(
+            ledger.consume(
                 request.nonce.clone(),
                 request.nonce.clone(),
                 request.c_i.clone(),
