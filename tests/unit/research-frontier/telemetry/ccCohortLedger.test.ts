@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { createHmac } from 'crypto';
 import { CcCohortLedger } from '../../../../packages/research-frontier/src/telemetry/ccCohortLedger';
 import { ReceiptEnvelope } from '../../../../packages/research-frontier/src/verifier/receiptEnvelope';
-import { CommitReceipt } from '../../../../packages/research-frontier/src/occ/ghostReplica';
+import { CommitReceipt, hashState } from '../../../../packages/research-frontier/src/occ/ghostReplica';
 
 const DEV_KEY = 'super_secret_dev_key';
 
 function signPayload(payload: any): string {
-    return createHmac('sha256', DEV_KEY).update(JSON.stringify(payload)).digest('hex');
+    const payloadStr = Buffer.from(hashState(payload), 'utf8');
+    return createHmac('sha256', DEV_KEY).update(payloadStr).digest('hex');
 }
 
 function createEnvelope(trace: boolean[]): ReceiptEnvelope<CommitReceipt> {

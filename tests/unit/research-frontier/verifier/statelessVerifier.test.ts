@@ -2,13 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { createHmac } from 'crypto';
 import { verifyEnvelope } from '../../../../packages/research-frontier/src/verifier/statelessVerifier';
 import { ReceiptEnvelope } from '../../../../packages/research-frontier/src/verifier/receiptEnvelope';
-import { AbortReceipt } from '../../../../packages/research-frontier/src/occ/ghostReplica';
+import { AbortReceipt, hashState } from '../../../../packages/research-frontier/src/occ/ghostReplica';
 import { LpStatus } from '../../../../packages/research-frontier/src/unification/lpOracle';
 
 const DEV_KEY = 'super_secret_dev_key';
 
 function signPayload(payload: any): string {
-    return createHmac('sha256', DEV_KEY).update(JSON.stringify(payload)).digest('hex');
+    const payloadStr = Buffer.from(hashState(payload), 'utf8');
+    return createHmac('sha256', DEV_KEY).update(payloadStr).digest('hex');
 }
 
 describe('O(1) Stateless Verifier', () => {

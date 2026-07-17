@@ -50,12 +50,16 @@ export class CcCohortLedger {
         const num = (f11 * f00) - (f10 * f01);
         const den2 = (f11 + f10) * (f01 + f00) * (f11 + f01) * (f10 + f00);
         
-        if (den2 === 0) {
-            // Undefined correlation if variance is zero (a guardrail literally never fires)
+        // Strict limits: if variance collapses completely or hits computational NaN, correlation is 0.
+        if (den2 <= 0 || isNaN(den2)) {
             return 0;
         }
 
-        return num / Math.sqrt(den2);
+        const phi = num / Math.sqrt(den2);
+        
+        // Physical eigenvalue boundary enforcement (correlation must be exactly within [-1, 1])
+        if (isNaN(phi) || !isFinite(phi)) return 0;
+        return Math.max(-1, Math.min(1, phi));
     }
 
     /**

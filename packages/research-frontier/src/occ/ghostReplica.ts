@@ -1,7 +1,17 @@
 import { LpOracle, Regime, LpStatus } from '../unification/lpOracle';
+import { createHash } from 'crypto';
+
+export function hashState(value: any): string {
+    if (value === undefined) return 'undefined';
+    const sortedString = JSON.stringify(value, (key, val) => 
+        (val && typeof val === 'object' && !Array.isArray(val)) ? 
+        Object.keys(val).sort().reduce((acc: any, k) => { acc[k] = val[k]; return acc; }, {}) : val
+    );
+    return createHash('sha256').update(sortedString).digest('hex');
+}
 
 export interface WorldState {
-    [key: string]: { value: any; version: number };
+    [key: string]: { value: any; version: number; stateHash: string };
 }
 
 export interface ReadSet {
@@ -59,6 +69,11 @@ export class GhostReplica {
     public getWriteSet(): WriteSet {
         return { ...this.writeSet };
     }
+
+    public wipe(): void {
+        this.readSet = {};
+        this.writeSet = {};
+    }
 }
 
 export class OccGate {
@@ -74,10 +89,11 @@ export class OccGate {
      */
     public simulateExternalMutation(key: string, newValue: any): void {
         if (!this.world[key]) {
-            this.world[key] = { value: newValue, version: 1 };
+            this.world[key] = { value: newValue, version: 1, stateHash: hashState(newValue) };
         } else {
             this.world[key].value = newValue;
             this.world[key].version += 1;
+            this.world[key].stateHash = hashState(newValue);
         }
     }
 
@@ -85,7 +101,7 @@ export class OccGate {
      * Attempts to collapse the speculative replica's writes into reality.
      * Evaluates strict Optimistic Concurrency Control (OCC) and the LP Oracle.
      */
-    public commit(replica: GhostReplica, failureMarginals: number[] = [], maxIterations: number = 1000): CommitReceipt | AbortReceipt {
+    public commit(replica: GhostReplica, failureMarginals: number[] = [], payloadContext: any = null, maxIterations: number = 1000): CommitReceipt | AbortReceipt {
         const readSet = replica.getReadSet();
         const writeSet = replica.getWriteSet();
         const conflicts: string[] = [];
@@ -100,6 +116,7 @@ export class OccGate {
         }
 
         if (conflicts.length > 0) {
+            replica.wipe(); // Speculative collapse: wipe physical memory bounds
             return {
                 status: 'ABORT',
                 reason: 'Read-Set invalidated by external world-state mutation. Speculative collapse.',
@@ -113,20 +130,23 @@ export class OccGate {
             const oracleResult = LpOracle.exactBounds(failureMarginals, Regime.TEMPORAL_STOPPING, maxIterations);
             
             if (oracleResult.union.status === LpStatus.EVALUATION_UNDECIDABLE) {
+                replica.wipe();
+                const payloadStr = payloadContext ? JSON.stringify(payloadContext) : '';
                 return {
                     status: 'EVALUATION_UNDECIDABLE',
                     reason: 'Chaitin one-sided comprehension budget exceeded. Refutation witness generated.',
                     lpStatus: LpStatus.EVALUATION_UNDECIDABLE,
                     witness: { 
                         type: 'ChaitinGenerator', 
-                        payload: '0xDEADBEEF', 
-                        bytes: 306,
+                        payloadHash: hashState(payloadContext), 
+                        bytes: Buffer.byteLength(payloadStr, 'utf8'),
                         iterationsExhausted: maxIterations 
                     }
                 };
             }
 
             if (oracleResult.union.status === LpStatus.INFEASIBLE) {
+                replica.wipe();
                 const sum = failureMarginals.reduce((a, b) => a + b, 0);
                 return {
                     status: 'ABORT',
@@ -145,10 +165,11 @@ export class OccGate {
         // 3. Commit Phase (Materialize speculative writes)
         for (const [key, value] of Object.entries(writeSet)) {
             if (!this.world[key]) {
-                this.world[key] = { value, version: 1 };
+                this.world[key] = { value, version: 1, stateHash: hashState(value) };
             } else {
                 this.world[key].value = value;
                 this.world[key].version += 1;
+                this.world[key].stateHash = hashState(value);
             }
         }
 
