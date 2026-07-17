@@ -26,6 +26,12 @@ pub struct MvccEngine {
     state: Arc<GlobalState>,
 }
 
+impl Default for MvccEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MvccEngine {
     pub fn new() -> Self {
         Self {
@@ -89,6 +95,7 @@ impl MvccEngine {
 use std::sync::mpsc::Receiver;
 
 pub struct LedgerNode {
+    #[allow(dead_code)] // node identity retained for realism; not read by the bench
     id: usize,
     data: HashMap<String, String>,
 }
@@ -123,7 +130,7 @@ mod tests {
         // Tune this loop to roughly hit 45ms depending on the CPU
         // We use 50,000 iterations to guarantee a measurable tax
         for _ in 0..50_000 {
-            hash = Sha256::digest(&hash);
+            hash = Sha256::digest(hash);
         }
         // Force the optimizer not to throw away the hash
         let _val = hash[0]; 
