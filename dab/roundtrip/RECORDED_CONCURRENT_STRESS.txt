@@ -1,0 +1,13 @@
+# Ghost-Ark TCB concurrent stress — recorded run
+# date: 2026-07-17T05:57:05Z  host: Darwin arm64  hw: Apple M1 (8 cores, 8 GB)
+# toolchain: rustc 1.97.1 (8bab26f4f 2026-07-14)
+# command: cargo run --release --manifest-path dab/gateway/Cargo.toml --bin stress
+#
+Ghost-Ark TCB Concurrent Stress Test (two-phase, fail-closed aware)
+threads=64 phaseA_ops=96000 phaseB_ops=128000
+========================================
+Phase A (within capacity): 96000/96000 accepted in 348.565ms -> 275415 ops/sec (admission + real ed25519 sign)
+Top-up to capacity: +4000 (active = 100000)
+Phase B (fail-closed at capacity): 0/128000 accepted in 12.624ms -> 10139350 rejections/sec
+========================================
+SANITY OK: in-capacity all accepted; at-capacity all rejected (fail-closed).

@@ -46,6 +46,11 @@
 \newcommand{\eethroughput}{140{,}941}
 \newcommand{\addedmean}{6.6}     % mean e2e minus mean baseline, microseconds
 \newcommand{\overheadpct}{1{,}333\%}
+% Concurrent Rust TCB stress (two-phase), 2026-07-17, same M1, rustc 1.97.1,
+% `cargo run --release --bin stress` (dab/gateway); recorded run committed at
+% dab/roundtrip/RECORDED_CONCURRENT_STRESS.txt
+\newcommand{\stressops}{275{,}415}
+\newcommand{\stressrejm}{10.1}
 % TLC (tla2tools v1.8.0), recorded logs in artifacts/proofs/logs/ and proofs/dab/artifacts/
 \newcommand{\plstates}{403{,}949}
 \newcommand{\scstates}{529}
@@ -55,9 +60,11 @@
 % Test suite at HEAD (make unit, 2026-07-16): 640 tests / 97 files, all passing
 \newcommand{\testcount}{640}
 \newcommand{\testfiles}{97}
-% Claim-language gate at HEAD (npm run scan:claims, 2026-07-16): 602 scannable
-% files, 0 hits — coverage includes .tex/.bib, i.e., this manuscript itself.
-\newcommand{\claimfiles}{602}
+% Claim-language gate at HEAD (npm run scan:claims, 2026-07-17): 588 scannable
+% files on a fresh clone, 0 hits — coverage includes .tex/.bib (this manuscript).
+% Count is the tracked tree; the scanner also walks gitignored generated
+% artifacts, so a post-reproduce working tree reports a few more.
+\newcommand{\claimfiles}{588}
 
 \newcommand{\dab}{\textsc{dab}}
 \newcommand{\ghostark}{Ghost-Ark}
@@ -751,6 +758,21 @@ numbers exclude KMS signing latency and all network costs, which will
 dominate in the intended cloud mode and which we have not measured
 (\S\ref{sec:nonclaims}). ``Fast'' is not a property we claim; ``microseconds
 of in-process arithmetic, unmeasured I/O excluded'' is.
+
+\textbf{Concurrent TCB throughput, measured.} Table~\ref{tab:perf} times the
+\emph{TypeScript} commitment cycle --- canonical serialization plus SHA-256
+digest and comparison; it performs no signature, and its ops/s column is
+single-thread inverse latency, not a load test. We therefore also measure the
+Rust TCB directly under concurrency: 64 threads driving the lock-free sharded
+replay ledger, each admitted transaction paying for a real ed25519 signature,
+sustain \stressops{} admissions{+}signatures/s within ledger capacity
+(96{,}000/96{,}000 admitted), and the fail-closed rejection path at capacity
+sustains $\approx\stressrejm{}\times10^{6}$ rejections/s, on the same M1
+(recorded run committed to the artifact). The harness is two-sided: every
+in-capacity op must admit and every at-capacity op must refuse, or the run
+exits non-zero. This is the in-process ceiling of the TCB itself --- it
+excludes the Unix-socket transport and all network I/O, and it is not a
+deployed-load claim (\S\ref{sec:nonclaims}).
 
 \subsection{A disclosed harness bug}
 \label{sec:eval-bug}
