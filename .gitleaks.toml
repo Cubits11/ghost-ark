@@ -1,0 +1,30 @@
+# Ghost-Ark gitleaks configuration.
+#
+# We extend gitleaks' default rule set (do NOT disable it) and add a narrow,
+# audited allowlist for ONE class of false positive: recorded round-trip
+# evidence transcripts under dab/roundtrip/ contain the gateway's ed25519
+# *public verifying key* (published so the INDEPENDENT verifier can check
+# signatures) alongside public receipt fields — signatures, content digests,
+# policy digests. None of these are secrets; publishing the verifying key is the
+# whole point of an independently verifiable receipt. gitleaks' generic-api-key
+# rule fires on the 64-hex "public key = <hex>" line, which is a false positive.
+#
+# The allowlist is deliberately scoped to the recorded-evidence directory and to
+# the public-key line shape, so real secret rules still apply everywhere else.
+
+title = "Ghost-Ark gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Gateway ed25519 PUBLIC verifying key + public receipt fields in recorded round-trip evidence are not secrets."
+# Recorded evidence transcripts: append-only logs of public verification data.
+paths = [
+  '''dab/roundtrip/.*\.txt$''',
+]
+# Belt-and-suspenders: never treat a labeled PUBLIC key line as a leak, wherever
+# it appears (keeps the intent explicit for a skeptical auditor).
+regexes = [
+  '''(?i)(public[_ ]key|gateway_public_key)\s*=\s*[0-9a-f]{64}''',
+]
