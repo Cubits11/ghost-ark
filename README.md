@@ -2,9 +2,11 @@
 
 [![Artifact Evaluation: Functional](https://img.shields.io/badge/Artifact-Functional-green)](#)
 
-Agentic LLM frameworks rely on probabilistic guardrails to evaluate *content*. **Ghost-Ark** is a strict enforcement runtime that isolates, validates, and cryptographically receipts *state mutations*.
+Ghost-Ark is a transactional control plane for AI agents. It does not use probabilistic classification. It mathematically bounds the worst-case correlation of your guardrails, and aborts trajectories that violate its Fréchet topology or its thermodynamic iteration budget.
 
-> **Ghost-Ark verifies what was recorded, signed, and bounded by policy. It explicitly does _not_ prove that an AI output is true, aligned, compliant, or safe.**
+What this is: A runnable impossibility spine, $O(1)$ stateless refutability, and cohort-scoped measurement of correlated failure.
+
+What this is not: Post-quantum secure, scaled for enterprise identity, or semantically 'safe'. We do not evaluate what the AI means; we evaluate the exact mathematical structure of its state-space.
 
 ---
 
