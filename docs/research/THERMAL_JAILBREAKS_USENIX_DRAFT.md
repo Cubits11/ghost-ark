@@ -7,19 +7,21 @@
 
 As autonomous Multi-Agent Systems (MAS) transition to real-time, asynchronous operations, the paradigm of "AI safety" has predominantly focused on semantic evaluations—probabilistic guardrails designed to detect malicious intent or toxic outputs. We demonstrate that this paradigm is fundamentally vulnerable to a novel class of asymmetric resource-exhaustion attacks: **Thermal Denial of Service (T-DoS)**. By generating adversarial payloads engineered near the boundaries of algorithmic incomputability (maximal Kolmogorov complexity), attackers can force traditional $O(n^3)$ and $O(n^4)$ semantic evaluation graphs into infinite combinatorial loops. 
 
-We empirically map the relationship between algorithmic payload density and GPU hardware power consumption (Joules/sec), proving that adversaries do not need to semantically bypass an LLM guardrail; they merely need to trap the evaluator in an intractable mathematical geometry, pushing the accelerator to its Thermal Design Power (TDP) limit and inducing hardware-level throttling or systemic failure. To solve this, we introduce the **Chaitin One-Sided Comprehension Budget**, an $O(1)$ physical timeout topology that organically enforces thermodynamic limits via exact topological bounds (the Ghost-Ark protocol). We show that while probabilistic guardrails suffer catastrophic thermal runaway, strictly constrained optimization topologies correctly collapse into an `EVALUATION_UNDECIDABLE` state in $\sim 20$ms, unconditionally neutralizing the T-DoS vector.
+We empirically map the relationship between algorithmic payload density and GPU hardware power consumption (Joules/sec), proving that adversaries do not need to semantically bypass an LLM guardrail; they merely need to trap the evaluator in an intractable mathematical geometry, pushing the accelerator to its Thermal Design Power (TDP) limit and inducing hardware-level throttling or systemic failure. To solve this, we introduce the **Chaitin One-Sided Comprehension Budget**, an $O(1)$ physical timeout topology that organically enforces thermodynamic limits via an absolute tensor constraint $E_{fwd}$ derived precisely prior to matrix initialization (the Ghost-Ark protocol). We show that while probabilistic guardrails suffer catastrophic thermal runaway, strictly constrained optimization topologies correctly collapse into an `EVALUATION_UNDECIDABLE` state in $\sim 20$ms, unconditionally neutralizing the T-DoS vector.
 
 ---
 
 ## 1. Introduction
 - **The Shift in Adversarial Dynamics**: Moving from prompt injection (semantic bypass) to algorithmic density attacks (thermodynamic exhaustion).
-- **The Mathematical Reality of Guardrails**: Guardrails are computationally expensive mapping functions $P \to Q$. 
+- **The Mathematical Reality of Guardrails**: Guardrails are computationally expensive mapping functions $P \to Q$.
+- **Landauer’s Principle and Thermodynamic Cost**: We formally tie the $O(n^4)$ evaluation mapping cost directly to Landauer’s Principle ($\text{min energy to erase 1 bit} = kT \ln 2$), strictly mapping algorithmic bits of required entropy to empirical GPU Joules. Thermal T-DoS is an immutable physical equation, not a theoretical abstraction.
 - **The Core Claim**: Semantic evaluation of adversarial inputs is thermodynamically asymmetric. The cost of generating a dense payload is $O(1)$; the cost of evaluating it under unconstrained intersection bounds is $O(n^4)$.
 
 ## 2. Theoretical Background: The Chaitin Limit and Fréchet Topology
 - **Kolmogorov Complexity in Prompts**: Defining the 'Chaitin Payload'—a string indistinguishable from noise, maximizing the bounds of the evaluation solver.
 - **Topological Bounding**: How the Ghost-Ark architecture maps constraints to the Fréchet bounds of a marginal probability polytope.
-- **The Simplex Vulnerability**: The underlying two-phase Simplex algorithms used to calculate correlation geometries suffer exponential time complexity ($2^k$) in the worst-case (Klee-Minty cubes). 
+- **The Simplex Vulnerability**: The underlying two-phase Simplex algorithms used to calculate correlation geometries suffer exponential time complexity ($2^k$) in the worst-case (Klee-Minty cubes).
+- **2.3 Hessian Matrix Bloat in Polynomial Solvers**: Rebutting the assumption that Interior-Point Methods (IPMs) bypass the bottleneck. Under maximal Kolmogorov density, bounding polytopes become heavily disjoint and non-convex. When navigating fractured adversarial space, IPM central paths collapse, exploding gradient Hessians in rank. This transforms thermal time delays (Simplex looping) into fatal GPU HBM (VRAM) OOM segmentation faults. The defender is physically trapped: timeout via combinatorics, or crash via memory density.
 
 ## 3. The Thermal T-DoS Attack Vector
 - **Payload Generation (The Exploit Engine)**: Mechanics of generating adversarial payload density to target specific solver sub-routines.
