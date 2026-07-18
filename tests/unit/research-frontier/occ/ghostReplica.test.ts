@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { WorldState, OccGate, GhostReplica } from '../../../../packages/research-frontier/src/occ/ghostReplica';
+import { WorldState, OccGate, GhostReplica, hashState } from '../../../../packages/research-frontier/src/occ/ghostReplica';
 import { LpStatus } from '../../../../packages/research-frontier/src/unification/lpOracle';
 
 describe('OCC Runtime Gate (Speculative Collapse)', () => {
     it('commits successfully when the world state is unmodified', () => {
-        const world: WorldState = { 'agent_pos': { value: 0, version: 1 } };
+        const world: WorldState = { 'agent_pos': { value: 0, version: 1, stateHash: hashState(0) } };
         const gate = new OccGate(world);
         const replica = new GhostReplica(world);
 
@@ -20,7 +20,7 @@ describe('OCC Runtime Gate (Speculative Collapse)', () => {
     });
 
     it('undergoes speculative collapse when the world state shifts during execution', () => {
-        const world: WorldState = { 'balance': { value: 100, version: 1 } };
+        const world: WorldState = { 'balance': { value: 100, version: 1, stateHash: hashState(100) } };
         const gate = new OccGate(world);
         
         // Agent operates in a ghost replica
@@ -46,7 +46,7 @@ describe('OCC Runtime Gate (Speculative Collapse)', () => {
     });
 
     it('annihilates the speculative future if the LP Oracle trips the temporal stopping bounds', () => {
-        const world: WorldState = { 'task_progress': { value: 0, version: 1 } };
+        const world: WorldState = { 'task_progress': { value: 0, version: 1, stateHash: hashState(0) } };
         const gate = new OccGate(world);
         const replica = new GhostReplica(world);
 

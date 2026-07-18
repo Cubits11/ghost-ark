@@ -18,6 +18,7 @@ const scannableExtensions = new Set([
 ]);
 
 const skippedDirectories = new Set([
+  ".claude",
   ".git",
   ".next",
   ".turbo",
