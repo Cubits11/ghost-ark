@@ -340,4 +340,3 @@ I do not trust the README.
 I do not trust the model.
 
 But I can inspect the receipt, replay the canonical digest, verify the signature, map the claim to evidence, inspect the non-claim, and reproduce the failure boundary.
-
