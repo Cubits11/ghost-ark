@@ -72,7 +72,7 @@ describe("GHOST-CHAITIN-V1 receipts — replayable witnesses", () => {
     const r = structuredClone(
       buildChaitinReceipt(evaluateComprehension(structured, 2048), structured, TS, TKEY),
     );
-    (r.witness.measurements as { compressed_bytes: number }[])[0].compressed_bytes = 3;
+    (r.witness.measurements as unknown as { compressed_bytes: number }[])[0].compressed_bytes = 3;
     const v = verifyChaitinReceipt(r, { hmacKey: TKEY });
     expect(v.checks.digest_matches).toBe(false);
     expect(v.valid).toBe(false);
@@ -110,7 +110,7 @@ describe("GHOST-CHAITIN-V1 receipts — replayable witnesses", () => {
 
     const forged = structuredClone(honest);
     (forged as { status: string }).status = "WITHIN_BUDGET";
-    (forged.witness.measurements as { compressed_bytes: number }[]).forEach(
+    (forged.witness.measurements as unknown as { compressed_bytes: number }[]).forEach(
       (m) => (m.compressed_bytes = 100),
     );
     (forged.witness as { upper_bound_bytes: number }).upper_bound_bytes = 100;
