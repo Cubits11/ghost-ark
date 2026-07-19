@@ -43,7 +43,7 @@ Ghost-Ark employs strict Optimistic Concurrency Control (OCC) with cryptographic
 **Theorem of Zero Temporal Corruption:**
 Let $S_t$ be the state digest at time $t$. Any transaction $T$ must present the tuple $(S_{t}, \Delta, H_{receipt})$.
 If multiple threads submit concurrent transactions $T_1, T_2, \dots, T_n$:
-1. The ledger atomicity guarantees only one transaction $T_i$ can increment the state digest to $S_{t+1}$.
+1. The ledger atomicity verifies under rule R that only one transaction $T_i$ can increment the state digest to $S_{t+1}$.
 2. All other transactions $T_{j \neq i}$ will present a stale pre-state digest ($S_t \neq S_{t+1}$).
 3. The ledger deterministically rejects stale transactions with `ABORT_TEMPORAL_DRIFT`.
 

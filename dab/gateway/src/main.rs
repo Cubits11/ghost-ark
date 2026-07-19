@@ -925,7 +925,7 @@ fn main() {
 
 // Minimal Axum HTTP handler replacing Node.js event-loop
 async fn handle_http_exec(
-    axum::Json(payload): axum::Json<serde_json::Value>,
+    axum::Json(_payload): axum::Json<serde_json::Value>,
 ) -> axum::response::Json<serde_json::Value> {
     // Structural representation of agent exec without V8 pollution
     axum::response::Json(serde_json::json!({

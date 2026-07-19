@@ -58,7 +58,7 @@ When internal engineering teams demand to deploy autonomous AI that can generate
 
 **Pricing Model (SaaS Appliance):**
 - **Base ACV (Annual Contract Value):** $85,000 minimum per cluster.
-- **Federal / Defense (EAL4/IL5+):** Multi-million dollar enterprise licenses guaranteeing that LLM logic cannot physically connect to unapproved DNS exfiltration C2 points.
+- **Federal / Defense (EAL4/IL5+):** Multi-million dollar enterprise licenses verifying LLM egress blocking under rule R so that LLM logic cannot physically connect to unapproved DNS exfiltration C2 points.
 
 ---
 

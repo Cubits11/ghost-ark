@@ -91,8 +91,7 @@ int BPF_KPROBE(intercept_unix_stream_sendmsg, struct socket *sock, struct msghdr
     
     // We inspect the msghdr for ancillary data (msg_control).
     if (msg != NULL) {
-        void *control = NULL;
-        bpf_probe_read_kernel(&control, sizeof(control), &msg->msg_control);
+        void *control = BPF_CORE_READ(msg, msg_control);
         if (control != NULL) {
             // SCM_RIGHTS detected. If managed, block FD passing entirely to 
             // prevent blinded execution limits.

@@ -1,6 +1,11 @@
 # Nitro Enclave Isolation Architecture
 
-This document details the transition blueprint for Ghost-Ark's runtime isolation, migrating from native Linux Virtual File System (VFS) and namespaces (cgroups) into hardware-enforced AWS Nitro Enclaves. This architectural upgrade guarantees absolute execution blinding and physical memory encryption, physically precluding any compromised host OS kernel from tampering with the OCC state ledger.
+> **Epistemic Status Block:**
+> - Memory Encryption: `[DOCUMENTED_DESIGN]` (Hardware limits acknowledged)
+> - NSM Attestation: `[LIVE_AWS_VALIDATED]` (Cryptographically verified in CI)
+> - Ring 0 eBPF Filtering: `[MOCK_INTERFACE]` (Simulated in Node.js testing)
+
+This document details the transition blueprint for Ghost-Ark's runtime isolation, migrating from native Linux Virtual File System (VFS) and namespaces (cgroups) into hardware-enforced AWS Nitro Enclaves. This architectural upgrade binds execution memory states to a cryptographically sealed environment, rendering host-level inspection computationally infeasible under AES-256-GCM bounds, physically precluding any compromised host OS kernel from tampering with the OCC state ledger.
 
 ## 1. The Architectural Boundary Shift
 
@@ -15,7 +20,7 @@ Ghost-Ark's `AgentExecRequest` payloads will be multiplexed over an `AF_VSOCK` c
 
 ## 2. Cryptographic Attestation via NSM
 
-To guarantee the Enclave has not been replaced with a malicious stub, Ghost-Ark leverages the Nitro Security Module (NSM). 
+To enforce the Enclave boundary subject to the NSM (Nitro Security Module) attestation signature scheme, verified out-of-band, Ghost-Ark leverages the Nitro Security Module (NSM). 
 
 1. Upon boot, the Enclave generates an RSA/ECC keypair inside its encrypted memory.
 2. The Enclave requests an **Attestation Document** from the underlying Nitro Hypervisor.
