@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/bigquery-receipt-row.schema.json",
+  "title": "Ghost-Ark BigQuery Receipt Row Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receipt_id",
+    "tenant_slug",
+    "issued_at",
+    "subject_kind",
+    "subject_id",
+    "digest_sha256",
+    "signature_key_id",
+    "status",
+    "gcs_uri",
+    "ingested_at"
+  ],
+  "properties": {
+    "receipt_id": { "type": "string", "pattern": "^rct_[a-f0-9]{64}$" },
+    "tenant_slug": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "subject_kind": { "type": "string", "enum": ["evidence-object", "dataset-version", "claim", "export-pack", "transform-run"] },
+    "subject_id": { "type": "string", "minLength": 1 },
+    "subject_uri": { "type": "string" },
+    "digest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "signature_key_id": { "type": "string", "minLength": 1 },
+    "signature_base64": { "type": "string" },
+    "status": { "type": "string", "enum": ["issued", "superseded", "revoked", "disputed"] },
+    "gcs_uri": { "type": "string", "pattern": "^gs://.+" },
+    "ingested_at": { "type": "string", "format": "date-time" },
+    "merkle_leaf_index": { "type": "integer", "minimum": 0 },
+    "raw_json": { "type": "string" }
+  }
+}

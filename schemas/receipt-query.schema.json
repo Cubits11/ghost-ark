@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/receipt-query.schema.json",
+  "title": "Ghost-Ark Receipt Query Parameter Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "tenantSlug": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$" },
+    "receiptId": { "type": "string" },
+    "subjectKind": { "type": "string", "enum": ["evidence-object", "dataset-version", "claim", "export-pack", "transform-run"] },
+    "subjectId": { "type": "string" },
+    "status": { "type": "string", "enum": ["issued", "superseded", "revoked", "disputed"] },
+    "fromTimestamp": { "type": "string", "format": "date-time" },
+    "toTimestamp": { "type": "string", "format": "date-time" },
+    "limit": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 50 }
+  }
+}

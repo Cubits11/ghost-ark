@@ -1,0 +1,8 @@
+{
+  "name": "@ghost-ark/google-cloud",
+  "version": "50.0.0",
+  "private": true,
+  "main": "dist/packages/google-cloud/src/index.js",
+  "types": "dist/packages/google-cloud/src/index.d.ts",
+  "description": "Google Cloud evidence lakehouse, receipt storage, and BigQuery indexing client for Ghost-Ark."
+}
