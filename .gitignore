@@ -28,3 +28,15 @@ proofs/**/*_TTrace_*.bin
 # Cargo.lock files ARE tracked (for reproducible, --locked builds).
 target/
 **/target/
+# Google Cloud
+.env
+.env.local
+.env.*.local
+
+# Service account credentials
+secrets/
+*.pem
+*.p12
+
+# gcloud configuration
+.gcloudignore

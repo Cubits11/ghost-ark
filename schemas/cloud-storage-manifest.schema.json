@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/cloud-storage-manifest.schema.json",
+  "title": "Ghost-Ark Cloud Storage Object Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "bucket",
+    "objectPath",
+    "sha256Hex",
+    "sizeBytes",
+    "contentType",
+    "createdAt",
+    "tenantSlug"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "ghost.cloud_storage_manifest.v1" },
+    "bucket": { "type": "string", "minLength": 1 },
+    "objectPath": { "type": "string", "minLength": 1 },
+    "sha256Hex": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "sizeBytes": { "type": "integer", "minimum": 0 },
+    "contentType": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "tenantSlug": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$" },
+    "metadata": { "type": "object" }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/evidence-upload.schema.json",
+  "title": "Ghost-Ark Evidence Upload Payload Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidenceId",
+    "tenantSlug",
+    "sha256Hex",
+    "sizeBytes",
+    "contentType",
+    "uploadedAt",
+    "gcsUri"
+  ],
+  "properties": {
+    "evidenceId": { "type": "string", "minLength": 1 },
+    "tenantSlug": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$" },
+    "sha256Hex": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "sizeBytes": { "type": "integer", "minimum": 0 },
+    "contentType": { "type": "string", "minLength": 1 },
+    "uploadedAt": { "type": "string", "format": "date-time" },
+    "gcsUri": { "type": "string", "pattern": "^gs://.+" },
+    "tags": { "type": "object" }
+  }
+}

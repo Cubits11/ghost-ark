@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghost-ark.dev/schemas/receipt-index.schema.json",
+  "title": "Ghost-Ark Receipt Index Metadata Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tenantSlug",
+    "totalReceipts",
+    "lastReceiptId",
+    "lastIssuedAt",
+    "merkleRoot",
+    "updatedAt"
+  ],
+  "properties": {
+    "tenantSlug": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,47}$" },
+    "totalReceipts": { "type": "integer", "minimum": 0 },
+    "lastReceiptId": { "type": "string", "pattern": "^rct_[a-f0-9]{64}$" },
+    "lastIssuedAt": { "type": "string", "format": "date-time" },
+    "merkleRoot": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "gcsUri": { "type": "string" }
+  }
+}
