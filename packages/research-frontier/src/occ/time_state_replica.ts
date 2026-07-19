@@ -10,9 +10,10 @@ export function hashStateBlock(data: any): string {
 }
 
 /**
- * The World Ledger (Reality Baseline)
- * A continuously executing concurrent hash map that receives simulated exogenous state-mutations.
- * It strictly rejects software-locking paradigms like mutexes, recognizing them as O(n) latency vulnerabilities.
+ * WorldLedger - the committed baseline state.
+ * A key/value store that also records a SHA-256 hash per key, so a reader can
+ * later detect whether a key changed between its read and its commit attempt.
+ * This is lock-free optimistic concurrency control (OCC), not a mutex.
  */
 export class WorldLedger {
     private memorySpace: Map<string, any> = new Map();
@@ -29,8 +30,9 @@ export class WorldLedger {
     }
 
     /**
-     * O(1) Cryptographic validation layer executing:
-     * SHA-256(S_READ_current) === SHA-256(S_READ_past)
+     * OCC validation: for every key the caller read, compare the hash it saw
+     * then against the current hash. Any mismatch aborts the whole write-set;
+     * otherwise all staged writes are applied atomically.
      */
     public commitSpeculative(
         writeSet: Map<string, any>, 
@@ -63,8 +65,9 @@ export class WorldLedger {
 }
 
 /**
- * The Epistemic Window
- * Represents the localized speculative branching array of a single autonomous AI agent.
+ * EpistemicWindowAgent - one actor's speculative buffer: the keys it has read
+ * (with the hashes seen at read time), plus a staged write-set not yet applied
+ * to the ledger.
  */
 export class EpistemicWindowAgent {
     private readSet: Map<string, any> = new Map();
@@ -85,12 +88,13 @@ export class EpistemicWindowAgent {
     }
 
     /**
-     * Executes the topological time convergence via O(1) Ghost-Ark hash bounds.
+     * Attempt to commit the staged write-set under OCC. On conflict the staged
+     * work is discarded and the base ledger is left untouched (a no-op).
      */
     public collapse(): { status: string, conflicts: string[] } {
         const result = this.ledger.commitSpeculative(this.writeSet, this.readHashSnapshot);
         if (result.status === 'ABORT_TEMPORAL_DRIFT') {
-            // Physical ontological rollback: Violently discarding dead compute, protecting state memory.
+            // Conflict: drop the speculative write-set; base state is unchanged.
             this.writeSet.clear();
             this.readHashSnapshot.clear();
             this.readSet.clear();
@@ -99,8 +103,9 @@ export class EpistemicWindowAgent {
     }
 
     /**
-     * Simulates Asynchronous Chaos: A blindly executed write ignoring temporal mutation,
-     * representing the systemic blast radius of legacy multi-agent frameworks.
+     * Non-OCC baseline: apply the write-set unconditionally, ignoring whether the
+     * state changed since the read. Used only to demonstrate the lost-update
+     * hazard that the OCC path (collapse) prevents.
      */
     public legacyBlindCommit(): void {
         for (const [key, data] of this.writeSet.entries()) {

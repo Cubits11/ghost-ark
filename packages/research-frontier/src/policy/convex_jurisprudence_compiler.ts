@@ -1,4 +1,4 @@
-import { generateKripkeSignature } from '../verifier/crypto_marshal';
+import { canonicalStateDigest } from '../verifier/crypto_marshal';
 
 // A strict bounding constraint: A_i * X <= b_i
 export interface GeometricConstraint {
@@ -9,9 +9,13 @@ export interface GeometricConstraint {
 }
 
 /**
- * Geometric Jurisprudence Matrix
- * Translates human compliance law directly into a matrix array mapping inequality arrays (Ax <= b).
- * This structure replaces NLP-based semantic prompting with strict structural constraints.
+ * Convex constraint set (intersection of half-spaces, Ax <= b).
+ *
+ * Compiles declared numeric policy bounds into linear inequalities and tests
+ * whether a vector lies inside the resulting convex region. This is exact
+ * linear algebra over declared marginals - not a semantic/NLP evaluation of
+ * intent, and it decides nothing about resources or operations outside the
+ * numeric dimensions it is given.
  */
 export class ConvexJurisprudenceMatrix {
     private constraints: GeometricConstraint[] = [];
@@ -33,8 +37,9 @@ export class ConvexJurisprudenceMatrix {
     }
 
     /**
-     * LP Verifier: Strictly evaluates if the trajectory vector V exists within the safe polyhedral space.
-     * Represents physical limits instead of sentient LLM evaluation mechanisms.
+     * Tests whether vector V satisfies every declared inequality (A_i . V <= b_i).
+     * Returns SAFE if V is inside the convex region, or GEOMETRIC_COLLISION with
+     * the first violated constraint and an unsigned digest of the violation record.
      */
     public verifyTrajectory(vectorV: number[]): { status: 'SAFE' | 'GEOMETRIC_COLLISION', interceptPlane?: GeometricConstraint, witnessHash?: string } {
         for (const plane of this.constraints) {
@@ -45,7 +50,7 @@ export class ConvexJurisprudenceMatrix {
 
             // Ax > b mathematically implies intercepting the bounding hyperplane
             if (dotProduct > plane.bound) {
-                const witness = generateKripkeSignature({
+                const witness = canonicalStateDigest({
                     type: "GEOMETRIC_COLLISION",
                     vector: vectorV,
                     hyperplane_id: plane.id,
