@@ -136,11 +136,11 @@ impl ReplayLedger {
             }
         }
 
-        // 2. Move to tombstones and decrement atomic counter
+        // 2. Insert into spent tombstones BEFORE removing from active entries to eliminate interleaving race
         let mut archived_count = 0;
         for nonce in to_archive {
+            self.spent.insert(nonce.clone());
             if self.entries.remove(&nonce).is_some() {
-                self.spent.insert(nonce);
                 archived_count += 1;
             }
         }
@@ -208,5 +208,105 @@ mod tests {
         let shared = create_nonce_ledger();
         assert!(shared.consume("n1".into(), "tx".into(), "c".into()));
         assert!(!shared.consume("n1".into(), "tx".into(), "c".into()));
+    }
+
+    #[test]
+    fn concurrent_nonce_consumption_race_test() {
+        use std::sync::atomic::AtomicU32;
+        use std::thread;
+
+        let ledger = create_nonce_ledger();
+        let success_count = Arc::new(AtomicU32::new(0));
+        let mut handles = vec![];
+
+        for i in 0..64 {
+            let l = Arc::clone(&ledger);
+            let s = Arc::clone(&success_count);
+            handles.push(thread::spawn(move || {
+                let res = l.consume("same_nonce".into(), format!("tx_{i}"), "commit".into());
+                if res {
+                    s.fetch_add(1, Ordering::Relaxed);
+                }
+            }));
+        }
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        assert_eq!(success_count.load(Ordering::Relaxed), 1, "Exactly one thread must successfully consume the nonce under concurrent race");
+    }
+
+    #[test]
+    fn test_gc_interleaving_window_reproduction() {
+        let ledger = ReplayLedger::new();
+        let nonce = "n_gc_race".to_string();
+
+        // 1. Initial consume
+        assert!(ledger.consume(nonce.clone(), "tx1".into(), "c1".into()));
+
+        // 2. Simulate step 1 of GC: removal from entries before tombstone insertion
+        let removed = ledger.entries.remove(&nonce);
+        assert!(removed.is_some());
+
+        // 3. Interleaving window: consumer arrives before spent.insert(nonce)
+        let re_consumed = ledger.consume(nonce.clone(), "tx2".into(), "c2".into());
+
+        // 4. Step 2 of GC: tombstone insertion executes post-consume
+        ledger.spent.insert(nonce.clone());
+
+        // Document: re_consumed succeeds during the un-guarded removal window
+        assert!(re_consumed, "Interleaving window allows re-consumption before tombstone insert");
+        // Document: entry now exists in both entries and spent
+        assert!(ledger.exists(&nonce));
+    }
+
+    #[test]
+    fn test_multithreaded_gc_interleaving_race() {
+        use std::sync::atomic::AtomicBool;
+        use std::thread;
+
+        // TTL set to 0 seconds so entries expire immediately for GC collection
+        let ledger = Arc::new(ReplayLedger::with_config(500_000, 0));
+        let running = Arc::new(AtomicBool::new(true));
+
+        // 1. Spawn background GC thread
+        let l_gc = Arc::clone(&ledger);
+        let r_gc = Arc::clone(&running);
+        let gc_handle = thread::spawn(move || {
+            while r_gc.load(Ordering::Relaxed) {
+                l_gc.run_garbage_collection();
+                thread::yield_now();
+            }
+        });
+
+        // 2. Hammer ledger with concurrent workers consuming same nonce set
+        let mut worker_handles = vec![];
+        for worker_id in 0..16 {
+            let l_w = Arc::clone(&ledger);
+            worker_handles.push(thread::spawn(move || {
+                for i in 0..100 {
+                    let nonce = format!("gc_race_nonce_{i}");
+                    let _ = l_w.consume(nonce, format!("tx_w{worker_id}_{i}"), "commit".into());
+                }
+            }));
+        }
+
+        for h in worker_handles {
+            h.join().unwrap();
+        }
+
+        running.store(false, Ordering::Relaxed);
+        gc_handle.join().unwrap();
+
+        // Safety Invariant: No active entry may simultaneously exist in the spent tombstone set
+        for entry in ledger.entries.iter() {
+            assert!(
+                !ledger.spent.contains(entry.key()),
+                "Safety Invariant Violation: Nonce {} found in both entries and spent tombstones",
+                entry.key()
+            );
+        }
+        assert!(ledger.spent_size() + ledger.size() <= 1600);
     }
 }
