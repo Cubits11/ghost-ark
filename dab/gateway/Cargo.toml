@@ -10,8 +10,12 @@ license = "MIT"
 # Concurrent Data Structures (Lock-Free Hot Path)
 dashmap = "5.5"
 
-# Asynchronous Runtime (Background GC)
-tokio = { version = "1", features = ["rt", "time", "macros"] }
+# Asynchronous Runtime (Background GC, axum)
+tokio = { version = "1", features = ["rt", "time", "macros", "net", "rt-multi-thread"] }
+
+# Native Rust HTTP Proxy (Zero-Day 2, 5 Mitigation)
+axum = "0.7"
+tower = { version = "0.4", features = ["limit", "buffer", "load-shed"] }
 
 # Memory Allocation (For AWS Linux Deployments)
 mimalloc = "0.1"
