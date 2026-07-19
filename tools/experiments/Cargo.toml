@@ -1,0 +1,19 @@
+[package]
+name = "ghost-ark-experiments"
+version = "0.1.0"
+edition = "2021"
+description = "Ghost-Ark empirical measurement harnesses. Research-only; no dependencies so the crate builds offline on any host."
+license = "MIT"
+publish = false
+
+# Intentionally dependency-free: these harnesses must build and run on an
+# arbitrary auditor host without network access to a crate registry.
+[dependencies]
+
+[[bin]]
+name = "side_channel_timing_floor"
+path = "src/bin/side_channel_timing_floor.rs"
+
+[profile.release]
+opt-level = 3
+debug = true

@@ -14,6 +14,7 @@ export interface CgroupOrchestratorOptions {
 
 export interface CgroupIdIpcPayload {
     type: 'REGISTER_CGROUP_ID';
+    command?: 'REGISTER' | 'REVOKE' | 'QUERY';
     cgroupId: string; // 64-bit uint represented as decimal string
     pid: number;
     slice: string;
@@ -22,10 +23,12 @@ export interface CgroupIdIpcPayload {
 }
 
 export interface CgroupIpcResponse {
-    status: 'ACK' | 'ERROR';
+    status: 'ACK' | 'NACK' | 'ERROR';
     cgroupId: string;
-    injected: boolean;
+    injected?: boolean;
     ring0LedgerIndex?: number;
+    stateDigest?: string;
+    reason?: string;
     error?: string;
 }
 
