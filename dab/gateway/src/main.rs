@@ -872,98 +872,65 @@ fn run_emit_receipt(
 
 
 
-fn main(){
-
-
-    let argv:Vec<String> =
-        std::env::args().collect();
-
+fn main() {
+    let argv: Vec<String> = std::env::args().collect();
     if argv.len() > 1 && argv[1] == "emit-receipt" {
-        std::process::exit(
-            run_emit_receipt(&argv[2..])
-        );
+        std::process::exit(run_emit_receipt(&argv[2..]));
     }
 
+    let _ = std::fs::remove_file(SOCKET_PATH);
 
-    let _ =
-        std::fs::remove_file(
-            SOCKET_PATH
-        );
+    let listener = UnixListener::bind(SOCKET_PATH).expect("Cannot bind DAB socket");
 
-
-
-    let listener =
-        UnixListener::bind(
-            SOCKET_PATH
-        )
-        .expect(
-            "Cannot bind DAB socket"
-        );
-
-
-
-    let signer =
-        StdArc::new(
-            GatewaySigner::from_dev_env()
-                .expect("gateway dev signer init failed")
-        );
-
-
-
-    println!(
-        "DAB Gateway TCB online"
+    let signer = StdArc::new(
+        GatewaySigner::from_dev_env().expect("gateway dev signer init failed"),
     );
 
-    // Publish the verifying key so the independent verifier can check receipts.
-    let pubkey_hex =
-        signer.public_key_hex();
+    println!("DAB Gateway TCB online");
+    let pubkey_hex = signer.public_key_hex();
+    println!("gateway_public_key {pubkey_hex}");
+    let _ = std::fs::write("/ipc/gateway.pub", &pubkey_hex);
 
-    println!(
-        "gateway_public_key {pubkey_hex}"
-    );
+    let ledger = nonce::create_nonce_ledger();
 
-    let _ =
-        std::fs::write(
-            "/ipc/gateway.pub",
-            &pubkey_hex,
-        );
-
-
-
-    let ledger =
-        nonce::create_nonce_ledger();
-
-
-
-
-    for stream in listener.incoming().flatten(){
-
-
-        {
-
-
-            let ledger_clone =
-                ledger.clone();
-
-            let signer_clone =
-                signer.clone();
-
-
-            std::thread::spawn(
-                move || {
-
-                    handle_client(
-                        stream,
-                        ledger_clone,
-                        signer_clone
-                    );
-
-                }
+    // Spawn the Axum HTTP Gateway (Zero-Day 2, 5 Mitigation)
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            // Placeholder: axum HTTP router to replace Node.js server.ts
+            let app = axum::Router::new().route(
+                "/rpc/v1/agent-exec",
+                axum::routing::post(handle_http_exec),
             );
+            let listener = tokio::net::TcpListener::bind("0.0.0.0:30009").await.unwrap();
+            println!("Rust Axum Proxy Gateway listening on 0.0.0.0:30009");
+            axum::serve(listener, app).await.unwrap();
+        });
+    });
 
+    for stream in listener.incoming().flatten() {
+        {
+            let ledger_clone = ledger.clone();
+            let signer_clone = signer.clone();
 
+            std::thread::spawn(move || {
+                handle_client(stream, ledger_clone, signer_clone);
+            });
         }
-
     }
+}
 
+// Minimal Axum HTTP handler replacing Node.js event-loop
+async fn handle_http_exec(
+    axum::Json(payload): axum::Json<serde_json::Value>,
+) -> axum::response::Json<serde_json::Value> {
+    // Structural representation of agent exec without V8 pollution
+    axum::response::Json(serde_json::json!({
+        "verdict": "ABORT_TEMPORAL_DRIFT",
+        "ledgerChanged": false,
+        "receipt": "0000000000000000000000000000000000000000000000000000000000000000"
+    }))
 }
