@@ -135,6 +135,26 @@ describe("forbidden claim scanner", () => {
       line: phrase("Ghost-Ark can", "guarantee", "alignment."),
       ruleId: "alignment-guarantee",
     },
+    {
+      name: "pseudo-physics wording",
+      line: phrase("Bounded by strict", "Holographic", "RAM", "isolations."),
+      ruleId: "pseudo-physics",
+    },
+    {
+      name: "fabricated empiricism wording",
+      line: phrase("Limits are", "hardware-bounded", "by PCI-e write barriers."),
+      ruleId: "fabricated-empiricism",
+    },
+    {
+      name: "thermodynamic safety wording",
+      line: phrase("Ghost-Ark enforces a", "thermodynamic", "iteration budget."),
+      ruleId: "thermodynamic-safety-claim",
+    },
+    {
+      name: "absolute review status wording",
+      line: phrase("Review status is", "immutably", "sound", "and green."),
+      ruleId: "absolute-review-status",
+    },
   ];
 
   for (const testCase of blockedCases) {
@@ -157,6 +177,16 @@ describe("forbidden claim scanner", () => {
       "Ghost-Ark defines a schema-only zk receipt interface and does not execute live",
       "zk",
       "proofs.",
+    ),
+    phrase(
+      "This is an algorithmic overhead result, not a universal",
+      "thermodynamic",
+      "law.",
+    ),
+    phrase(
+      "Ghost-Ark must not claim",
+      "hardware-bounded",
+      "isolation without live evidence.",
     ),
   ];
 
@@ -250,5 +280,53 @@ describe("forbidden claim scanner", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("docs/research/not-allowlisted.md:1");
     expect(result.stderr).not.toContain("THREAT_MODEL_FRONTIER.md");
+  });
+
+  it("scans Makefile status banners (extensionless build orchestration)", () => {
+    const root = makeTempRoot();
+    writeFixture(
+      root,
+      "Makefile",
+      'status:\n\t@echo "REVIEW STATUS: IMMUTABLY SOUND & GREEN."\n',
+    );
+
+    const result = runScanner(root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("absolute-review-status");
+    expect(result.stderr).toContain("Makefile:2");
+  });
+
+  it("scans shell scripts", () => {
+    const root = makeTempRoot();
+    writeFixture(
+      root,
+      "scripts/report.sh",
+      'echo "Ghost-Ark is production-ready."\n',
+    );
+
+    const result = runScanner(root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("production-ready");
+    expect(result.stderr).toContain("scripts/report.sh:1");
+  });
+
+  it("scans Dockerfiles by basename prefix", () => {
+    const root = makeTempRoot();
+    writeFixture(root, "Dockerfile.reviewer", "# Ghost-Ark is production-ready\n");
+
+    expect(runScanner(root).status).toBe(1);
+  });
+
+  it("skips generated artifacts/ output", () => {
+    const root = makeTempRoot();
+    writeFixture(
+      root,
+      "artifacts/report.md",
+      phrase("Ghost-Ark", "proves", "AI", "safety."),
+    );
+
+    expect(runScanner(root).status).toBe(0);
   });
 });

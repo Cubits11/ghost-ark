@@ -15,10 +15,28 @@ const scannableExtensions = new Set([
   // Manuscript sources are public claim text and must pass the same gate.
   ".tex",
   ".bib",
+  // Build orchestration and shell entrypoints are reviewer-facing claim text.
+  // Before these were added, Makefile echo banners ("REVIEW STATUS: ...") and
+  // script narration sat entirely outside the gate.
+  ".sh",
+  ".mk",
 ]);
 
+// Extensionless build files are matched by basename, not extension, so a
+// rename (Makefile -> makefile/GNUmakefile) cannot exit the gate.
+const scannableBasenames = new Set(["Makefile", "makefile", "GNUmakefile"]);
+
+function isScannableName(name) {
+  // Dockerfiles ("Dockerfile", "Dockerfile.reviewer") carry reviewer-facing
+  // comment text and have no stable extension.
+  return (
+    scannableBasenames.has(name) ||
+    name === "Dockerfile" ||
+    name.startsWith("Dockerfile.")
+  );
+}
+
 const skippedDirectories = new Set([
-  ".claude",
   ".git",
   ".next",
   ".turbo",
@@ -30,6 +48,11 @@ const skippedDirectories = new Set([
   // Rust build output (dab/*/target) — compiled artifacts and cargo
   // fingerprint JSON are not public claim text.
   "target",
+  // Generated run outputs (TLC logs, bench JSON, stage status). Authored claim
+  // text is gated at its source; scanning generated logs would make the gate's
+  // verdict depend on local run state instead of the committed tree.
+  "artifacts",
+  ".cache",
 ]);
 
 const skippedFiles = new Set([
@@ -261,6 +284,57 @@ const rules = [
     suggestion:
       "Say hardware-enforced isolation requires live Nitro Enclaves deployment and attestation evidence.",
     allowance: "research",
+  },
+  // --- Pseudo-physics / fabricated-empiricism family (2026-07 audit) --------
+  // These trap the vocabulary that dressed unimplemented or in-memory code as
+  // kernel/hardware/physics fact (Makefile "bare-metal physics", benchmark
+  // "[PHYSICS CHECK]" narration, "Holographic RAM"). Regex cannot detect a
+  // fabricated number as such; it can trap the phrasing that presents
+  // narration as measurement.
+  {
+    id: "pseudo-physics",
+    pattern: rx(
+      String.raw`\bholographic\s+(?:ram|memory|space|isolations?)\b`,
+      String.raw`|\bquantum\s+spooks?\b`,
+      String.raw`|\bbare[- ]metal\s+physics\b`,
+    ),
+    reason: "Pseudo-physics vocabulary presented as a systems property.",
+    suggestion:
+      "Name the concrete mechanism and its recorded evidence (test, artifact path, or spec); physics vocabulary is not evidence.",
+    allowance: "strict",
+  },
+  {
+    id: "fabricated-empiricism",
+    pattern: rx(
+      String.raw`\bhardware[- ]bounded\b`,
+      String.raw`|\bphysics[- ]checks?\b`,
+      String.raw`|\bderived\s+from\s+bare[- ]metal\b`,
+    ),
+    reason: "Presents narration as hardware-derived measurement.",
+    suggestion:
+      "Cite the recorded measurement artifact (a path under artifacts/) and the command that produced it, or drop the hardware framing.",
+    allowance: "research",
+  },
+  {
+    id: "thermodynamic-safety-claim",
+    pattern: /\bthermodynamic(?:s|ally)?\b/i,
+    reason:
+      "Thermodynamic framing of guardrail or governance behavior without measured-evidence context.",
+    suggestion:
+      "State the measured compute or energy quantity and its recorded artifact, or remove the thermodynamic framing.",
+    allowance: "research",
+  },
+  {
+    id: "absolute-review-status",
+    pattern: rx(
+      String.raw`\bimmutably\s+sound\b`,
+      String.raw`|\bperfectly\s+capable\b`,
+      String.raw`|\bunconditionally\s+(?:neutraliz|prevent|block|secur)`,
+    ),
+    reason: "Absolute status banner or unconditional-defense assertion.",
+    suggestion:
+      "Report per-stage status from recorded artifacts (artifacts/reports/aec_summary.json); avoid absolute soundness banners.",
+    allowance: "strict",
   },
 ];
 
@@ -555,7 +629,7 @@ export function collectScannableFiles(rootDir) {
       return;
     }
 
-    if (scannableExtensions.has(extensionOf(path))) {
+    if (scannableExtensions.has(extensionOf(path)) || isScannableName(name)) {
       files.push(path);
     }
   }

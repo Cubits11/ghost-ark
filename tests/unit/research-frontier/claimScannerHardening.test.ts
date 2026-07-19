@@ -61,6 +61,7 @@ const SEEDS = [
   { text: "Ghost-Ark is production-ready enterprise infrastructure", rule: "production-ready" },
   { text: "Ghost-Ark proves AI safety completely", rule: "ai-safety-proof" },
   { text: "Ghost-Ark eliminates all risk here", rule: "risk-elimination" },
+  { text: "Ghost-Ark review status is immutably sound forever", rule: "absolute-review-status" },
 ];
 
 describe("claim scanner — E2 normalization (normalizeForMatch)", () => {
