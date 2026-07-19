@@ -2,7 +2,7 @@
 
 [![Artifact Evaluation: Functional](https://img.shields.io/badge/Artifact-Functional-green)](#)
 
-Ghost-Ark is a transactional control plane for AI agents. It does not use probabilistic classification. It mathematically bounds the worst-case correlation of your guardrails, and aborts trajectories that violate its Fréchet topology or its thermodynamic iteration budget.
+Ghost-Ark is a transactional control plane for AI agents. It does not use probabilistic classification. It computes exact worst-case correlation bounds (Fréchet-style linear-program bounds) over declared guardrail marginals, and aborts trajectories that exceed a declared evaluation-iteration budget.
 
 What this is: A runnable impossibility spine, $O(1)$ stateless refutability, and cohort-scoped measurement of correlated failure.
 
