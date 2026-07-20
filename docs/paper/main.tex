@@ -353,9 +353,8 @@ the projection of the environment onto the trajectory's declared read-set
 must hash identically at commit as at fork. This is backward validation in
 the sense of Kung--Robinson~\cite{kung1981occ}, with the read-set standing in
 for the read phase's footprint. \S\ref{sec:starvation} develops why the
-projection --- not the global state --- is validated. \statusspec{} (the
-receipt schema for this gate, including the serialized $\piR$ read-set, is
-implemented and tested; runtime enforcement is not).
+projection --- not the global state --- is validated. \statusimpl{} (the
+read-set projection evaluator \texttt{evaluateOCCGate} computes $\mathcal{H}(\pi_R(\sigma_{\mathrm{now}}))$ vs $\mathcal{H}(\pi_R(\sigma_0))$ and fails closed on read-set conflict).
 
 \textbf{Gate 3 --- Semantic (policy).} Given per-step failure marginals
 $p_1,\dots,p_k$ supplied by upstream assessors for the steps of $\tau$, the
@@ -396,9 +395,7 @@ come to overclaim. \statusimpl{}
 \draw[ar] (g3.east) -- node[above, font=\tiny, pos=0.35] {yes} (abort.west |- g3.east);
 \end{tikzpicture}
 \caption{Three-gate validation. Every path --- commit or any-gate abort ---
-terminates in a signed receipt. Gate~2 (OCC over $\piR$) is specified but not
-yet enforced at runtime; gates~1 and~3 are implemented and, for the ledger,
-wired from the TLC-verified tombstone model.}
+terminates in a signed receipt. All three gates (Ledger, OCC, Semantic) are implemented and tested, with the ledger gate wired from the TLC-verified tombstone model.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -613,6 +610,12 @@ The discipline caught us. The original nonce-ledger baseline violated its own \t
 \end{enumerate}
 
 The flaw was a true positive in the shipped design, not an artifact of the model. The repair introduced the spent-tombstone set ($S_{\mathrm{spent}}$): GC now \emph{archives} rather than \emph{forgets}. Admission requires $n_i \notin \mathcal{L}_{\mathrm{nonce}} \wedge n_i \notin S_{\mathrm{spent}}$. We propagated this fix spec-first into the Rust implementation. The gateway initially retained TTL-eviction semantics --- diverging from the verified model by exactly the refuted behavior --- and was then brought into conformance: \texttt{cleanup\_expired()} archives into a spent set, and a nonce consumed at $T$ is rejected at $T+3601$. One bounded caveat survives and is stated in \S\ref{sec:nonclaims}: the in-process tombstone set is capacity-bounded, and pruning at capacity reopens a theoretical replay window for sufficiently old nonces.
+
+\textbf{Refinement mapping conjecture.} We define the state abstraction function $\alpha: S_{\mathrm{runtime}} \to S_{\mathrm{spec}}$ mapping runtime gateway memory state $S_{\mathrm{runtime}}$ to abstract TLA+ variables $S_{\mathrm{spec}}$. The refinement simulation conjecture states that for every implementation step $S \xrightarrow{\tau} S'$, the abstract state either stutters or executes a valid specification transition:
+\begin{equation}
+\alpha(S) = \alpha(S') \;\lor\; \alpha(S) \xrightarrow{\tau_{\mathrm{spec}}} \alpha(S').
+\label{eq:refinement-sim}
+\end{equation}
 
 % ============================================================================
 \section{Evaluation}
