@@ -124,11 +124,16 @@ function src(bytes: Uint8Array): BufferSource {
   return bytes as BufferSource;
 }
 
-function base64ToBytes(b64: string): Uint8Array {
+export function base64ToBytes(b64: string): Uint8Array {
   const binary = atob(b64);
   const out = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
   return out;
+}
+
+/** Coerce a byte view to BufferSource for crypto.subtle (see `src` note above). */
+export function asBufferSource(bytes: Uint8Array): BufferSource {
+  return bytes as BufferSource;
 }
 
 /** SHA-256 hex of a UTF-8 string (matches `sha256Hex(canonicalString)` in the Node verifier). */
@@ -166,7 +171,7 @@ function kmsKeyIdsMatch(a: string, b: string): boolean {
  * semantics) is intentionally unsupported here: `crypto.subtle` cannot skip the
  * message hash, and the local fixtures do not use it.
  */
-async function verifyRsaPssDigestAsMessage(
+export async function verifyRsaPssDigestAsMessage(
   publicKeyPem: string,
   digestBytes: Uint8Array,
   signature: Uint8Array,
@@ -292,7 +297,7 @@ export async function verifyReceiptRecordWeb(record: unknown, options: VerifyOpt
   return { verdict: checks.every((c) => c.passed) ? "PASS" : "FAIL", checks, limitations };
 }
 
-function hexToBytes(hex: string): Uint8Array {
+export function hexToBytes(hex: string): Uint8Array {
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i += 1) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   return out;
