@@ -38,9 +38,39 @@ A published, self-contained interactive build of this surface (embedding the
 public sample receipt + key, running live Web Crypto) is generated from
 `scratchpad/glasshouse.html`.
 
+## Surface 2 (deepened) — decision receipts, chain, AST fuzzer
+
+- `lib/decisionVerifier.ts` — decision-receipt (`grct_`) + chain engine, a port of
+  `verifyDecisionReceipt` + `verifyDecisionReceiptChain`
+  ([verifier.mjs](../../verifiers/node/ghost_receipt_verify.mjs),
+  [chain.ts](../../packages/enforcement-runtime/src/receipts/chain.ts)). **Three
+  signature modes → three honest verdicts:**
+  - `LOCAL_HMAC_SHA256_DEV_ONLY` → verified via `subtle` HMAC with the published dev
+    vector. **Dev-only, symmetric** — consistency under a shared key, not KMS custody.
+    Never rendered as full "VERIFIED".
+  - KMS RSASSA_PSS_SHA_256, `digest-as-message` → verifiable via `subtle` → **PASS**.
+  - KMS `digest-as-mhash` (true AWS KMS DIGEST semantics) → **UNVERIFIABLE**, never
+    PASS/FAIL. `crypto.subtle` always hashes the message, so it cannot check a
+    pre-hashed signature; the Node verifier uses a raw RSA-PSS primitive this browser
+    build does not ship. Reporting it either way would be the laundering this surface
+    exists to prevent.
+- Chain edges use the runtime's **actual** rule — `prev_receipt_hash ===
+  sha256(canonical(signed parent))` (`signedDecisionReceiptHash`), empirically
+  confirmed against the `hmac-baseline → hmac-chained` fixtures — plus tenant
+  continuity, no-duplicate, and timestamp monotonicity. The user's proposed
+  `prevReceiptHash ≡ SHA256(Canonical(V_i))` was **falsified** (that is the payload
+  digest, a different preimage) and corrected here.
+- CI: [`tests/differential/decisionVerifierAgreement.test.ts`](../../tests/differential/decisionVerifierAgreement.test.ts)
+  (11/11) over the real reproducibility fixtures.
+
+The published artifact adds tabs for decision receipts (incl. the live UNVERIFIABLE
+state), a real 2-node verified lineage DAG with a break toggle, and a raw-JSON AST
+fuzzer (live re-derivation on every keystroke).
+
 ## Scope / non-claims
 
-A PASS proves internal receipt consistency under this verifier's rules. It does
-not prove model safety, semantic truth, compliance, AWS execution, KMS custody,
-or runtime integrity. Surfaces 1 (DAG/preimage inspector) and 3 (Fréchet
-co-failure radar) are **not built**; do not represent them as present.
+A PASS proves internal receipt consistency (and, for chains, hash/tenant/time
+continuity) under this verifier's rules. It does not prove model safety, semantic
+truth, compliance, chain completeness, AWS execution, KMS custody, or runtime
+integrity. HMAC verification is dev-only and symmetric. The Fréchet co-failure
+radar (Surface 3) is **not built**; do not represent it as present.
