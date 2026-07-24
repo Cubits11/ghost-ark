@@ -60,6 +60,16 @@ graph TD
 
 ---
 
+## Start Here — Reading Map
+
+- New to the terminology (spine, evidence class, governed invoke)? → [Glossary](./docs/GLOSSARY.md)
+- Who are the adversaries and what holds at each boundary? → [Threat Model](./docs/security/THREAT_MODEL.md)
+- Want the formal models and their logs? → `proofs/tla/` (tenant isolation, speculative collapse, transport boundary — each with a mutant showing the property is load-bearing), `proofs/dab/artifacts/` (nonce-ledger TLC logs), `proofs/cloud/`
+- Fastest hands-on path (zero AWS credentials): `./scripts/bootstrap-local.sh` then `./scripts/run-local-demo.sh`
+- Reviewing this as an artifact? → [README-AE.md](./README-AE.md) and [ARTIFACT_EVALUATION.md](./ARTIFACT_EVALUATION.md)
+
+---
+
 ## Current Architecture Boundary
 
 The enforcement-runtime slice adds:
@@ -182,6 +192,13 @@ npm run lint
 npm run validate:claims
 npm test
 npm run spine:a
+```
+
+Or use the wrappers (same gates, one command each):
+
+```bash
+./scripts/bootstrap-local.sh   # install + lint + claims scan + docs check + assumption lattice
+./scripts/run-local-demo.sh    # receipt verify, forgery corpus, independent verifier, governed invoke
 ```
 
 Run every locally implementable checklist gate (including CDK synthesis but excluding deployment):
