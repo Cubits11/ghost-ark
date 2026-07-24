@@ -21,6 +21,8 @@ import {
 
 const R = (p: string) => JSON.parse(readFileSync(resolve(process.cwd(), p), "utf-8"));
 const F = (p: string) => readFileSync(resolve(process.cwd(), p), "utf-8");
+const base64ToBytesLocal = (b: string): Uint8Array => new Uint8Array(Buffer.from(b, "base64"));
+const flipB64 = (s: string): string => { const i = s.length >> 1; return s.slice(0, i) + (s[i] === "A" ? "B" : "A") + s.slice(i + 1); };
 
 const HMAC_SECRET = "ghost-ark-repro-signing-dev-only-test-vector-v1";
 const baseline = R("examples/reproducibility/receipts/hmac-baseline.receipt.json");
@@ -49,16 +51,21 @@ describe("decision receipts — the three honest verdicts", () => {
     expect(rep.verdict, JSON.stringify(rep.checks.filter((c) => !c.passed))).toBe("PASS");
   });
 
-  it("KMS digest-as-mhash → UNVERIFIABLE, not FAIL (the receipt is genuine; subtle cannot check it)", async () => {
+  it("KMS digest-as-mhash → PASS via the BigInt EMSA-PSS engine (what subtle cannot do)", async () => {
     const rep = await verifyDecisionReceiptWeb(kmsMhash, { publicKeyPem: kmsMhashKey, pssMode: "digest-as-mhash" });
-    expect(rep.verdict).toBe("UNVERIFIABLE");
+    expect(rep.verdict, JSON.stringify(rep.checks.filter((c) => !c.passed))).toBe("PASS");
     const sig = rep.checks.find((c) => c.name === "signature");
-    expect(sig?.unverifiable).toBe(true);
-    expect(sig?.detail).toMatch(/DIGEST mode|digest-as-mhash|cannot be verified/i);
-    // Every OTHER step must pass — the receipt is well-formed, only the sig mode is the wall.
-    // (The standalone Node verifier confirms this fixture's signature IS valid under
-    // digest-as-mhash — verified out-of-band; here we assert only the browser limit.)
-    expect(rep.checks.filter((c) => c.name !== "signature" && !c.passed)).toHaveLength(0);
+    expect(sig?.passed).toBe(true);
+    expect(sig?.detail).toMatch(/BigInt EMSA-PSS|Web Crypto cannot/i);
+  });
+
+  it("digest-as-mhash with a flipped signature → FAIL (the BigInt engine rejects tampering)", async () => {
+    const env = JSON.parse(new TextDecoder().decode(base64ToBytesLocal(kmsMhash.receipt_signature)));
+    env.signature = flipB64(env.signature);
+    const forged = { ...kmsMhash, receipt_signature: btoa(JSON.stringify(env)) };
+    const rep = await verifyDecisionReceiptWeb(forged, { publicKeyPem: kmsMhashKey, pssMode: "digest-as-mhash" });
+    expect(rep.verdict).toBe("FAIL");
+    expect(rep.checks.find((c) => c.name === "signature")?.passed).toBe(false);
   });
 });
 

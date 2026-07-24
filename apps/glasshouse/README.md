@@ -63,9 +63,41 @@ public sample receipt + key, running live Web Crypto) is generated from
 - CI: [`tests/differential/decisionVerifierAgreement.test.ts`](../../tests/differential/decisionVerifierAgreement.test.ts)
   (11/11) over the real reproducibility fixtures.
 
-The published artifact adds tabs for decision receipts (incl. the live UNVERIFIABLE
-state), a real 2-node verified lineage DAG with a break toggle, and a raw-JSON AST
-fuzzer (live re-derivation on every keystroke).
+## KMS DIGEST mode — resolving UNVERIFIABLE with a BigInt engine
+
+- `lib/emsaPssBigInt.ts` — a pure-`BigInt` RSA-PSS / EMSA-PSS-VERIFY (RFC 8017
+  §9.1.2) over a **pre-computed digest**. Web Crypto's `subtle.verify` always
+  hashes the message, so it verifies against `SHA-256(d)` and can never check a
+  KMS DIGEST-mode signature (RSA-PSS over `d` directly). This engine does the RSA
+  math itself (modular exponentiation + EMSA-PSS decode) with `mHash = d` — no
+  double hash — turning the honest **UNVERIFIABLE** into a real **PROVED**.
+  - Corrected a bug in the source spec: `emBits = modBits − 1` (RFC 8017), so the
+    top **1** bit of `EM[0]` must be checked — the spec's `8*k − bitLength`
+    yields 0 for a 2048-bit key and would wrongly accept malformed encodings.
+  - CI: [`emsaPssBigIntAgreement.test.ts`](../../tests/differential/emsaPssBigIntAgreement.test.ts)
+    (6/6) — verifies the real `kms-digest-mode` fixture, **agrees with OpenSSL**
+    RSA-PSS-over-digest at 2048 and 3072 bits, and rejects flipped signature /
+    digest / salt length. `decisionVerifier` now uses it for digest-as-mhash.
+
+## Multi-node lineage DAG (`lib/lineageDagEngine.ts`)
+
+- Every NODE carries a cryptographic verdict (`PROVED_HMAC_DEV` /
+  `PROVED_KMS_MSG` / `PROVED_KMS_MHASH` / `INVALID_SIGNATURE` / `UNVERIFIABLE_MODE`)
+  from the single-sourced decision verifier; every EDGE carries a causal verdict
+  (`VERIFIED_LINK` / `BROKEN_LINK` / `TEMPORAL_ANOMALY` / `FORK_DETECTED` /
+  `MISSING_PARENT` / `ROOT`) using the real signed-hash rule. A graph is valid
+  only if every node is PROVED and every edge VERIFIED_LINK/ROOT.
+- CI: [`lineageDagAgreement.test.ts`](../../tests/differential/lineageDagAgreement.test.ts)
+  (10/10) over the real 2-node chain plus **genuinely dev-HMAC-signed** 3-node
+  chains, forks, temporal anomalies, and orphans (nodes really PROVED, so an edge
+  failure is isolated to the edge). Note: `prev_receipt_hash` is a signed field,
+  so re-pointing it without re-signing breaks the node's own signature —
+  tamper-evident at both the node and edge layers.
+
+The published artifact has tabs for record receipts, an AST fuzzer (live
+re-derivation on every keystroke), decision receipts (with the mhash node now
+PROVED via the BigInt engine), and a real 3-node verified lineage DAG with a
+break toggle.
 
 ## Scope / non-claims
 
