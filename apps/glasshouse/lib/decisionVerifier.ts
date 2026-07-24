@@ -36,6 +36,7 @@ import {
   verifyRsaPssDigestAsMessage,
   type CheckResult as RecordCheck,
 } from "./webReceiptVerifier";
+import { verifyRsaPssDigestAsMhash, rsaPublicKeyFromPem } from "./emsaPssBigInt";
 
 export interface CheckResult extends RecordCheck {
   /** True when the step could not be evaluated in-browser (distinct from a
@@ -200,7 +201,18 @@ export async function verifyDecisionReceiptWeb(receipt: unknown, options: Decisi
     // KMS RSA-PSS.
     if (!options.publicKeyPem) push("signature", false, "KMS receipt requires a public key. Failing closed.");
     else if ((options.pssMode ?? "digest-as-message") === "digest-as-mhash") {
-      push("signature", false, "KMS DIGEST mode (digest-as-mhash) cannot be verified by Web Crypto — subtle always hashes the message. Requires a raw RSA-PSS primitive (present in the Node verifier, not this browser build).", true);
+      // Web Crypto cannot verify KMS DIGEST mode (it always hashes the message).
+      // The pure-BigInt EMSA-PSS engine does — validated against OpenSSL and the
+      // real fixture — so this is a genuine PASS/FAIL, no longer UNVERIFIABLE.
+      try {
+        const pk = await rsaPublicKeyFromPem(options.publicKeyPem);
+        const ok = await verifyRsaPssDigestAsMhash(hexToBytes(digestSha256), base64ToBytes(env.signature), pk);
+        push("signature", ok, ok
+          ? "KMS RSA-PSS (digest-as-mhash) verifies via the BigInt EMSA-PSS engine — Web Crypto cannot (it would double-hash)."
+          : "KMS RSA-PSS (digest-as-mhash) does NOT verify under the BigInt engine.");
+      } catch (e) {
+        push("signature", false, `digest-as-mhash verification errored: ${e instanceof Error ? e.message : String(e)}`);
+      }
     } else {
       try {
         const ok = await verifyRsaPssDigestAsMessage(options.publicKeyPem, hexToBytes(digestSha256), base64ToBytes(env.signature));
