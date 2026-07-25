@@ -69,6 +69,36 @@ describe("BigInt EMSA-PSS — the real fixture", () => {
   });
 });
 
+describe("BigInt EMSA-PSS — the no-secret invariant (timing-channel scope)", () => {
+  // A hand-rolled, variable-time modexp is a real hazard for RSA SIGNING, where
+  // the private exponent is secret. It is not one for VERIFICATION, where every
+  // input is public. That argument holds only while this module contains no
+  // private-key operation and no secret-dependent comparison — so pin it,
+  // rather than relying on the invariant staying true by good intentions.
+  const raw = readFileSync(R("apps/glasshouse/lib/emsaPssBigInt.ts"), "utf-8");
+  // The invariant is about CODE, not prose: the module's own security note
+  // discusses HMAC and secrets in order to explain why it handles neither.
+  const src = raw.replace(/\/\*[\s\S]*?\*\//gu, "").replace(/\/\/.*$/gmu, "");
+
+  it("performs no private-key operation (no signing, no private exponent)", () => {
+    expect(src).not.toMatch(/privateKey|private_key|\bsign\s*\(|importKey\([^)]*"pkcs8"/i);
+    // The only exponent used must be the PUBLIC one.
+    expect(src).toMatch(/publicKey\.e/);
+  });
+
+  it("handles no shared secret: the HMAC path lives elsewhere and uses the platform", () => {
+    expect(src).not.toMatch(/hmac|secret/i);
+    const dv = readFileSync(R("apps/glasshouse/lib/decisionVerifier.ts"), "utf-8");
+    // HMAC verification must delegate to subtle (constant-time), never compare by hand.
+    expect(dv).toMatch(/crypto\.subtle\.verify\("HMAC"/);
+    expect(dv).not.toMatch(/hmacSecret[\s\S]{0,200}===\s*(?:env\.signature|expected)/);
+  });
+
+  it("still uses a constant-time comparison for the derived hash (defence in depth)", () => {
+    expect(src).toMatch(/constantTimeEqual\(H, HPrime\)/);
+  });
+});
+
 describe.skipIf(!opensslAvailable())("BigInt EMSA-PSS — OpenSSL differential", () => {
   for (const bits of [2048, 3072]) {
     it(`agrees with OpenSSL RSA-PSS-over-digest at ${bits} bits`, async () => {

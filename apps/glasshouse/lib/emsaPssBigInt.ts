@@ -11,9 +11,25 @@
  * it. This module does the RSA math itself (modular exponentiation + EMSA-PSS
  * decode) with `mHash = d` — no double hash.
  *
- * NOT constant-time in the modexp (JS BigInt is variable-time), but this is a
- * PUBLIC-KEY verification of PUBLIC data: there is no secret to leak. The only
- * comparison of derived material (H' vs H) is constant-time out of habit.
+ * TIMING SIDE CHANNELS — why variable-time BigInt is acceptable HERE and would
+ * not be elsewhere. JS BigInt arithmetic is not constant-time, and `modPow`
+ * below branches on secret-independent bits. That is a genuine hazard for RSA
+ * *signing*, which computes m^d mod n with the PRIVATE exponent d: leaking d's
+ * bit pattern through timing recovers the key. This module performs
+ * *verification*: it computes s^e mod n where the signature s, the public
+ * exponent e, and the modulus n are all public — s is supplied by the very
+ * party who would be attacking. There is no secret input, so there is no secret
+ * to leak, and a timing oracle returns information the attacker already holds.
+ *
+ * The distinction is not "we accept the risk"; it is that the risk requires a
+ * secret and this computation has none. The claim would flip immediately if
+ * this file ever gained a private-key operation, so it must not.
+ *
+ * The one genuine secret in the wider verifier is the dev HMAC key, and it is
+ * never handled here: that path delegates to `crypto.subtle.verify("HMAC", …)`,
+ * whose comparison is the platform's constant-time implementation, rather than
+ * comparing MACs by hand. `constantTimeEqual` below is used anyway for H' vs H
+ * — both public — as defence in depth, not because it is load-bearing.
  *
  * CORRECTNESS BOUNDARY. Validated in tests/differential/emsaPssBigIntAgreement
  * against (a) the real `kms-digest-mode` reproducibility fixture, (b) fresh
