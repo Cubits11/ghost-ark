@@ -60,10 +60,12 @@ async function childOf(parent: Record<string, unknown>, over: Record<string, unk
 }
 
 describe("dev signer sanity", () => {
-  it("a dev-signed node genuinely verifies (PROVED, not tampered)", async () => {
+  it("a dev-signed node genuinely verifies (every check passes, symmetric tier)", async () => {
     const c = await childOf(chained);
     const rep = await verifyDecisionReceiptWeb(c, { hmacSecret: HMAC_SECRET });
-    expect(rep.verdict, JSON.stringify(rep.checks.filter((x) => !x.passed))).toBe("PASS");
+    expect(rep.checks.filter((x) => !x.passed), JSON.stringify(rep.checks.filter((x) => !x.passed))).toHaveLength(0);
+    // Honest Design Rule: a real HMAC verification, tiered below asymmetric PASS.
+    expect(rep.verdict).toBe("PASS_DEV_SYMMETRIC");
   });
 });
 

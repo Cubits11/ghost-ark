@@ -264,14 +264,22 @@ export async function verifyReceiptRecordWeb(record: unknown, options: VerifyOpt
       : `digest mismatch. Expected ${digestSha256}; observed ${String(signature.digestSha256)}.`,
   );
 
+  // HONEST WORDING. `keyId` is metadata the submitter chose; it is not bound to
+  // the key that actually verifies the signature (that is `publicKeyPem`, the
+  // caller's pin). With no expectation supplied, nothing was compared — saying
+  // it "satisfies the expected immutable identity" asserts an expectation that
+  // does not exist. State what was actually checked, matching the phrasing the
+  // tenant check already uses.
   const keyOk =
     options.expectedKeyId === undefined || kmsKeyIdsMatch(String(signature.keyId), options.expectedKeyId);
   push(
     "key_id",
     keyOk,
-    keyOk
-      ? `keyId ${String(signature.keyId)} satisfies the expected immutable identity.`
-      : `keyId mismatch. Expected ${options.expectedKeyId}; observed ${String(signature.keyId)}.`,
+    options.expectedKeyId === undefined
+      ? `no expected keyId supplied; observed ${String(signature.keyId)} (well-formed, but NOT compared to anything and not bound to the verifying key).`
+      : keyOk
+        ? `keyId matches the expected immutable identity ${options.expectedKeyId}.`
+        : `keyId mismatch. Expected ${options.expectedKeyId}; observed ${String(signature.keyId)}.`,
   );
 
   if (!checks.every((c) => c.passed)) {
