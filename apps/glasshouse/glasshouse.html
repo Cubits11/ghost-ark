@@ -1,0 +1,617 @@
+<title>Cryptographic Glasshouse — Ghost-Ark Verification Workbench</title>
+<style>
+  :root {
+    --bg:#09090b; --panel:#111114; --panel-2:#17171b; --border:#27272a;
+    --text:#e4e4e7; --dim:#a1a1aa; --faint:#71717a;
+    --emerald:#10b981; --amber:#f59e0b; --rose:#ef4444; --rose-dim:#4c1d1d; --violet:#8b5cf6;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+    --r:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--mono);-webkit-font-smoothing:antialiased;line-height:1.5;font-size:14px;
+    background-image:radial-gradient(1200px 500px at 80% -10%,#10b98111,transparent),radial-gradient(900px 400px at -10% 110%,#8b5cf60a,transparent);}
+  .wrap{max-width:1120px;margin:0 auto;padding:30px 22px 56px;}
+  a{color:var(--emerald);}
+  header .eyebrow{color:var(--faint);font-size:11px;letter-spacing:3px;text-transform:uppercase;}
+  header h1{font-size:22px;margin:6px 0 4px;font-weight:700;letter-spacing:-.3px;text-wrap:balance;}
+  header p{color:var(--dim);margin:0;max-width:70ch;font-size:13px;}
+  .live{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--faint);letter-spacing:1.5px;text-transform:uppercase;margin-top:12px;}
+  .live .dot{width:7px;height:7px;border-radius:50%;background:var(--emerald);animation:pulse 2.4s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 #10b98155;}70%{box-shadow:0 0 0 7px #10b98100;}100%{box-shadow:0 0 0 0 #10b98100;}}
+
+  .tabs{display:flex;gap:4px;margin:20px 0 16px;border-bottom:1px solid var(--border);}
+  .tab{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--dim);font-family:var(--mono);font-size:13px;
+    padding:9px 14px;cursor:pointer;letter-spacing:.3px;}
+  .tab:hover{color:var(--text);}
+  .tab[aria-selected="true"]{color:var(--emerald);border-bottom-color:var(--emerald);}
+  .tab:focus-visible{outline:2px solid var(--emerald);outline-offset:-2px;border-radius:4px;}
+  .view{display:none;} .view.on{display:block;}
+
+  .verdict{margin:0 0 16px;border:1px solid var(--border);border-radius:var(--r);background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    padding:18px 20px;display:flex;align-items:center;gap:18px;transition:border-color .25s,box-shadow .25s;}
+  .verdict.pass{border-color:#10b98155;box-shadow:inset 0 0 0 1px #10b98122,0 0 40px -22px var(--emerald);}
+  .verdict.fail{border-color:#ef444455;box-shadow:inset 0 0 0 1px #ef444422,0 0 40px -24px var(--rose);}
+  .verdict.unver{border-color:#f59e0b55;box-shadow:inset 0 0 0 1px #f59e0b22,0 0 40px -24px var(--amber);}
+  .verdict .glyph{font-size:30px;line-height:1;width:40px;text-align:center;}
+  .verdict.pass .glyph{color:var(--emerald);} .verdict.fail .glyph{color:var(--rose);} .verdict.unver .glyph{color:var(--amber);}
+  .verdict .headline{font-size:19px;font-weight:700;letter-spacing:.5px;}
+  .verdict.pass .headline{color:var(--emerald);} .verdict.fail .headline{color:var(--rose);} .verdict.unver .headline{color:var(--amber);}
+  .verdict .sub{color:var(--dim);font-size:12.5px;margin-top:3px;} .verdict .sub b{color:var(--text);font-weight:600;}
+
+  .grid{display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start;}
+  @media (max-width:820px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);}
+  .card>.cap{color:var(--faint);font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;padding:12px 14px 0;}
+
+  .vectors{padding:8px;display:flex;flex-direction:column;gap:4px;}
+  .vec{text-align:left;width:100%;background:transparent;color:var(--text);border:1px solid transparent;border-radius:7px;padding:9px 11px;cursor:pointer;
+    font-family:var(--mono);font-size:12.5px;display:grid;grid-template-columns:auto 1fr;gap:3px 9px;transition:background .12s,border-color .12s;}
+  .vec:hover{background:var(--panel-2);} .vec:focus-visible{outline:2px solid var(--emerald);outline-offset:1px;}
+  .vec[aria-pressed="true"]{background:var(--panel-2);border-color:#3f3f46;}
+  .vec .id{font-weight:700;letter-spacing:.3px;} .vec[aria-pressed="true"] .id{color:var(--emerald);}
+  .vec .lbl{color:var(--dim);grid-column:2;} .vec .bnd{grid-column:2;font-size:10.5px;color:var(--faint);letter-spacing:.4px;}
+
+  .stat-strip{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px 4px;}
+  .chip{background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:5px 9px;font-size:11px;color:var(--dim);}
+  .chip b{color:var(--text);font-weight:600;}
+  .banner{margin:10px 14px 0;padding:9px 11px;border-radius:7px;font-size:11.5px;background:#171106;border:1px solid #3a2f12;color:#fcd9a0;}
+  .locus{margin:10px 14px 0;padding:9px 11px;border-radius:7px;font-size:12px;background:#17140c;border:1px solid #3a2f12;color:#fcd9a0;}
+  .locus.clean{background:#052e22;border-color:#10b98144;color:#a7f3d0;}
+  .bytes{margin:12px 14px 14px;background:#0c0c0e;border:1px solid var(--border);border-radius:8px;padding:11px 12px;font-size:11px;line-height:1.55;color:var(--dim);
+    white-space:pre-wrap;word-break:break-all;max-height:160px;overflow:auto;}
+  .bytes mark{background:var(--rose-dim);color:#fecaca;padding:0 1px;border-radius:2px;} .bytes .same{color:var(--faint);font-style:italic;}
+  .pipe{padding:6px 8px 12px;}
+  .step{display:grid;grid-template-columns:22px 118px 1fr;gap:10px;align-items:baseline;padding:8px;border-radius:7px;}
+  .step+.step{border-top:1px solid #1c1c20;}
+  .step .mk{font-weight:700;text-align:center;}
+  .step.ok .mk{color:var(--emerald);} .step.no .mk{color:var(--rose);} .step.unv .mk{color:var(--amber);} .step.skip .mk{color:var(--faint);}
+  .step .nm{color:var(--faint);text-transform:uppercase;font-size:10.5px;letter-spacing:1px;}
+  .step .dt{font-size:12px;color:var(--dim);}
+  .step.no{background:#1a0f10;} .step.no .dt{color:#fca5a5;} .step.no .nm{color:var(--rose);}
+  .step.unv{background:#1a1406;} .step.unv .dt{color:#fcd9a0;} .step.unv .nm{color:var(--amber);}
+
+  /* fuzzer */
+  .fuzz{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:820px){.fuzz{grid-template-columns:1fr;}}
+  textarea.editor{width:100%;height:340px;background:#0c0c0e;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:12px;
+    font-family:var(--mono);font-size:11.5px;line-height:1.5;resize:vertical;}
+  textarea.editor:focus{outline:2px solid var(--emerald);outline-offset:-1px;}
+  .hintbar{font-size:11px;color:var(--faint);margin:8px 14px;}
+
+  /* chain DAG */
+  .dag{padding:18px 14px;display:flex;flex-direction:column;gap:0;}
+  .node{border:1px solid var(--border);border-radius:9px;padding:12px 14px;background:var(--panel-2);position:relative;}
+  .node.proved{border-color:#10b98166;} .node.tamper{border-color:#ef444466;background:#170f10;}
+  .node.devsym{border-color:#f59e0b66;background:#17140c;}
+  .node.devsym .tag{color:var(--amber);border-color:#f59e0b66;}
+  .node .role{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--faint);}
+  .node .rid{font-size:12px;color:var(--text);word-break:break-all;margin-top:2px;}
+  .node .meta{font-size:11px;color:var(--dim);margin-top:6px;}
+  .node .tag{position:absolute;top:12px;right:12px;font-size:10.5px;padding:3px 8px;border-radius:999px;border:1px solid;}
+  .node.proved .tag{color:var(--emerald);border-color:#10b98166;} .node.tamper .tag{color:var(--rose);border-color:#ef444466;}
+  .edge{margin:0 auto;width:2px;height:34px;position:relative;background:var(--emerald);}
+  .edge.broken{background:repeating-linear-gradient(var(--rose),var(--rose) 4px,transparent 4px,transparent 8px);}
+  .edge .elabel{position:absolute;left:14px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:10.5px;color:var(--emerald);}
+  .edge.broken .elabel{color:var(--rose);}
+  .toggle{display:inline-flex;gap:8px;align-items:center;margin:2px 14px 14px;font-size:12px;color:var(--dim);cursor:pointer;}
+
+  footer{margin-top:22px;color:var(--faint);font-size:11px;line-height:1.7;border-top:1px solid var(--border);padding-top:14px;}
+  footer b{color:var(--dim);font-weight:600;} code{color:var(--text);background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:11.5px;}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Ghost-Ark · Cryptographic Glasshouse</div>
+    <h1>Verification Workbench</h1>
+    <p>Every verdict below is re-derived in <em>your</em> browser via the Web Crypto API — canonicalize,
+      recompute identity and digest, check the signature. Emerald renders only when the cryptography actually
+      passes; amber marks what this build honestly <em>cannot</em> verify. Same engine as the CI tests
+      (<code>webVerifierAgreement</code> 14/14, <code>decisionVerifierAgreement</code> 11/11).</p>
+    <div class="live"><span class="dot"></span><span id="cryptoState">Web Crypto · checking…</span></div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-view="records">Record receipts (rct_)</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="fuzz">AST fuzzer</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="decisions">Decision receipts (grct_)</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="chain">Chain / lineage</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="preimage">Preimage inspector</button>
+  </div>
+
+  <!-- RECORDS -->
+  <section class="view on" id="view-records">
+    <div class="verdict fail" id="r-verdict"><div class="glyph" id="r-glyph">✗</div>
+      <div><div class="headline" id="r-head">FAIL-CLOSED</div><div class="sub" id="r-sub">Select an attack vector.</div></div></div>
+    <div class="grid">
+      <div class="card"><div class="cap">Attack vectors · corpus</div><div class="vectors" id="r-vectors" role="group"></div></div>
+      <div class="card"><div class="cap">Live re-derivation</div><div class="stat-strip" id="r-stats"></div>
+        <div class="locus" id="r-locus"></div><div class="bytes" id="r-bytes"></div>
+        <div class="cap" style="padding-top:2px">Verifier pipeline · client-side</div><div class="pipe" id="r-pipe"></div></div>
+    </div>
+  </section>
+
+  <!-- FUZZER -->
+  <section class="view" id="view-fuzz">
+    <div class="hintbar">Edit the record JSON freely. Re-derivation runs on every keystroke — watch the canonical
+      digest shift and the pipeline fail closed the instant a signed byte changes. This is the mechanics of
+      canonicalization made transparent: reorder keys (no effect — canonical sorts them), change a number's
+      precision, add whitespace, or paste a non-ASCII character.</div>
+    <div class="fuzz">
+      <div><div class="cap" style="padding:0 0 6px">Receipt JSON (editable)</div>
+        <textarea class="editor" id="f-editor" spellcheck="false"></textarea></div>
+      <div class="card"><div class="verdict fail" id="f-verdict" style="margin:12px;"><div class="glyph" id="f-glyph">✗</div>
+          <div><div class="headline" id="f-head">FAIL-CLOSED</div><div class="sub" id="f-sub"></div></div></div>
+        <div class="stat-strip" id="f-stats"></div><div class="pipe" id="f-pipe"></div></div>
+    </div>
+  </section>
+
+  <!-- DECISIONS -->
+  <section class="view" id="view-decisions">
+    <div class="verdict fail" id="d-verdict"><div class="glyph" id="d-glyph">✗</div>
+      <div><div class="headline" id="d-head">—</div><div class="sub" id="d-sub"></div></div></div>
+    <div class="grid">
+      <div class="card"><div class="cap">Decision fixtures · reproducibility</div><div class="vectors" id="d-vectors" role="group"></div></div>
+      <div class="card"><div class="cap">Live re-derivation</div><div class="stat-strip" id="d-stats"></div>
+        <div class="banner" id="d-banner"></div><div class="cap" style="padding-top:6px">Verifier pipeline · 8 steps</div><div class="pipe" id="d-pipe"></div></div>
+    </div>
+  </section>
+
+  <!-- CHAIN -->
+  <section class="view" id="view-chain">
+    <div class="verdict pass" id="c-verdict"><div class="glyph" id="c-glyph">✓</div>
+      <div><div class="headline" id="c-head">CHAIN VERIFIED</div><div class="sub" id="c-sub"></div></div></div>
+    <div class="card">
+      <div class="cap">Decision-receipt lineage · every edge cryptographically re-derived</div>
+      <label class="toggle"><input type="checkbox" id="c-break"> Re-point the link (simulate a fork/tamper)</label>
+      <div class="dag" id="c-dag"></div>
+    </div>
+    <div class="hintbar">An edge is drawn <b style="color:var(--emerald)">VERIFIED_LINK</b> only when the child's
+      <code>prev_receipt_hash</code> equals <code>sha256(canonical(signed parent))</code> — the runtime's actual
+      chain rule (<code>signedDecisionReceiptHash</code>), not an assumed one. Toggle above to break it.</div>
+  </section>
+
+  <!-- PREIMAGE -->
+  <section class="view" id="view-preimage">
+    <div class="hintbar">The signature does not cover the JSON you read — it covers the <b>canonical bytes</b>.
+      This pane computes the exact transformation with a real Myers O(ND) diff (verified against a
+      brute-force DP oracle for minimality), so canonicalization stops being an act of faith.
+      Edit the left pane; the diff and the digest recompute live.</div>
+    <div class="fuzz">
+      <div><div class="cap" style="padding:0 0 6px">Raw payload (editable)</div>
+        <textarea class="editor" id="p-editor" spellcheck="false"></textarea>
+        <div class="stat-strip" id="p-stats" style="padding-left:0"></div></div>
+      <div class="card">
+        <div class="cap">What canonicalization did</div>
+        <div class="locus" id="p-transforms"></div>
+        <div class="cap" style="padding-top:8px">Raw → canonical (Myers edit script)</div>
+        <div class="bytes" id="p-diff" style="max-height:210px"></div>
+        <div class="cap">Signed bytes · sha256(canonical)</div>
+        <div class="bytes" id="p-digest" style="max-height:70px"></div>
+      </div>
+    </div>
+    <div class="hintbar"><span style="color:var(--rose)">■</span> removed from raw ·
+      <span style="color:var(--emerald)">■</span> inserted by canonicalization · unmarked = unchanged.
+      This pane <b>explains</b> a transformation; it proves nothing on its own — the proof is the digest and
+      signature check on the other tabs.</div>
+  </section>
+
+  <footer>
+    <b>Four honest verdicts.</b> <span style="color:var(--emerald)">PASS</span> = an <b>asymmetric</b> signature verified
+    against a public key — this browser could not have produced it.
+    <span style="color:var(--amber)">DEV-ONLY SYMMETRIC</span> = every check passed, but via a shared HMAC secret this
+    browser holds, so it could forge what it just verified: consistency, never custody, and never emerald.
+    <span style="color:var(--amber)">UNVERIFIABLE</span> = this build genuinely cannot check it.
+    <span style="color:var(--rose)">FAIL-CLOSED</span> = a check rejected it.
+    KMS DIGEST-mode RSA-PSS is verified here by a pure-<b>BigInt</b> EMSA-PSS engine (RFC 8017), because
+    <code>crypto.subtle</code> always hashes the message and would double-hash a pre-hashed signature.
+    A PASS does not prove model safety, semantic truth, compliance, chain completeness, or runtime integrity.
+    Canonicalization is Ghost-Ark canonical JSON — <b>not</b> RFC 8785 / JCS, and no such compliance is claimed.
+  </footer>
+</div>
+
+<script>
+// ============================ shared crypto ============================
+const enc=new TextEncoder();
+function isRec(v){return typeof v==="object"&&v!==null&&!Array.isArray(v);}
+function canon(v){
+  if(v===undefined)throw new TypeError("undefined");
+  if(v===null)return "null";
+  if(typeof v==="string")return JSON.stringify(v);
+  if(typeof v==="boolean")return v?"true":"false";
+  if(typeof v==="number"){if(!Number.isFinite(v))throw new TypeError("non-finite");return Object.is(v,-0)?"0":JSON.stringify(v);}
+  if(Array.isArray(v))return "["+v.map(canon).join(",")+"]";
+  if(isRec(v)){const e=Object.entries(v).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);return "{"+e.map(([k,x])=>JSON.stringify(k)+":"+canon(x)).join(",")+"}";}
+  throw new TypeError("unsupported");
+}
+function hexOf(buf){return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");}
+async function sha256Hex(s){return hexOf(await crypto.subtle.digest("SHA-256",enc.encode(s)));}
+function b64ToBytes(b){const s=atob(b);const o=new Uint8Array(s.length);for(let i=0;i<s.length;i++)o[i]=s.charCodeAt(i);return o;}
+function hexToBytes(h){const o=new Uint8Array(h.length/2);for(let i=0;i<o.length;i++)o[i]=parseInt(h.substr(i*2,2),16);return o;}
+function pemToDer(p){return b64ToBytes(p.replace(/-----BEGIN [^-]+-----/,"").replace(/-----END [^-]+-----/,"").replace(/\s+/g,""));}
+const KMS_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const KMS_ARN=/^arn:aws(?:-[a-z-]+)?:kms:[a-z0-9-]+:\d{12}:key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function rsaPssDigestAsMessage(pem,digestBytes,sig){
+  const k=await crypto.subtle.importKey("spki",pemToDer(pem),{name:"RSA-PSS",hash:"SHA-256"},false,["verify"]);
+  return crypto.subtle.verify({name:"RSA-PSS",saltLength:32},k,sig,digestBytes);
+}
+async function hmacVerify(secret,msg,sig){
+  const k=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["verify"]);
+  return crypto.subtle.verify("HMAC",k,sig,enc.encode(msg));
+}
+// ---- BigInt EMSA-PSS (RFC 8017): verifies KMS DIGEST-mode, which subtle cannot ----
+function bytesToBig(b){let v=0n;for(const x of b)v=(v<<8n)|BigInt(x);return v;}
+function modPow(b,e,m){if(m===1n)return 0n;let r=1n;b%=m;while(e>0n){if(e&1n)r=(r*b)%m;e>>=1n;b=(b*b)%m;}return r;}
+async function sha256b(bytes){return new Uint8Array(await crypto.subtle.digest("SHA-256",bytes));}
+async function mgf1(seed,len){const out=new Uint8Array(len);let off=0;for(let c=0;off<len;c++){const t=new Uint8Array(seed.length+4);t.set(seed,0);t[seed.length]=(c>>>24)&255;t[seed.length+1]=(c>>>16)&255;t[seed.length+2]=(c>>>8)&255;t[seed.length+3]=c&255;const blk=await sha256b(t);const n=Math.min(blk.length,len-off);out.set(blk.subarray(0,n),off);off+=n;}return out;}
+function ctEq(a,b){if(a.length!==b.length)return false;let d=0;for(let i=0;i<a.length;i++)d|=a[i]^b[i];return d===0;}
+function b64uToBytes(u){const b=u.replace(/-/g,"+").replace(/_/g,"/")+"===".slice((u.length+3)%4);const s=atob(b);const o=new Uint8Array(s.length);for(let i=0;i<s.length;i++)o[i]=s.charCodeAt(i);return o;}
+async function rsaPkFromPem(pem){const der=pemToDer(pem);const k=await crypto.subtle.importKey("spki",der,{name:"RSA-PSS",hash:"SHA-256"},true,["verify"]);const jwk=await crypto.subtle.exportKey("jwk",k);const n=bytesToBig(b64uToBytes(jwk.n));return {n,e:bytesToBig(b64uToBytes(jwk.e)),bitLength:n.toString(2).length};}
+async function verifyMhash(mHash,sig,pk,sLen){sLen=sLen||32;const hLen=32,modBits=pk.bitLength,k=Math.ceil(modBits/8);if(mHash.length!==hLen||sig.length!==k)return false;const s=bytesToBig(sig);if(s>=pk.n)return false;const m=modPow(s,pk.e,pk.n);const emBits=modBits-1,emLen=Math.ceil(emBits/8);const EM=new Uint8Array(emLen);let t=m;for(let i=emLen-1;i>=0;i--){EM[i]=Number(t&255n);t>>=8n;}if(t!==0n)return false;if(EM[emLen-1]!==0xbc)return false;const dbLen=emLen-hLen-1;const maskedDB=EM.subarray(0,dbLen);const H=EM.subarray(dbLen,dbLen+hLen);const maskBits=8*emLen-emBits;const topMask=0xff>>>maskBits;if((maskedDB[0]&~topMask&0xff)!==0)return false;const dbMask=await mgf1(H,dbLen);const DB=new Uint8Array(dbLen);for(let i=0;i<dbLen;i++)DB[i]=maskedDB[i]^dbMask[i];DB[0]&=topMask;const psLen=emLen-sLen-hLen-2;if(psLen<0)return false;for(let i=0;i<psLen;i++)if(DB[i]!==0)return false;if(DB[psLen]!==1)return false;const salt=DB.subarray(dbLen-sLen);const MP=new Uint8Array(8+hLen+sLen);MP.set(mHash,8);MP.set(salt,8+hLen);const HP=await sha256b(MP);return ctEq(H,HP);}
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+// ============================ RECORD verifier ============================
+const REC_ID=/^rct_[a-f0-9]{64}$/,SHA=/^[a-f0-9]{64}$/,TEN=/^[a-z][a-z0-9-]{1,47}$/,ISO=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+function immKey(k){return typeof k==="string"&&(KMS_ARN.test(k)||KMS_UUID.test(k));}
+function recShape(r){
+  if(!isRec(r))return "Receipt must be an object.";
+  if(!isRec(r.payload)||!isRec(r.signature))return "Receipt needs payload and signature objects.";
+  const p=r.payload,s=r.signature;
+  if(typeof p.receiptId!=="string"||!REC_ID.test(p.receiptId))return "payload.receiptId must match rct_<64 hex>.";
+  if(p.schemaVersion!=="ghost-ark.receipt.v1")return "unsupported payload.schemaVersion.";
+  if(typeof p.tenantSlug!=="string"||!TEN.test(p.tenantSlug))return "payload.tenantSlug invalid.";
+  if(typeof p.issuedAt!=="string"||!ISO.test(p.issuedAt))return "payload.issuedAt must be UTC ISO-8601.";
+  if(s.messageType!=="DIGEST"||s.algorithm!=="RSASSA_PSS_SHA_256")return "signature must be DIGEST + RSASSA_PSS_SHA_256.";
+  if(typeof s.digestSha256!=="string"||!SHA.test(s.digestSha256))return "signature.digestSha256 must be lowercase SHA-256 hex.";
+  if(!immKey(s.keyId))return "signature.keyId must be an immutable KMS ARN/UUID (aliases rejected).";
+  if(typeof s.signatureBase64!=="string"||!s.signatureBase64)return "signature.signatureBase64 required.";
+  return null;
+}
+async function verifyRecord(r,opts){
+  opts=opts||{};const ch=[];const push=(n,p,d)=>ch.push({name:n,passed:p,detail:d});
+  const err=recShape(r);if(err){push("schema",false,err);return {verdict:"FAIL",checks:ch};}
+  push("schema",true,"Matches the supported shape.");
+  const p=r.payload,s=r.signature;
+  const tOk=opts.tenant===undefined||p.tenantSlug===opts.tenant;
+  push("tenant",tOk,opts.tenant===undefined?("observed "+p.tenantSlug):(tOk?("matches expected "+opts.tenant):("tenantSlug "+p.tenantSlug+" ≠ expected "+opts.tenant)));
+  const {receiptId,...noId}=p;
+  const expectId="rct_"+await sha256Hex(canon(noId));
+  const digest=await sha256Hex(canon(p));
+  push("receipt_id",p.receiptId===expectId,p.receiptId===expectId?"receiptId recomputes from the canonical identity payload.":("mismatch — expected "+expectId.slice(0,20)+"…"));
+  push("digest",s.digestSha256===digest,s.digestSha256===digest?"digestSha256 matches the recomputed canonical payload digest.":("mismatch — recomputed "+digest.slice(0,16)+"…"));
+  const kOk=opts.expectedKeyId===undefined||String(s.keyId).endsWith(String(opts.expectedKeyId).slice(-40));
+  push("key_id",kOk,kOk?"keyId satisfies the expected immutable identity.":"keyId ≠ expected.");
+  if(!ch.every(c=>c.passed))push("signature",false,"Skipped — an earlier check failed (fail closed).");
+  else{try{const ok=await rsaPssDigestAsMessage(opts.publicKeyPem,hexToBytes(digest),b64ToBytes(String(s.signatureBase64)));
+    push("signature",ok,ok?"RSA-PSS SHA-256 verifies with the public key (digest-as-message).":"RSA-PSS signature does NOT verify.");}catch(e){push("signature",false,"errored: "+(e.message||e));}}
+  return {verdict:ch.every(c=>c.passed)?"PASS":"FAIL",checks:ch,canonical:canon(p),digest};
+}
+
+// ============================ DECISION verifier ============================
+const DEC_ID=/^grct_[a-f0-9]{64}$/;
+const IDENT_DIGEST=/^(sha256|hmac-sha256):[a-f0-9]{64}$/;
+const DEC_FIELDS=["schema_version","receipt_id","request_id","tenant_id_hash","user_id_hash","session_id_hash","timestamp","model_id","policy_version","policy_hash","input_digest","retrieved_context_digests","execution_context_hash","execution_nonce","decision_pre","decision_post","action_taken","prev_receipt_hash","signature_alg","receipt_signature"];
+function decShape(r){
+  if(!isRec(r))return "Decision receipt must be an object.";
+  const miss=DEC_FIELDS.filter(f=>!Object.prototype.hasOwnProperty.call(r,f));
+  if(miss.length)return "missing field(s): "+miss.join(", ");
+  if(r.schema_version!=="ghost.receipt.v1")return "schema_version must be ghost.receipt.v1.";
+  if(typeof r.receipt_id!=="string"||!DEC_ID.test(r.receipt_id))return "receipt_id must match grct_<64 hex>.";
+  if(r.signature_alg!=="LOCAL_HMAC_SHA256_DEV_ONLY"&&r.signature_alg!=="KMS_SIGN_RSASSA_PSS_SHA_256")return "unsupported signature_alg.";
+  // Porting chain.ts's `if(first && ...)` guard WITHOUT the schema that made it
+  // sound let a head with tenant_id_hash "" disable cross-tenant detection.
+  for(const f of ["tenant_id_hash","user_id_hash","session_id_hash"])
+    if(!IDENT_DIGEST.test(String(r[f])))return f+" must match (sha256|hmac-sha256):<64 hex>.";
+  return null;
+}
+function decEnvelope(sigb64){try{return JSON.parse(new TextDecoder().decode(b64ToBytes(sigb64)));}catch(e){return null;}}
+async function signedHash(r){return "sha256:"+await sha256Hex(canon(r));}
+async function verifyDecision(r,opts){
+  opts=opts||{};const ch=[];const push=(n,p,d,u)=>ch.push({name:n,passed:p,detail:d,unver:!!u});
+  const err=decShape(r);if(err){push("schema",false,err);return {verdict:"FAIL",checks:ch};}
+  push("schema",true,"Matches the strict ghost.receipt.v1 field contract.");
+  const {receipt_signature,...unsigned}=r;const {receipt_id,...noId}=unsigned;
+  const cp=canon(unsigned);push("canonical_payload",true,"Unsigned receipt canonicalization completed.");
+  const digest=await sha256Hex(cp);const expectId="grct_"+await sha256Hex(canon(noId));
+  push("receipt_id",r.receipt_id===expectId,r.receipt_id===expectId?"receipt_id recomputes from the canonical unsigned receipt.":"mismatch — expected "+expectId.slice(0,22)+"…");
+  const env=decEnvelope(r.receipt_signature);
+  if(!env||typeof env.signature!=="string"){push("envelope",false,"receipt_signature does not decode to a valid envelope.");return {verdict:"FAIL",checks:ch};}
+  push("envelope",env.algorithm===r.signature_alg,env.algorithm===r.signature_alg?"Envelope decodes and matches signature_alg.":"envelope algorithm ≠ signature_alg.");
+  const isKms=r.signature_alg==="KMS_SIGN_RSASSA_PSS_SHA_256";
+  let kOk,kd;
+  if(isKms){if(!immKey(env.keyId)){kOk=false;kd="KMS keyId must be an immutable ARN/UUID.";}else{kOk=true;kd="KMS keyId "+env.keyId.slice(0,28)+"… is immutable.";}}
+  else{kOk=env.keyId&&env.keyId.length>0;kd="keyId "+env.keyId+" present.";}
+  push("key_id",kOk,kd);
+  push("digest",env.digestSha256===digest,env.digestSha256===digest?"Envelope digest equals the recomputed canonical payload digest.":"digest mismatch — recomputed "+digest.slice(0,16)+"…");
+  if(!ch.every(c=>c.passed))push("signature",false,"Skipped — an earlier check failed (fail closed).");
+  else if(r.signature_alg==="LOCAL_HMAC_SHA256_DEV_ONLY"){
+    if(!opts.hmacSecret)push("signature",false,"Dev-only HMAC requires the published test vector. Failing closed.");
+    else{const ok=await hmacVerify(opts.hmacSecret,cp,b64ToBytes(env.signature));
+      push("signature",ok,ok?"DEV-ONLY HMAC verifies over the canonical unsigned receipt (symmetric — not KMS custody).":"Dev-only HMAC does NOT verify.");}
+  } else {
+    if(!opts.publicKeyPem)push("signature",false,"KMS receipt requires a public key. Failing closed.");
+    else if((opts.pssMode||"digest-as-message")==="digest-as-mhash"){
+      try{const pk=await rsaPkFromPem(opts.publicKeyPem);const ok=await verifyMhash(hexToBytes(digest),b64ToBytes(env.signature),pk);
+        push("signature",ok,ok?"KMS RSA-PSS (digest-as-mhash) verifies via the BigInt EMSA-PSS engine — Web Crypto cannot (it would double-hash).":"digest-as-mhash does NOT verify under the BigInt engine.");}catch(e){push("signature",false,"mhash errored: "+(e.message||e));}
+    }
+    else{try{const ok=await rsaPssDigestAsMessage(opts.publicKeyPem,hexToBytes(digest),b64ToBytes(env.signature));
+      if(ok)push("signature",true,"KMS RSA-PSS (digest-as-message) verifies with the public key.");
+      else{const pk=await rsaPkFromPem(opts.publicKeyPem);const asM=await verifyMhash(hexToBytes(digest),b64ToBytes(env.signature),pk);
+        if(asM)push("signature",false,"verifies as digest-as-mhash, not digest-as-message: the pssMode is misdeclared, not tampered.",true);
+        else push("signature",false,"RSA-PSS signature does NOT verify under either digest treatment — tampered or wrong key.");}}catch(e){push("signature",false,"errored: "+(e.message||e));}}
+  }
+  if(opts.expectedTenantIdHash!==undefined){const t=r.tenant_id_hash===opts.expectedTenantIdHash;push("tenant",t,t?"tenant_id_hash matches the expected tenant.":"tenant_id_hash ≠ expected tenant.");}
+  const anyFail=ch.some(c=>!c.passed&&!c.unver),anyUn=ch.some(c=>c.unver);
+  // HONEST DESIGN RULE: a clean SYMMETRIC verification is tiered below a clean
+  // asymmetric one. The verifier held the shared secret, so it could have
+  // forged what it just verified — it must never wear the emerald badge.
+  const clean=r.signature_alg==="LOCAL_HMAC_SHA256_DEV_ONLY"?"PASS_DEV_SYMMETRIC":"PASS";
+  return {verdict:anyFail?"FAIL":anyUn?"UNVERIFIABLE":clean,checks:ch,digest};
+}
+async function verifyChain(list){
+  const first=isRec(list[0])?list[0].tenant_id_hash:undefined;const seen=new Set();const out=[];
+  for(let i=0;i<list.length;i++){const r=list[i];
+    if(decShape(r)){out.push({index:i,passed:false,detail:"schema invalid"});continue;}
+    if(first&&r.tenant_id_hash!==first){out.push({index:i,passed:false,detail:"tenant-chain break"});continue;}
+    const cur=await signedHash(r);if(seen.has(cur)){out.push({index:i,passed:false,detail:"duplicate signed hash"});continue;}seen.add(cur);
+    if(i===0){out.push({index:i,passed:r.prev_receipt_hash===null,detail:r.prev_receipt_hash===null?"head has no previous hash.":"head unexpectedly declares a previous hash."});continue;}
+    const prev=list[i-1];if(Date.parse(r.timestamp)<Date.parse(prev.timestamp)){out.push({index:i,passed:false,detail:"timestamp earlier than prior."});continue;}
+    const exp=await signedHash(prev);out.push({index:i,passed:r.prev_receipt_hash===exp,detail:r.prev_receipt_hash===exp?"prev_receipt_hash matches the prior signed receipt.":"hash-chain break — expected "+exp.slice(0,24)+"…"});
+  }
+  return out;
+}
+
+// ============================ fixtures ============================
+const RECEIPT={"payload":{"receiptId":"rct_292264b449c853481a45c4df9ceff87641f53cf0fc982dc013987f9ab696ba15","schemaVersion":"ghost-ark.receipt.v1","tenantSlug":"acme-lab","issuedAt":"2026-07-07T00:00:00.000Z","subject":{"kind":"dataset-version","id":"sample-dataset-v1","uri":"s3://ghost-ark-sample/tenants/acme-lab/evidence/sample.json"},"evidenceObjects":["s3://ghost-ark-sample/tenants/acme-lab/evidence/sample.json"],"lineageEventIds":[],"claimIds":[],"governanceContext":{"lakeFormationTags":{"tenant_slug":"acme-lab","classification":"internal","evidence_role":"sample"},"columnRestrictions":[],"policyCompilerVersion":"50.0.0"},"transform":{"runId":"sample-offline-verification","jobName":"sample-receipt","parameters":{}}},"signature":{"keyId":"arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001","algorithm":"RSASSA_PSS_SHA_256","messageType":"DIGEST","digestSha256":"bb271d9d12f9aedb49d3bfa7a924d06628543f8b415bf0d8bbfe980781fd9bf0","signatureBase64":"CD+4skP/l3IpKdK9PVsaBLVn98tgaKPL/XgXazGoROEX7Q1xDRUc1d1e2X92LwQ90i2oK7iPv41+s8cfMHXp3Tzx9R58jSYHkiKZQXFnCPaKN5V8m+l9bxb/Dp1/Szzc0Ow3SGCqcYKcLm41j0TDYquMgVjfMswdqGObwsJ9G4Zr2AJApSUY1Wjs2kfxOXhyXNFVml4BnW3/wJOk+unbN55c8iEXqNgFuDQGyjw+tA8CfEq0hV6cBCR6YMxAl95EsR24iCJL0qjaNJFg5KOU/XF3QywtUxf1FlGzLYQh/U/cdpnYjF49d5CCEraEK2+rAlnCULBhhIIY3kv/hBCXsQ==","signedAt":"2026-07-07T00:00:00.000Z"},"status":"issued","createdAt":"2026-07-07T00:00:00.000Z","updatedAt":"2026-07-07T00:00:00.000Z"};
+const RKEY="-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4BmtlQXBbqUD5898pntS\ns5dSlTan1J5Pzf7a4k5F9Or6xc3Ck3lkCptEDogBfD/u2kqLTvZu1dmxlNI+AUny\n9wStIP5lAj97+HAT79d9RCpxn6dcgXq5WQQb+gCFffd2WYGUx/v9PvWi032G5BSK\n8xWyZXzqnwSQ70LDWLxE90xwQwKN+aEXrkWGTfUXezCZRXOg1iytudxyGmBG6SF/\naBJV7HkBgcYlpfuo1zoSWbcoT2v2UZuCUkEFg+TtH4UhVNygHVglDI9k9su9OGwV\nPnHHFBKY+RTDaZ160BXnmquxD5I3mxxyctqtCMMZnURhqeXjHabzB2VffzT7M3Et\nGQIDAQAB\n-----END PUBLIC KEY-----";
+const RTENANT="acme-lab",RKEYID="arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001";
+const HMAC_SECRET="ghost-ark-repro-signing-dev-only-test-vector-v1";
+const BASE={"schema_version":"ghost.receipt.v1","receipt_id":"grct_1debd067f8310ec416610ea9866d6162e12f73e5b96f4a001e66d7203342cb64","request_id":"request-repro-0001","tenant_id_hash":"hmac-sha256:585fb5719f8ae7739d9dbd7b047166dd02102c4fbfcb04fed5f5440098ca277f","user_id_hash":"hmac-sha256:1c9b61a4c1b0fdb08973a79edb25391b46c6ad06e2ebda4e71048e7bbfed171e","session_id_hash":"hmac-sha256:f68cda16ca633c321c4409707ae9b4e057d8f8efe33a5cbb711d296c46c41f16","timestamp":"2026-07-09T00:00:00.000Z","model_id":"anthropic.claude-3-5-sonnet-20240620-v1:0","policy_version":"organization:repro@1","policy_hash":"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef","input_digest":"sha256:6cbe0d99007c8a568442ab4bea5e42237b4843ef5770aafb36ba2995f894c60c","retrieved_context_digests":[],"execution_context_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","execution_nonce":"local-dev-execution-nonce","decision_pre":"ALLOW","decision_post":"ALLOW","action_taken":["emit_receipt"],"risk_score":0,"consent_state":"not_required","memory_written":false,"latency_ms":12,"cost_estimate_usd":0,"prev_receipt_hash":null,"signature_alg":"LOCAL_HMAC_SHA256_DEV_ONLY","receipt_signature":"eyJhbGdvcml0aG0iOiJMT0NBTF9ITUFDX1NIQTI1Nl9ERVZfT05MWSIsImRpZ2VzdFNoYTI1NiI6ImI3M2IwNjEzNjZiZDBiNzEzYzljY2M4MmQ5ZTFmYjc4NWM4MmZjMzhhMzA2MjBkNmYzM2IyMTNmMzc0NzYxODQiLCJrZXlJZCI6ImxvY2FsLWRldi1obWFjIiwic2NoZW1hVmVyc2lvbiI6Imdob3N0LmRlY2lzaW9uX3JlY2VpcHRfc2lnbmF0dXJlLnYxIiwic2lnbmF0dXJlIjoiTlpwRUc0WlZLZkgyR1JPRkpCVmxlK2hHdjlaQzM1bHY4RDVyd3VlOUhzZz0ifQ"};
+const CHAIN={"schema_version":"ghost.receipt.v1","receipt_id":"grct_7add8fc0cdf17dba1d09fb3daf6cc450fa1d4fcef1e839375c49efaa6e7ed07c","request_id":"request-repro-0002","tenant_id_hash":"hmac-sha256:585fb5719f8ae7739d9dbd7b047166dd02102c4fbfcb04fed5f5440098ca277f","user_id_hash":"hmac-sha256:1c9b61a4c1b0fdb08973a79edb25391b46c6ad06e2ebda4e71048e7bbfed171e","session_id_hash":"hmac-sha256:84a37b3d362f01f739402d2dc7b8d053d6d0b31694efcdf9d8670e67557fb6be","timestamp":"2026-07-09T00:05:00.000Z","model_id":"anthropic.claude-3-5-sonnet-20240620-v1:0","policy_version":"organization:repro@1","policy_hash":"cafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00d","input_digest":"sha256:801a1336e9c5297755445bb89dcac1222f343a839fd4195a9df8e9cf3faf4253","retrieved_context_digests":["sha256:5d8e97daece512955037ab3c74975926e5ca9047f94cb68563abc89602fdd9b1","sha256:fa82f9b97978d42edde4e7dae83daa5280788e117fb0cb7327ec12e604a80e12"],"execution_context_hash":"sha256:db306bb238527ded2e9ed9054d95f3cc6c5460d7828ca3dfc02595c7acdd7307","execution_nonce":"ghost-ark-repro-nonce-0002","decision_pre":"ALLOW","decision_post":"ALLOW","action_taken":["emit_receipt","redact_output"],"risk_score":0,"consent_state":"not_required","memory_written":false,"latency_ms":27,"cost_estimate_usd":0,"prev_receipt_hash":"sha256:b025de75eca16454a0e74386d929bace44a189ae4a626bc45322f0fec8f53bd2","signature_alg":"LOCAL_HMAC_SHA256_DEV_ONLY","receipt_signature":"eyJhbGdvcml0aG0iOiJMT0NBTF9ITUFDX1NIQTI1Nl9ERVZfT05MWSIsImRpZ2VzdFNoYTI1NiI6IjI1MGM4MzFlZWMwMTU2YjE4ZTJmNTg1ZTA4ZDE3ZmI0ZjNiOTdjN2ZkOThkMThjMDk2MTFjNzUxYjU1MWY4NTQiLCJrZXlJZCI6ImxvY2FsLWRldi1obWFjIiwic2NoZW1hVmVyc2lvbiI6Imdob3N0LmRlY2lzaW9uX3JlY2VpcHRfc2lnbmF0dXJlLnYxIiwic2lnbmF0dXJlIjoiRGxOZjZDSVBpbk9DMVFleG94emVtOFZLOGg3WEQzNlRHbnd4YnlReW84OD0ifQ"};
+const MHASH={"schema_version":"ghost.receipt.v1","receipt_id":"grct_5dc895402e98810a7b4df34b571debc209a9eeb2bf8823b46c8531048c476bc7","request_id":"request-repro-0003","tenant_id_hash":"hmac-sha256:585fb5719f8ae7739d9dbd7b047166dd02102c4fbfcb04fed5f5440098ca277f","user_id_hash":"hmac-sha256:1c9b61a4c1b0fdb08973a79edb25391b46c6ad06e2ebda4e71048e7bbfed171e","session_id_hash":"hmac-sha256:17bac35d7e9ba08081dee10e825cd3203619db7602351462a82afec7b003c347","timestamp":"2026-07-09T00:10:00.000Z","model_id":"anthropic.claude-3-5-sonnet-20240620-v1:0","policy_version":"organization:repro@1","policy_hash":"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef","input_digest":"sha256:6139beee4d5c3a7c33c356ca6acc69e3067467581b0f8b138f2f7e9ae9cdf085","retrieved_context_digests":["sha256:ab008d2f1cb9a18c0017485990118a03f7b938701e4e38480cba2d5c3f05ad6e"],"execution_context_hash":"sha256:b6778a64998f1ee182a534ef19c2b141a267ada1f902b2b42f99af376cbec271","execution_nonce":"ghost-ark-repro-nonce-0003","decision_pre":"ALLOW","decision_post":"ALLOW","action_taken":["emit_receipt"],"risk_score":0,"consent_state":"not_required","memory_written":false,"latency_ms":41,"cost_estimate_usd":0,"prev_receipt_hash":null,"signature_alg":"KMS_SIGN_RSASSA_PSS_SHA_256","receipt_signature":"eyJhbGdvcml0aG0iOiJLTVNfU0lHTl9SU0FTU0FfUFNTX1NIQV8yNTYiLCJkaWdlc3RTaGEyNTYiOiI1OTBlYzEyYmJjMWU1NmZkY2MxNjllNTA4Nzc2MzQ1Yzc0YTFjNGRkZDU3Njg1ZWY2NDc5YWJjYWJkYWYyZDg3Iiwia2V5SWQiOiJhcm46YXdzOmttczp1cy1lYXN0LTE6MTExMTIyMjIzMzMzOmtleS8wMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwYmIiLCJzY2hlbWFWZXJzaW9uIjoiZ2hvc3QuZGVjaXNpb25fcmVjZWlwdF9zaWduYXR1cmUudjEiLCJzaWduYXR1cmUiOiJoYnNXN1Fta0NKS2lYc1ZGS3RNSGVueWF3NzZkanc4U21RTktJbjBLd1plSTN3UVF1S2MvbTFBYTVLT2ErNTlsWFVUVlFRdW1hV3EvaWhYekxjT0hyTDlwV0NpQXRkbWFSZ3VTM01ZRmM5MTFrVzA2cG9MTk81SVhaYm5QUmpUbTM1Vi9CaU9kT25YVkFQV1B2OFFMb2lIUTVWTGdFREFadGFnZi94cXhwclBxRUlNK0JvUUdMdFZMSDQwcEVkS3Nlb2xWSllCVkNReGdRUU1DbGVqaGV6VXNsMWhMNDRjVEJ0Q01QbGpCbEMyQVd2dGFiQ2hxVk83bWpXZkprYWJoNnEzaS9RY0Q1b2ZUZ2pYSzJqNy82VkhXOTRRSGQzUVlxZWlxV1NzZmpiUWFwNHFtN3gyaVVteis0ZEtERGtFSXB5amx3MmRoWnZmWmx5K290dUUwYUE9PSJ9"};
+const MHKEY="-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtj7/JPUuNsCCiA7yBR8d\nWfSoMwSH2k9qmQhRsw/afw60SgCnAI325dY1xmp0rUKEnoGTT21JqcSucsjpnfEp\nwzk1SqFbBCDpYq9uwR2ySl54cuCutyFa2LJsZZiFktrWWVCchWDz83EHgZrqOR6V\nHWTg+z0RmnjDEHGrfQvLk6UTpZvwD9iS3GDHgqmrM8bsHNJcn8+Ty5HTOgQLoI0X\n8ZpmNYZfboUptjRYTM2FaGltk9JXuNUx9ka3ujIKr5UpyMIwsl181SdF55nK/7EB\nOzb7jU6p/YUWiICisvF+SoM3p7HIR8s+nLZBgvmQlDmlVOVvR8eujs36sn0ouGtb\nuwIDAQAB\n-----END PUBLIC KEY-----\n";
+const CHAIN3={"receipt_id":"grct_f3dd0b51c87618ac1ae9a23fe92b39aed91e02f03c9bc916aa49dfe099d80810","schema_version":"ghost.receipt.v1","request_id":"request-repro-0003b","tenant_id_hash":"hmac-sha256:585fb5719f8ae7739d9dbd7b047166dd02102c4fbfcb04fed5f5440098ca277f","user_id_hash":"hmac-sha256:1c9b61a4c1b0fdb08973a79edb25391b46c6ad06e2ebda4e71048e7bbfed171e","session_id_hash":"hmac-sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","timestamp":"2026-07-09T00:20:00.000Z","model_id":"anthropic.claude-3-5-sonnet-20240620-v1:0","policy_version":"organization:repro@1","policy_hash":"cafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00d","input_digest":"sha256:801a1336e9c5297755445bb89dcac1222f343a839fd4195a9df8e9cf3faf4253","retrieved_context_digests":["sha256:5d8e97daece512955037ab3c74975926e5ca9047f94cb68563abc89602fdd9b1","sha256:fa82f9b97978d42edde4e7dae83daa5280788e117fb0cb7327ec12e604a80e12"],"execution_context_hash":"sha256:db306bb238527ded2e9ed9054d95f3cc6c5460d7828ca3dfc02595c7acdd7307","execution_nonce":"ghost-ark-repro-nonce-0003b","decision_pre":"ALLOW","decision_post":"ALLOW","action_taken":["emit_receipt","redact_output"],"risk_score":0,"consent_state":"not_required","memory_written":false,"latency_ms":27,"cost_estimate_usd":0,"prev_receipt_hash":"sha256:854c06bb58d1be24230c8279fb016bfac3317001700be40ce802aa67174e787a","signature_alg":"LOCAL_HMAC_SHA256_DEV_ONLY","receipt_signature":"eyJhbGdvcml0aG0iOiJMT0NBTF9ITUFDX1NIQTI1Nl9ERVZfT05MWSIsImRpZ2VzdFNoYTI1NiI6IjYyZTFiMzZmYTUwMWZhMTViOWJmODQ4ZThhYzc5NTg3YTcxYWU2NTIxMjczOGZkMDc5NGY1OWQ5MzYzZjRjZmMiLCJrZXlJZCI6ImxvY2FsLWRldi1obWFjIiwic2NoZW1hVmVyc2lvbiI6Imdob3N0LmRlY2lzaW9uX3JlY2VpcHRfc2lnbmF0dXJlLnYxIiwic2lnbmF0dXJlIjoiMzJ2cS9KRjRheGlkK0xrN3NHK3VuTXlUU0pPNGpVS0dhNkRxQ0Vrdm5nQT0ifQ=="};
+const clone=x=>JSON.parse(JSON.stringify(x));
+const flip=s=>s.slice(0,-1)+(s.slice(-1)==="a"?"b":"a");
+
+// ---- lineage DAG engine (port of lineageDagEngine.ts) ----
+async function nodeVerdictJs(r,opts){const alg=r.signature_alg;
+  if(alg==="KMS_SIGN_RSASSA_PSS_SHA_256"&&(opts.pssMode||"digest-as-message")==="digest-as-mhash"&&!opts.publicKeyPem)return{verdict:"UNVERIFIABLE_MODE",detail:"digest-as-mhash needs a public key."};
+  const rep=await verifyDecision(r,opts);const sig=rep.checks.find(c=>c.name==="signature");
+  if(rep.verdict==="PASS_DEV_SYMMETRIC")return{verdict:"PROVED_HMAC_DEV",detail:sig.detail};
+  if(rep.verdict==="PASS")return{verdict:(opts.pssMode==="digest-as-mhash")?"PROVED_KMS_MHASH":"PROVED_KMS_MSG",detail:sig.detail};
+  if(rep.verdict==="UNVERIFIABLE")return{verdict:"UNVERIFIABLE_MODE",detail:sig?sig.detail:"unverifiable"};
+  const ff=rep.checks.find(c=>!c.passed);return{verdict:"INVALID_SIGNATURE",detail:ff?ff.name+": "+ff.detail:"failed"};}
+async function verifyLineage(receipts,opts){const nodes=[],byHash=new Map(),byId=new Map();
+  const clean=receipts.filter(isRec);const rejected=receipts.length-clean.length;
+  for(const r of clean){const sh=await signedHash(r);const nv=await nodeVerdictJs(r,opts);const node={id:r.receipt_id,verdict:nv.verdict,detail:nv.detail,signedHash:sh,tenant:r.tenant_id_hash,ts:r.timestamp,alg:r.signature_alg};nodes.push(node);byHash.set(sh,node);byId.set(r.receipt_id,r);}
+  const edges=[];const seen=new Set();
+  for(const node of nodes){const r=byId.get(node.id);const prev=r.prev_receipt_hash;
+    if(prev==null){edges.push({source:"∅",target:node.id,verdict:"ROOT",detail:"chain head (no previous hash)."});continue;}
+    const parent=byHash.get(String(prev));
+    if(!parent){edges.push({source:"missing",target:node.id,verdict:"MISSING_PARENT",detail:"prev_receipt_hash matches no node (orphan/forged)."});continue;}
+    let v="VERIFIED_LINK",d="prev == sha256(canonical(signed parent)).";
+    const ct=Date.parse(node.ts),pt=Date.parse(parent.ts);
+    if(parent.tenant!==node.tenant){v="BROKEN_LINK";d="tenant-chain break.";}
+    else if(!Number.isFinite(ct)||!Number.isFinite(pt)){v="TEMPORAL_ANOMALY";d="timestamp not parseable — ordering could not be checked (NaN compares false, so this used to pass vacuously).";}
+    else if(ct<=pt){v="TEMPORAL_ANOMALY";d="child timestamp not after parent.";}
+    else if(seen.has(parent.signedHash)){v="FORK_DETECTED";d="second child of the same parent.";}
+    seen.add(parent.signedHash);edges.push({source:parent.id,target:node.id,verdict:v,detail:d});}
+  const nodesOk=nodes.every(n=>n.verdict.indexOf("PROVED")===0),edgesOk=edges.every(e=>e.verdict==="VERIFIED_LINK"||e.verdict==="ROOT");
+  // Weakest link, explicit: one dev-symmetric node makes the WHOLE lineage
+  // dev-symmetric. Handing the renderer only a boolean is what let a chain of
+  // forgeable receipts render emerald "LINEAGE VERIFIED".
+  const weakestNodeTier=!nodes.length?"NONE":nodes.some(n=>n.verdict==="PROVED_HMAC_DEV")?"DEV_SYMMETRIC":nodesOk?"ASYMMETRIC":"NONE";
+  return{nodes,edges,valid:nodesOk&&edgesOk&&rejected===0,weakestNodeTier,rejectedInputs:rejected};}
+
+// ============================ RECORDS UI ============================
+const MUT=[
+ {id:"CLEAN",label:"Unmutated receipt",bnd:"baseline · must pass",locus:"No tamper. The recorded bytes verify against the embedded public key.",apply:r=>clone(r)},
+ {id:"MAL-001",label:"Altered receipt id",bnd:"verifier",locus:"payload.receiptId flipped — no longer the hash of its own canonical identity payload.",apply:r=>{const m=clone(r);m.payload.receiptId=flip(m.payload.receiptId);return m;}},
+ {id:"MAL-002",label:"Altered envelope digest",bnd:"verifier",locus:"signature.digestSha256 flipped — no longer matches the recomputed payload digest.",apply:r=>{const m=clone(r);m.signature.digestSha256=flip(m.signature.digestSha256);return m;}},
+ {id:"MAL-003",label:"Altered signature (bit-flip)",bnd:"verifier",locus:"One base64 char of the signature flipped — decodable, but RSA-PSS rejects it.",apply:r=>{const m=clone(r);const g=m.signature.signatureBase64,i=g.length>>1;m.signature.signatureBase64=g.slice(0,i)+(g[i]==="A"?"B":"A")+g.slice(i+1);return m;}},
+ {id:"MAL-005",label:"KMS alias key id",bnd:"verifier · pre-crypto",locus:"keyId swapped to a mutable alias — rejected before any cryptography.",apply:r=>{const m=clone(r);m.signature.keyId="alias/ghost-ark-signing";return m;}},
+ {id:"MAL-013",label:"Tenant slug (expectation updated)",bnd:"verifier · crypto backstop",locus:"Attacker rewrites tenantSlug AND presents a matching expectation — so the tenant check passes. It doesn't matter: receiptId no longer hashes to the tampered payload.",opts:{tenant:"attacker-lab"},apply:r=>{const m=clone(r);m.payload.tenantSlug="attacker-lab";return m;}},
+ {id:"MAL-014",label:"Cross-tenant expectation",bnd:"consumer boundary",locus:"acme-lab's receipt presented to a consumer expecting other-lab. Authentic receipt; the boundary rejects it.",opts:{tenant:"other-lab"},apply:r=>clone(r)},
+ {id:"MAL-021",label:"Execution timestamp mutation",bnd:"verifier",locus:"payload.issuedAt moved to 2030 — inside the signed payload, so the identity hash breaks first.",apply:r=>{const m=clone(r);m.payload.issuedAt="2030-01-01T00:00:00.000Z";return m;}},
+ {id:"MAL-022",label:"Non-ASCII canonicalization",bnd:"verifier",locus:"A combining mark appended to subject.id — canonicalization is byte-exact, so the digest shifts.",apply:r=>{const m=clone(r);m.payload.subject={...m.payload.subject,id:(m.payload.subject.id||"x")+"́"};return m;}},
+ {id:"MAL-024",label:"Malformed JSON",bnd:"loader",locus:"Input is not parseable JSON — rejected at the loader boundary.",apply:()=>"{ not json"},
+ {id:"MAL-025",label:"Missing signature block",bnd:"schema",locus:"The signature object is deleted — the schema gate refuses an unsigned receipt.",apply:r=>{const m=clone(r);delete m.signature;return m;}}
+];
+let recClean="";try{recClean=canon(RECEIPT.payload);}catch(e){}
+function buildRecVectors(){const h=$("#r-vectors");MUT.forEach((m,i)=>{const b=document.createElement("button");b.className="vec";b.setAttribute("aria-pressed",i===0?"true":"false");b.dataset.id=m.id;b.innerHTML='<span class="id">'+m.id+'</span><span class="lbl">'+m.label+'</span><span class="bnd">↳ '+m.bnd+'</span>';b.onclick=()=>selectRec(m.id);h.appendChild(b);});}
+function recBytes(mc){const h=$("#r-bytes");if(mc===null){h.innerHTML='<span class="same">Payload does not canonicalize (loader/schema boundary). Nothing reaches the crypto steps.</span>';return;}
+  if(mc===recClean){h.innerHTML='<span class="same">Canonical payload unchanged by this vector — the tamper is in the signature envelope or consumer expectation, and is caught there.</span>';return;}
+  let i=0;const n=Math.min(recClean.length,mc.length);while(i<n&&recClean[i]===mc[i])i++;
+  h.innerHTML="…"+esc(mc.slice(Math.max(0,i-40),i))+'<mark>'+esc(mc.slice(i,i+30))+'</mark>'+esc(mc.slice(i+30,i+90))+"…";}
+async function selectRec(id){document.querySelectorAll("#r-vectors .vec").forEach(v=>v.setAttribute("aria-pressed",v.dataset.id===id?"true":"false"));
+  const m=MUT.find(x=>x.id===id);$("#r-locus").className="locus"+(id==="CLEAN"?" clean":"");$("#r-locus").textContent=m.locus;
+  const mut=m.apply(RECEIPT);let mc=null;if(mut&&typeof mut==="object"){try{mc=canon(mut.payload);}catch(e){}}recBytes(mc);
+  const rep=await verifyRecord(mut,{publicKeyPem:RKEY,tenant:(m.opts&&m.opts.tenant)||RTENANT,expectedKeyId:RKEYID});
+  const pass=rep.verdict==="PASS";const v=$("#r-verdict");v.className="verdict "+(pass?"pass":"fail");$("#r-glyph").textContent=pass?"✓":"✗";$("#r-head").textContent=pass?"VERIFIED":"FAIL-CLOSED";
+  const ff=rep.checks.find(c=>!c.passed);$("#r-sub").innerHTML=pass?"All six checks passed, RSA-PSS signature verified in your browser.":"Rejected at the <b>"+(ff?ff.name:"?")+"</b> step — the earliest boundary that catches "+m.id+".";
+  $("#r-stats").innerHTML='<span class="chip">tenant <b>'+RECEIPT.payload.tenantSlug+'</b></span><span class="chip">alg <b>RSASSA_PSS_SHA_256</b></span><span class="chip">key <b>…'+RKEYID.slice(-12)+'</b></span><span class="chip">pss <b>digest-as-message</b></span>';
+  $("#r-pipe").innerHTML=renderSteps(rep.checks,["schema","tenant","receipt_id","digest","key_id","signature"]);}
+
+// ============================ FUZZER UI ============================
+function renderSteps(checks,order){const by=Object.fromEntries(checks.map(c=>[c.name,c]));return order.map(n=>{const c=by[n];
+  if(!c)return '<div class="step skip"><span class="mk">·</span><span class="nm">'+n+'</span><span class="dt">not reached</span></div>';
+  const cls=c.unver?"unv":c.passed?"ok":"no";const mk=c.unver?"?":c.passed?"✓":"✗";
+  return '<div class="step '+cls+'"><span class="mk">'+mk+'</span><span class="nm">'+n+'</span><span class="dt">'+esc(c.detail)+'</span></div>';}).join("");}
+let fuzzTimer=null;
+function fuzzRun(){const txt=$("#f-editor").value;let parsed=null,perr=null;try{parsed=JSON.parse(txt);}catch(e){perr=e.message;}
+  const setV=(cls,glyph,head,sub)=>{const v=$("#f-verdict");v.className="verdict "+cls;$("#f-glyph").textContent=glyph;$("#f-head").textContent=head;$("#f-sub").innerHTML=sub;};
+  if(perr){setV("fail","✗","FAIL-CLOSED","Loader boundary: <b>invalid JSON</b> — "+esc(perr));$("#f-stats").innerHTML="";$("#f-pipe").innerHTML="";return;}
+  verifyRecord(parsed,{publicKeyPem:RKEY,tenant:RTENANT,expectedKeyId:RKEYID}).then(rep=>{
+    const pass=rep.verdict==="PASS";setV(pass?"pass":"fail",pass?"✓":"✗",pass?"VERIFIED":"FAIL-CLOSED",
+      pass?"Live re-derivation passed — the edited bytes still verify.":"A check rejected the edit.");
+    $("#f-stats").innerHTML='<span class="chip">recomputed digest <b>'+(rep.digest?rep.digest.slice(0,20)+"…":"—")+'</b></span>';
+    $("#f-pipe").innerHTML=renderSteps(rep.checks,["schema","tenant","receipt_id","digest","key_id","signature"]);});}
+function fuzzInit(){$("#f-editor").value=JSON.stringify(RECEIPT,null,2);$("#f-editor").addEventListener("input",()=>{clearTimeout(fuzzTimer);fuzzTimer=setTimeout(fuzzRun,120);});fuzzRun();}
+
+// ============================ DECISIONS UI ============================
+let DEC=[];
+function buildDec(){
+  DEC=[
+   {id:"hmac-baseline",label:"HMAC dev-only · chain head",bnd:"LOCAL_HMAC (symmetric)",rec:BASE,opts:{hmacSecret:HMAC_SECRET},banner:"DEV-ONLY HMAC: verified with a published symmetric test vector. Proves consistency under a dev key — NOT KMS custody or asymmetric authenticity."},
+   {id:"hmac-chained",label:"HMAC dev-only · chained",bnd:"LOCAL_HMAC (symmetric)",rec:CHAIN,opts:{hmacSecret:HMAC_SECRET},banner:"DEV-ONLY HMAC (as above). This receipt also links back to the head — see the Chain tab."},
+   {id:"kms-mhash",label:"KMS RSA-PSS · digest-as-mhash",bnd:"KMS DIGEST mode · BigInt engine",rec:MHASH,opts:{publicKeyPem:MHKEY,pssMode:"digest-as-mhash"},banner:"KMS DIGEST-mode RSA-PSS. Web Crypto CANNOT verify this (subtle always hashes the message → double-hash). Resolved by a pure-BigInt EMSA-PSS engine (RFC 8017) — validated against OpenSSL at 2048 & 3072 bits and this real fixture — so it is a genuine PASS, computed in your browser without WASM or native code."},
+  ];
+  const h=$("#d-vectors");DEC.forEach((d,i)=>{const b=document.createElement("button");b.className="vec";b.setAttribute("aria-pressed",i===0?"true":"false");b.dataset.id=d.id;b.innerHTML='<span class="id">'+d.id+'</span><span class="lbl">'+d.label+'</span><span class="bnd">↳ '+d.bnd+'</span>';b.onclick=()=>selectDec(d.id);h.appendChild(b);});}
+async function selectDec(id){document.querySelectorAll("#d-vectors .vec").forEach(v=>v.setAttribute("aria-pressed",v.dataset.id===id?"true":"false"));
+  const d=DEC.find(x=>x.id===id);$("#d-banner").textContent=d.banner;
+  const rep=await verifyDecision(d.rec,d.opts);
+  const cls=rep.verdict==="PASS"?"pass":(rep.verdict==="UNVERIFIABLE"||rep.verdict==="PASS_DEV_SYMMETRIC")?"unver":"fail";
+  const v=$("#d-verdict");v.className="verdict "+cls;
+  $("#d-glyph").textContent=rep.verdict==="PASS"?"✓":rep.verdict==="PASS_DEV_SYMMETRIC"?"⚠":rep.verdict==="UNVERIFIABLE"?"?":"✗";
+  $("#d-head").textContent=rep.verdict==="PASS"?"VERIFIED (ASYMMETRIC)":rep.verdict==="PASS_DEV_SYMMETRIC"?"DEV-ONLY SYMMETRIC":rep.verdict==="UNVERIFIABLE"?"UNVERIFIABLE":"FAIL-CLOSED";
+  const ff=rep.checks.find(c=>!c.passed&&!c.unver);
+  $("#d-sub").innerHTML=rep.verdict==="PASS"
+    ?"All checks passed against a <b>public key</b> — this browser could not have produced this signature."
+    :rep.verdict==="PASS_DEV_SYMMETRIC"
+      ?"Every check passed — but with a <b>shared secret</b>. This browser holds the key that signs, so it could forge what it just verified. Consistency, not custody."
+      :rep.verdict==="UNVERIFIABLE"?"Blocked at <b>signature</b>: this build cannot check that mode."
+      :"Rejected at the <b>"+(ff?ff.name:"?")+"</b> step.";
+  $("#d-stats").innerHTML='<span class="chip">id <b>'+d.rec.receipt_id.slice(0,16)+'…</b></span><span class="chip">alg <b>'+d.rec.signature_alg.replace("LOCAL_HMAC_SHA256_DEV_ONLY","LOCAL_HMAC").replace("KMS_SIGN_RSASSA_PSS_SHA_256","KMS_RSA_PSS")+'</b></span><span class="chip">prev <b>'+(d.rec.prev_receipt_hash?"linked":"null (head)")+'</b></span>';
+  $("#d-pipe").innerHTML=renderSteps(rep.checks,["schema","canonical_payload","receipt_id","envelope","key_id","digest","signature","tenant"]);}
+
+// ============================ CHAIN UI ============================
+async function renderChain(){
+  const broken=$("#c-break").checked;
+  const receipts=[clone(BASE),clone(CHAIN),clone(CHAIN3)];
+  if(broken)receipts[2].prev_receipt_hash="sha256:"+"0".repeat(64);
+  const g=await verifyLineage(receipts,{hmacSecret:HMAC_SECRET});
+  // Honest Design Rule at the AGGREGATE: a chain is never stronger than its
+  // weakest node. A dev-symmetric chain rendered emerald "LINEAGE VERIFIED"
+  // while the identical receipts rendered amber on the Decisions tab.
+  const devSym=g.weakestNodeTier==="DEV_SYMMETRIC";
+  const v=$("#c-verdict");v.className="verdict "+(!g.valid?"fail":devSym?"unver":"pass");
+  $("#c-glyph").textContent=!g.valid?"✗":devSym?"⚠":"✓";
+  $("#c-head").textContent=!g.valid?"LINEAGE BROKEN":devSym?"LINEAGE CONSISTENT (DEV-SYMMETRIC)":"LINEAGE VERIFIED";
+  const badNode=g.nodes.find(n=>n.verdict.indexOf("PROVED")!==0);
+  const bad=g.edges.find(e=>e.verdict!=="VERIFIED_LINK"&&e.verdict!=="ROOT");
+  $("#c-sub").innerHTML=g.valid
+    ?(devSym
+      ?g.nodes.length+" nodes verified and every edge re-derived — but under a <b>shared dev secret</b>. A chain of forgeable receipts is a consistent chain, not a proven one."
+      :g.nodes.length+" nodes proved asymmetrically, every edge re-derived from the signed parent hash in your browser.")
+    :badNode
+      ?"Node <b>"+badNode.id.slice(0,14)+"…</b> is "+badNode.verdict+" — prev_receipt_hash is a SIGNED field, so re-pointing it breaks the node's own signature (and its link points nowhere)."
+      :"Broken edge <b>"+esc((bad||{}).verdict||"")+"</b> — "+esc((bad||{}).detail||"");
+  const edgeFor=id=>g.edges.find(e=>e.target===id);
+  let html="";
+  g.nodes.forEach((n,i)=>{const e=edgeFor(n.id);
+    if(i>0&&e){const br=e.verdict!=="VERIFIED_LINK";html+='<div class="edge'+(br?" broken":"")+'"><span class="elabel">'+e.verdict+' · '+esc(e.detail)+'</span></div>';}
+    html+=dagNode(n,i);});
+  $("#c-dag").innerHTML=html;
+}
+function dagNode(n,i){
+  // Honest Design Rule at the pixel: PROVED_HMAC_DEV is a real verification but
+  // a SYMMETRIC one — it gets the amber tier, never emerald. Keying off the
+  // "PROVED" prefix alone would relaunder exactly what this surface prevents.
+  const PROVED_ASYM={PROVED_KMS_MSG:1,PROVED_KMS_MHASH:1};
+  const cls=n.verdict==="PROVED_HMAC_DEV"?"devsym":PROVED_ASYM[n.verdict]?"proved":"tamper";
+  return '<div class="node '+cls+'"><span class="tag">'+n.verdict+'</span>'+
+    '<div class="role">V'+i+' · '+n.alg.replace("LOCAL_HMAC_SHA256_DEV_ONLY","LOCAL_HMAC (dev-only)").replace("KMS_SIGN_RSASSA_PSS_SHA_256","KMS RSA-PSS")+'</div>'+
+    '<div class="rid">'+n.id+'</div>'+
+    '<div class="meta">t='+n.ts+' · '+esc(String(n.detail)).slice(0,86)+'</div></div>';
+}
+
+// ============================ PREIMAGE INSPECTOR (Myers O(ND)) ============================
+function myersDiff(a,b,maxD){maxD=maxD||4000;const n=a.length,m=b.length,max=Math.min(n+m,maxD),off=max;
+  const v=new Int32Array(2*max+2);const trace=[];let found=-1;
+  for(let d=0;d<=max;d++){trace.push(v.slice());
+    for(let k=-d;k<=d;k+=2){let x;
+      if(k===-d||(k!==d&&v[k-1+off]<v[k+1+off]))x=v[k+1+off];else x=v[k-1+off]+1;
+      let y=x-k;while(x<n&&y<m&&a[x]===b[y]){x++;y++;}
+      v[k+off]=x;if(x>=n&&y>=m){found=d;break;}}
+    if(found>=0)break;}
+  if(found<0)return{ops:[].concat(a.length?[{kind:"delete",value:a.join("")}]:[],b.length?[{kind:"insert",value:b.join("")}]:[]),editDistance:n+m,truncated:true};
+  const script=[];let x=n,y=m;
+  for(let d=found;d>0;d--){const vp=trace[d];const k=x-y;
+    let pk;if(k===-d||(k!==d&&vp[k-1+off]<vp[k+1+off]))pk=k+1;else pk=k-1;
+    const px=vp[pk+off],py=px-pk;
+    while(x>px&&y>py){x--;y--;script.push({kind:"equal",token:a[x]});}
+    if(x===px){y--;script.push({kind:"insert",token:b[y]});}else{x--;script.push({kind:"delete",token:a[x]});}}
+  while(x>0&&y>0){x--;y--;script.push({kind:"equal",token:a[x]});}
+  while(x>0){x--;script.push({kind:"delete",token:a[x]});}
+  while(y>0){y--;script.push({kind:"insert",token:b[y]});}
+  script.reverse();const ops=[];
+  for(const s of script){const last=ops[ops.length-1];if(last&&last.kind===s.kind)last.value+=s.token;else ops.push({kind:s.kind,value:s.token});}
+  return{ops,editDistance:found,truncated:false};}
+
+function stripStrings(t){let out="",ins=false,esc2=false;
+  for(const ch of t){if(!ins){out+=ch;if(ch==='"')ins=true;continue;}
+    if(esc2){esc2=false;out+=" ";continue;}
+    if(ch==="\\"){esc2=true;out+=" ";continue;}
+    if(ch==='"'){ins=false;out+=ch;continue;}out+=" ";}
+  return out;}
+function numberRewrites(raw){const s=stripStrings(raw),out=[],seen=new Set();
+  const re=/(?<![\w.])-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?(?![\w.])/g;let m2;
+  while((m2=re.exec(s))!==null){const lit=m2[0];if(seen.has(lit))continue;seen.add(lit);
+    const n=Number(lit);if(!Number.isFinite(n))continue;
+    const cf=Object.is(n,-0)?"0":JSON.stringify(n);
+    if(cf!==lit)out.push("numeric literal "+lit+" re-serialized as "+cf+".");
+    if(out.length>=5)break;}
+  return out;}
+// Re-parses `raw` rather than trusting a caller-supplied object: a mismatched
+// object made this report a key reordering that never happened. A component
+// whose job is honest description must not have an argument that can make it lie.
+function describeTransforms(raw,canonical){const out=[];
+  const rw=(raw.match(/\s/g)||[]).length,cw=(canonical.match(/\s/g)||[]).length;
+  if(rw>cw)out.push((rw-cw)+" whitespace character(s) removed (insignificant JSON whitespace is not signed).");
+  const ro=topLevelKeyOrder(raw);
+  if(ro){const so=ro.slice().sort((l,r)=>l<r?-1:l>r?1:0);
+    if(ro.join(" ")!==so.join(" "))out.push("top-level keys reordered lexicographically: ["+ro.join(", ")+"] → ["+so.join(", ")+"].");}
+  for(const x of numberRewrites(raw))out.push(x);
+  // Claim identity ONLY when the bytes are identical. "Nothing matched my three
+  // heuristics" is not "nothing changed" (nested reorder, escape folding and
+  // duplicate-key elision all slipped through as a false identity claim).
+  if(raw===canonical)return out.length?out:["no observable transformation: the raw text is byte-identical to the canonical form."];
+  if(!out.length)out.push("the text changed, but not in a way these heuristics name (e.g. nested key reordering, string-escape folding, or duplicate-key elision). The diff below is authoritative; this summary is not.");
+  return out;}
+
+// Source-text key order: JS enumerates integer-like keys first, so Object.keys
+// fabricated reorders for objects like {"10":1,"9":2} that never moved.
+function topLevelKeyOrder(t){let i=0;while(i<t.length&&/\s/.test(t[i]))i++;if(t[i]!=="{")return null;i++;const keys=[];let depth=0;
+  while(i<t.length){const ch=t[i];
+    if(ch==='"'){let j=i+1,lit="";
+      while(j<t.length){if(t[j]==="\\"){lit+=t[j]+(t[j+1]||"");j+=2;continue;}if(t[j]==='"')break;lit+=t[j];j++;}
+      if(depth===0){let k=j+1;while(k<t.length&&/\s/.test(t[k]))k++;if(t[k]===":"){try{keys.push(JSON.parse('"'+lit+'"'));}catch(e){keys.push(lit);}}}
+      i=j+1;continue;}
+    if(ch==="{"||ch==="[")depth++;else if(ch==="]")depth--;else if(ch==="}"){if(depth===0)break;depth--;}
+    i++;}
+  return keys;}
+
+let pTimer=null;
+function preimageRun(){const raw=$("#p-editor").value;let parsed,perr=null;
+  try{parsed=JSON.parse(raw);}catch(e){perr=e.message;}
+  if(perr){$("#p-transforms").className="locus";$("#p-transforms").textContent="Loader boundary: raw text is not parseable JSON — "+perr;
+    $("#p-diff").innerHTML='<span class="same">nothing to canonicalize.</span>';$("#p-digest").textContent="—";$("#p-stats").innerHTML="";return;}
+  let canonical;try{canonical=canon(parsed);}catch(e){$("#p-transforms").textContent="canonicalization rejected this value: "+e.message;return;}
+  const d=myersDiff([...raw],[...canonical]);
+  const tr=describeTransforms(raw,canonical);
+  $("#p-transforms").className="locus"+(d.editDistance===0?" clean":"");
+  $("#p-transforms").innerHTML=tr.map(t=>"• "+esc(t)).join("<br>");
+  $("#p-diff").innerHTML=d.ops.map(op=>op.kind==="equal"?esc(op.value)
+    :op.kind==="delete"?'<span style="background:#4c1d1d;color:#fecaca;text-decoration:line-through">'+esc(op.value)+'</span>'
+    :'<span style="background:#052e22;color:#a7f3d0">'+esc(op.value)+'</span>').join("");
+  const encL=new TextEncoder();
+  sha256Hex(canonical).then(h=>{$("#p-digest").textContent="sha256(canonical) = "+h;
+    $("#p-stats").innerHTML='<span class="chip">raw <b>'+encL.encode(raw).length+' B</b></span><span class="chip">canonical <b>'+encL.encode(canonical).length+' B</b></span><span class="chip">edit distance <b>'+d.editDistance+'</b></span>'+(d.truncated?'<span class="chip" style="color:var(--amber)">truncated</span>':'');});
+}
+function preimageInit(){$("#p-editor").value=JSON.stringify(RECEIPT.payload,null,2);
+  $("#p-editor").addEventListener("input",()=>{clearTimeout(pTimer);pTimer=setTimeout(preimageRun,120);});preimageRun();}
+
+// ============================ boot / tabs ============================
+function initTabs(){document.querySelectorAll(".tab").forEach(t=>{t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected",x===t?"true":"false"));
+  document.querySelectorAll(".view").forEach(x=>x.classList.remove("on"));
+  $("#view-"+t.dataset.view).classList.add("on");};});}
+(function(){const ok=!!(window.crypto&&window.crypto.subtle);
+  $("#cryptoState").textContent=ok?"Web Crypto · active in this browser":"Web Crypto unavailable — cannot verify";
+  initTabs();buildRecVectors();buildDec();fuzzInit();preimageInit();
+  if(ok){selectRec("CLEAN");selectDec("hmac-baseline");renderChain();$("#c-break").addEventListener("change",renderChain);}
+})();
+</script>

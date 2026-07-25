@@ -15,11 +15,14 @@
  *      SHA-256(digest), the local-fixture semantics). A real PASS.
  *   3. KMS RSASSA_PSS_SHA_256, digest-as-mhash (true AWS KMS DIGEST semantics)
  *      — crypto.subtle CANNOT verify this: it always hashes the message, and
- *      there is no message whose SHA-256 equals a given digest. The Node
- *      verifier uses a hand-rolled RSA-PSS primitive; this browser build does
- *      not ship one, so it returns UNVERIFIABLE (never PASS, never FAIL-as-
- *      tamper). Misreporting either way would be exactly the laundering this
- *      surface exists to prevent.
+ *      there is no message whose SHA-256 equals a given digest. This build
+ *      therefore ships a pure-BigInt EMSA-PSS engine (./emsaPssBigInt) and
+ *      verifies it for real: a genuine PASS or FAIL, not UNVERIFIABLE.
+ *
+ * UNVERIFIABLE is now reserved for the case where a mode genuinely cannot be
+ * evaluated (e.g. no key supplied). A signature that FAILS must report FAIL:
+ * labelling a detected tamper as a "build limitation" would launder the single
+ * most likely forgery attempt into a shrug.
  *
  * CLAIM BOUNDARY. A PASS proves internal receipt consistency + (for chains)
  * hash-continuity, tenant continuity, and timestamp monotonicity — under this
@@ -44,7 +47,20 @@ export interface CheckResult extends RecordCheck {
   unverifiable?: boolean;
 }
 
-export type Verdict = "PASS" | "FAIL" | "UNVERIFIABLE";
+/**
+ * THE HONEST DESIGN RULE, encoded in the type system.
+ *
+ * `PASS` is reserved for ASYMMETRIC verification: the verifier held only a
+ * public key and could not have produced the signature it just checked.
+ *
+ * `PASS_DEV_SYMMETRIC` is a full, genuine HMAC verification — but the verifying
+ * client had to hold the shared secret, so anyone who can verify can also
+ * forge. It proves consistency under a development key; it is NOT evidence of
+ * KMS custody or non-repudiation, and a UI must never paint it with the same
+ * "trusted" treatment as `PASS`. Collapsing the two would be exactly the visual
+ * laundering this surface exists to prevent.
+ */
+export type Verdict = "PASS" | "PASS_DEV_SYMMETRIC" | "FAIL" | "UNVERIFIABLE";
 
 export interface DecisionReport {
   verdict: Verdict;
@@ -73,6 +89,8 @@ const HMAC_ALG = "LOCAL_HMAC_SHA256_DEV_ONLY";
 const KMS_ALG = "KMS_SIGN_RSASSA_PSS_SHA_256";
 const DECISION_SCHEMA_VERSION = "ghost.receipt.v1";
 const DECISION_RECEIPT_ID = /^grct_[a-f0-9]{64}$/u;
+/** Identity fields are digests, never free text — mirrors the runtime's zod schema. */
+const IDENTITY_DIGEST = /^(?:sha256|hmac-sha256):[a-f0-9]{64}$/u;
 const KMS_KEY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const KMS_KEY_ARN =
   /^arn:aws(?:-[a-z-]+)?:kms:[a-z0-9-]+:\d{12}:key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
@@ -118,6 +136,15 @@ function validateShape(receipt: unknown): string | null {
   if (receipt.schema_version !== DECISION_SCHEMA_VERSION) return `schema_version must be ${DECISION_SCHEMA_VERSION}.`;
   if (typeof receipt.receipt_id !== "string" || !DECISION_RECEIPT_ID.test(receipt.receipt_id)) return "receipt_id must match grct_<64 hex>.";
   if (receipt.signature_alg !== HMAC_ALG && receipt.signature_alg !== KMS_ALG) return `unsupported signature_alg ${JSON.stringify(receipt.signature_alg)}.`;
+  // Identity digests must be well-formed. The upstream runtime enforces this
+  // with zod; an earlier browser port copied chain.ts's `if (firstTenant && …)`
+  // guard WITHOUT the schema that made it sound — so a head receipt with
+  // tenant_id_hash "" silently disabled cross-tenant detection for the whole
+  // chain. Porting the guard without its precondition is how a safe idiom
+  // becomes a hole.
+  for (const field of ["tenant_id_hash", "user_id_hash", "session_id_hash"] as const) {
+    if (!IDENTITY_DIGEST.test(String(receipt[field]))) return `${field} must match (sha256|hmac-sha256):<64 hex>.`;
+  }
   return null;
 }
 
@@ -180,10 +207,13 @@ export async function verifyDecisionReceiptWeb(receipt: unknown, options: Decisi
     const immutable = KMS_KEY_ARN.test(env.keyId) || KMS_KEY_UUID.test(env.keyId);
     if (!immutable) { keyOk = false; keyDetail = "KMS keyId must be an immutable ARN or UUID."; }
     else if (options.expectedKeyId && !keysMatch(env.keyId, options.expectedKeyId)) { keyOk = false; keyDetail = "KMS keyId ≠ expected."; }
-    else { keyOk = true; keyDetail = `KMS keyId ${env.keyId.slice(0, 28)}… is immutable.`; }
+    else if (options.expectedKeyId) { keyOk = true; keyDetail = `KMS keyId matches the expected immutable identity.`; }
+    else { keyOk = true; keyDetail = `KMS keyId ${env.keyId.slice(0, 28)}… is well-formed and immutable in FORM, but no expectation was supplied and it is not bound to the verifying key — it is submitter-chosen metadata, not proof of custody.`; }
   } else {
     keyOk = options.expectedKeyId ? env.keyId === options.expectedKeyId : env.keyId.length > 0;
-    keyDetail = keyOk ? `keyId ${env.keyId} present.` : `keyId ${env.keyId} ≠ expected.`;
+    keyDetail = keyOk
+      ? (options.expectedKeyId ? `keyId matches the expected identity.` : `keyId ${env.keyId} present (not compared — no expectation supplied).`)
+      : `keyId ${env.keyId} ≠ expected.`;
   }
   push("key_id", keyOk, keyDetail);
   push("digest", env.digestSha256 === digestSha256, env.digestSha256 === digestSha256 ? "Envelope digest equals the recomputed canonical payload digest." : `digest mismatch — recomputed ${digestSha256.slice(0, 16)}…`);
@@ -216,8 +246,23 @@ export async function verifyDecisionReceiptWeb(receipt: unknown, options: Decisi
     } else {
       try {
         const ok = await verifyRsaPssDigestAsMessage(options.publicKeyPem, hexToBytes(digestSha256), base64ToBytes(env.signature));
-        if (ok) push("signature", true, "KMS RSA-PSS (digest-as-message) verifies with the supplied public key.");
-        else push("signature", false, "RSA-PSS (digest-as-message) does not verify — tampering, OR a digest-as-mhash signature this build cannot check.", true);
+        if (ok) {
+          push("signature", true, "KMS RSA-PSS (digest-as-message) verifies with the supplied public key.");
+        } else {
+          // A digest-as-message failure used to be flagged `unverifiable` on the
+          // excuse that it *might* be an mhash signature we could not check.
+          // That excuse died when the BigInt engine shipped — and it meant a
+          // bit-flipped signature, the likeliest forgery, reported as a build
+          // limitation instead of a tamper. Re-probe the other mode to tell the
+          // two apart definitively, then report the truth.
+          const pk = await rsaPublicKeyFromPem(options.publicKeyPem);
+          const asMhash = await verifyRsaPssDigestAsMhash(hexToBytes(digestSha256), base64ToBytes(env.signature), pk);
+          if (asMhash) {
+            push("signature", false, "signature does not verify as digest-as-message, but DOES verify as digest-as-mhash: the pssMode is misdeclared, not tampered.", true);
+          } else {
+            push("signature", false, "RSA-PSS signature does NOT verify under either digest treatment — tampered or wrong key.");
+          }
+        }
       } catch (e) { push("signature", false, `signature errored: ${e instanceof Error ? e.message : String(e)}`); }
     }
   }
@@ -231,7 +276,10 @@ export async function verifyDecisionReceiptWeb(receipt: unknown, options: Decisi
   const signedHash = await signedDecisionReceiptHashWeb(receipt);
   const anyFail = checks.some((c) => !c.passed && !c.unverifiable);
   const anyUnverifiable = checks.some((c) => c.unverifiable);
-  const verdict: Verdict = anyFail ? "FAIL" : anyUnverifiable ? "UNVERIFIABLE" : "PASS";
+  // A clean symmetric verification is NOT a clean asymmetric one — see the
+  // Verdict docs. The distinction survives all the way to the badge.
+  const cleanVerdict: Verdict = r.signature_alg === HMAC_ALG ? "PASS_DEV_SYMMETRIC" : "PASS";
+  const verdict: Verdict = anyFail ? "FAIL" : anyUnverifiable ? "UNVERIFIABLE" : cleanVerdict;
   return { verdict, checks, limitations, derived: { receiptId: expectId, digestSha256, signedHash } };
 }
 

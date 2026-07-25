@@ -99,6 +99,51 @@ re-derivation on every keystroke), decision receipts (with the mhash node now
 PROVED via the BigInt engine), and a real 3-node verified lineage DAG with a
 break toggle.
 
+## The Honest Design Rule, encoded in the type system
+
+A symmetric dev-only HMAC verification must never wear the badge of an
+asymmetric proof. This is enforced in the `Verdict` type, not in a comment:
+
+| Verdict | Meaning | Badge |
+|:---|:---|:---|
+| `PASS` | asymmetric signature verified against a **public key** — the verifier could not have produced it | emerald |
+| `PASS_DEV_SYMMETRIC` | every check passed, but via a **shared secret** the verifier holds, so it could forge what it verified | amber |
+| `UNVERIFIABLE` | this build genuinely cannot evaluate the mode | amber |
+| `FAIL` | a check rejected it | rose |
+
+The DAG mirrors this: `PROVED_HMAC_DEV` renders amber, and the renderer must not
+key off the `"PROVED"` prefix (which would relaunder HMAC as KMS). An earlier
+build returned plain `PASS` for HMAC and rendered it emerald — a real violation,
+now pinned by a test asserting `hmacVerdict !== kmsVerdict`.
+
+## Preimage inspector — `lib/myersDiff.ts`
+
+A real Myers O(ND) diff (1986) with trace recording and backtracking, plus an
+inspector that shows exactly how a raw payload becomes the canonical bytes that
+get signed. Canonicalization silently strips whitespace, reorders keys, and
+re-serializes numbers; without this pane the auditor is asked to take on faith
+that "the signature covers this payload" when the text they read and the bytes
+signed are not the same string.
+
+- CI: [`myersDiffAgreement.test.ts`](../../tests/differential/myersDiffAgreement.test.ts)
+  (10/10) — the edit script must reconstruct **both** inputs, and the reported
+  edit distance must equal an **independent brute-force DP oracle's** minimum
+  over 200 randomized pairs. Myers claims optimality; the test verifies it
+  rather than trusting it.
+- Two honesty bugs were found and fixed by these tests, both of the same class
+  (*describing a transformation that never happened*):
+  1. number-rewrite detection scanned raw text blindly, so digits inside strings
+     (a timestamp, a dotted version, a hex id) were reported as re-serialized on
+     a byte-identical payload. Fixed by stripping string contents first;
+     regression-pinned.
+  2. the describe function took the parsed object as a parameter, so a caller
+     passing a mismatched object made it report a key reordering that never
+     occurred. Fixed by re-parsing the raw text internally — the function now
+     has no argument that can make it lie.
+- Honest scope: this pane **explains** a transformation; it proves nothing. The
+  proof is the digest and signature check. A diff that "looks right" is not
+  evidence.
+
 ## Scope / non-claims
 
 A PASS proves internal receipt consistency (and, for chains, hash/tenant/time

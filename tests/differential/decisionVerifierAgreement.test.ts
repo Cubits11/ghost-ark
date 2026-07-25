@@ -33,11 +33,23 @@ const kmsMhash = R("examples/reproducibility/pss-digest-mode/kms-digest-mode.rec
 const kmsMhashKey = F("examples/reproducibility/pss-digest-mode/public-key.pem");
 
 describe("decision receipts — the three honest verdicts", () => {
-  it("HMAC dev-only baseline → PASS, and the signature detail flags it symmetric/dev-only", async () => {
+  it("HONEST DESIGN RULE: a fully-verified HMAC receipt is PASS_DEV_SYMMETRIC, never PASS", async () => {
     const rep = await verifyDecisionReceiptWeb(baseline, { hmacSecret: HMAC_SECRET });
+    // Every check genuinely passed...
     expect(rep.checks.filter((c) => !c.passed), JSON.stringify(rep.checks.filter((c) => !c.passed))).toHaveLength(0);
-    expect(rep.verdict).toBe("PASS");
+    // ...yet the verdict must NOT be the asymmetric PASS: the verifier held the
+    // shared secret, so it could have forged what it just verified.
+    expect(rep.verdict).toBe("PASS_DEV_SYMMETRIC");
+    expect(rep.verdict).not.toBe("PASS");
     expect(rep.checks.find((c) => c.name === "signature")?.detail).toMatch(/DEV-ONLY|symmetric/i);
+  });
+
+  it("HONEST DESIGN RULE: symmetric and asymmetric verdicts are never the same token", async () => {
+    const hmacRep = await verifyDecisionReceiptWeb(baseline, { hmacSecret: HMAC_SECRET });
+    const kmsRep = await verifyDecisionReceiptWeb(kmsMsg, { publicKeyPem: kmsMsgKey, pssMode: "digest-as-message" });
+    expect(hmacRep.verdict).toBe("PASS_DEV_SYMMETRIC");
+    expect(kmsRep.verdict).toBe("PASS");
+    expect(hmacRep.verdict).not.toBe(kmsRep.verdict);
   });
 
   it("HMAC without the secret fails closed at the signature step", async () => {
