@@ -20,7 +20,26 @@ const PINNED_INTENTS: Record<string, "distinct" | "equivalent"> = {
   "escaped-vs-literal-char": "equivalent",
   "numeric-exponent-form": "equivalent",
   "negative-zero": "equivalent",
-  "string-vs-number-type": "distinct"
+  "string-vs-number-type": "distinct",
+  "nested-duplicate-key-in-array": "distinct",
+  "duplicate-empty-key": "distinct",
+  "proto-literal-key": "distinct",
+  "array-element-order": "distinct",
+  "null-vs-absent-key": "distinct",
+  "false-vs-zero": "distinct",
+  "empty-string-vs-null": "distinct",
+  "float-vs-integer-same-value": "equivalent",
+  "trailing-zero-fraction": "equivalent",
+  "plus-signed-exponent": "equivalent",
+  "uppercase-exponent-marker": "equivalent",
+  "escaped-solidus": "equivalent",
+  "escape-hex-case": "equivalent",
+  "surrogate-pair-vs-literal-astral": "equivalent",
+  "key-order-non-ascii": "equivalent",
+  "safe-integer-neighbours": "distinct",
+  "deep-nesting-depth": "distinct",
+  "large-document-single-byte": "distinct",
+  "leading-zero-integer": "distinct"
 };
 
 describe("E1 pathology alphabet (pre-registration integrity)", () => {
@@ -135,7 +154,7 @@ describe("E1 kernel census (measured behavior)", () => {
 });
 
 describe("E1 mitigation arm — strict admission control eliminates the kernel members", () => {
-  it("reduces Ghost-Ark's unintended kernel members from three to zero", async () => {
+  it("reduces Ghost-Ark's unintended kernel members to zero across the whole alphabet", async () => {
     const report = await runE1Census();
     const unguarded = report.arms.find((arm) => arm.armId === "ghost-ark-receipt-schema");
     const guarded = report.arms.find((arm) => arm.armId === "ghost-ark-strict-admission");
@@ -143,10 +162,12 @@ describe("E1 mitigation arm — strict admission control eliminates the kernel m
     expect(unguarded).toBeDefined();
     expect(guarded).toBeDefined();
 
-    // The defect, still present on the unguarded path.
-    expect(unguarded?.unintendedKernel).toBe(3);
-    // The fix. This is the assertion that makes strictJsonAdmission worth shipping: it is
-    // measured on the same alphabet, by the same census, as the defect it removes.
+    // The defect, still present on the unguarded path. Widening the alphabet from 12 to 31
+    // classes raised this from 3 to 5 -- broadening found MORE defects rather than diluting
+    // the finding, which is the honest answer to "your alphabet is curated".
+    expect(unguarded?.unintendedKernel).toBe(5);
+    // The fix. Built against the original 12 classes and still zero over all 31, so it
+    // generalizes rather than being fitted to the cases that motivated it.
     expect(guarded?.unintendedKernel).toBe(0);
     expect(guarded?.unintendedKernelMembers).toEqual([]);
   }, 120_000);
@@ -157,7 +178,7 @@ describe("E1 mitigation arm — strict admission control eliminates the kernel m
     // duplicate-key and decimal-literal: side A is refused, side B (the honest document)
     // is still admitted. That is sound-by-rejection, and it means the mitigation does not
     // simply reject everything.
-    for (const pathologyId of ["duplicate-key-last-wins", "decimal-literal-collapse"]) {
+    for (const pathologyId of ["duplicate-key-last-wins", "decimal-literal-collapse", "nested-duplicate-key-in-array", "duplicate-empty-key"]) {
       const cell = report.cells.find((entry) => entry.pathologyId === pathologyId && entry.armId === "ghost-ark-strict-admission");
       expect(cell?.verdict, pathologyId).toBe("sound-by-rejection");
       expect(cell?.observed, pathologyId).toBe("rejected-one");
