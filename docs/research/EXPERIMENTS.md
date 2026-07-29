@@ -3,7 +3,7 @@
 Tier: **core**. Every number here was produced by a command in this repository and can be
 regenerated. Where a number is unflattering, it is reported anyway.
 
-**Run all six:**
+**Run all eight:**
 
 ```bash
 npm run experiments
@@ -18,6 +18,8 @@ npm run experiments
 | E4 | Metamorphic guard | census | no — exact counts |
 | E4-B | Compromised-signer fixtures | census | no — exact counts |
 | E5 | Cross-language verifier agreement | census | no — exact counts |
+| E6 | Verifier option-confusion matrix | census | no — exact counts |
+| E7 | Cross-language differential fuzz | **sampled** | **yes** |
 
 ## Reporting rules (binding on all experiments)
 
@@ -620,6 +622,154 @@ contains a known-tautological detector and a known-genuine one, and asserts the
 discriminator separates them. A guard that cannot fail proves nothing. E4 also refuses to
 run at all if the verifier's `check()` factory no longer matches its mutation anchor,
 rather than silently reporting "everything is load-bearing".
+
+---
+
+## E6 — Verifier option-confusion matrix
+
+**Hypothesis.** No option combination a consumer can supply causes an invalid receipt to be
+accepted, or any receipt to be accepted on wrong or absent key material.
+
+**Scope discipline.** Built against the option surface that **exists**: `expectedKeyId`,
+`expectedTenantIdHash`, `hmacSecret`, `identityHmacSecret`, `pssMode`, `publicKeyPem`, `tenant`.
+There is no `skip_expiry`, no `allow_untrusted_issuer`, and no `UNSAFE_` override in this
+verifier, so there is no 2^k space of safety-bypass flags to enumerate. Inventing them would
+produce a matrix that tested nothing.
+
+**Design.** 540 cells: 10 fixtures × key material (absent / correct / wrong) × `expectedKeyId`
+(absent / correct / wrong) × tenant expectation (absent / matches-receipt / mismatches-receipt) ×
+`pssMode`. 50 accepted.
+
+**Command:** `npm run experiment:e6`
+
+### Measured result — all 8 invariants hold
+
+| # | invariant | result |
+|:--|:---|:---|
+| I1 | Fail closed on **absent** key material | HELD |
+| I2 | Fail closed on **wrong** key material | HELD |
+| I3 | A wrong `expectedKeyId` is never accepted | HELD |
+| I4 | A **mismatching** tenant expectation is never accepted | HELD |
+| **I5** | **ANTITONE in the consumer set** — adding a correct expectation never turns a rejection into an acceptance | **HELD** |
+| I6 | An **intrinsically** invalid receipt is never accepted under any combination | HELD |
+| I7 | A **relational** fixture is accepted by a matching consumer, rejected by a mismatching one | HELD |
+| I8 | PSS-mode substitution is never accepted | HELD |
+
+### Findings
+
+**F6.1 — I5 is the thesis, measured rather than assumed.** `Sound(C, Σ, P)` is antitone in the
+consumer set: adding a consumer can only add distinctions that must be preserved. Operationally,
+the accepted set must shrink monotonically as correct expectations are added. It does. Had it
+ever grown, the central structural claim would not hold for this implementation.
+
+**F6.2 — PSS-mode substitution is confined.** RSA acceptance occurs only under
+`digest-as-message` (the mode the fixture was signed under) and fails all 9 `digest-as-mhash`
+cells. The two treatments are not interchangeable, and a receipt verifying under both would let a
+consumer be induced to accept a signature the signer never produced for that interpretation.
+
+**F6.3 — Two invariants had to be redefined, and the first version reported two false
+violations.** An earlier run used a globally-fixed "correct tenant". But MAL-028's
+`tenant_id_hash` *is* tenant-repro-b's commitment, and MAL-014 is a valid tenant-repro-a receipt
+— so for those fixtures the labels were inverted. Their defect is **relational**: they are correct
+receipts presented to the wrong consumer. Holding a relational fixture to "never accepted" would
+assert that a correct receipt must be rejected. The axis is now defined *relative to the receipt*
+(`matches-receipt` / `mismatches-receipt`), and fixtures are partitioned into intrinsic,
+relational, and documented-boundary.
+
+### Coverage boundary
+
+A declared cross-product, not an exhaustive search of consumer misconfiguration. It says nothing
+about cryptographic strength, and a cell that accepts is not thereby correct.
+
+---
+
+## E7 — Cross-language differential fuzz
+
+**Hypothesis.** Independently-implemented JSON pipelines agree on what is acceptable, and on
+which accepted inputs are the same.
+
+**Why it differs from E1 and E1-B.** E1 is a curated census; E1-B generates *well-formed*
+documents and applies declared semantic mutations. Neither can find disagreements about what
+*counts* as JSON. E7 is open-ended: roughly a third of its generated corpus is malformed on
+purpose (trailing commas, leading zeros, bare `NaN`, lone surrogates, bare keys), because that is
+where portability divergences actually live.
+
+**Three genuinely separate implementations**, not three wrappers over one parser:
+
+| arm | implementation |
+|:---|:---|
+| `v8` | Node `JSON.parse` + Ghost-Ark `canonicalize` |
+| `cpython` | CPython `json` (arbitrary-precision integers) |
+| `jq` | `jq -S -c` — a third independent parser and number formatter |
+
+jq matters because two arms can agree by shared design; three disagreeing pairwise cannot be
+dismissed that way. An unavailable arm is reported as unavailable, never as agreeing.
+
+**Provenance: sampled** from a declared seeded generator, so intervals are legitimate.
+
+**Command:** `npm run experiment:e7` (`--seed`, `--trials`)
+
+### Measured result — seed 15200258, 600 inputs
+
+```
+unanimously accepted: 331
+unanimously rejected: 167
+
+VALIDITY   102/600 inputs  = 17.00%  95% Wilson [14.21%, 20.21%]
+STRUCTURE  199/47278 pairs =  0.42%  95% Wilson [ 0.37%,  0.48%]
+```
+
+The two are reported over **their own denominators** and are not addable — one is per input, the
+other per pair. An earlier version summed them into a single rate over `trials`, which silently
+combined a per-input count with a per-pair count and was meaningless.
+
+### The four distinct structural divergence classes
+
+The rate counts every rediscovery; a random generator finds the same handful of classes hundreds
+of times. **199 divergent pairs is not 199 phenomena.** These are the phenomena:
+
+| pair | outlier | behavior |
+|:---|:---|:---|
+| `9007199254740992` vs `9007199254740993` | **v8** | identifies both as same |
+| `1` vs `1.0` | **v8** | identifies both as same |
+| `-0` vs `0` | **jq** | distinguishes |
+| `0.1` vs `0.1000000000000000055511151231257827` | **jq** | distinguishes |
+
+### Findings
+
+**F7.1 — E1's headline finding is independently rediscovered by random search, and strengthened.**
+E1 found the 2^53 collapse with a hand-picked pair. E7 finds it by fuzzing, and names V8 as the
+outlier against **two** independent implementations rather than one.
+
+**F7.2 — No two of these three pipelines induce the same equivalence relation.** Each arm is the
+outlier on at least one class. If one arm were the outlier on all of them the story would be
+"that arm is broken"; instead there is no pair that agrees about which inputs are the same. This
+is the sharper form of corollary C1 and it is exactly what makes cross-runtime re-verification
+unsound today.
+
+**F7.3 — `1` vs `1.0` is a portability hazard E1 could not see.** E1 declares
+`float-vs-integer-same-value` consumer-EQUIVALENT and scores Ghost-Ark *sound* for collapsing
+them. CPython and jq both **distinguish** them. So a receipt canonicalized in one runtime and
+re-verified in another diverges on an input E1 classifies as benign. Being sound for a declared
+consumer set does not imply being portable.
+
+**F7.4 — Lenient parsing manufactures kernel members.** jq accepts `01`, `+1`, `.5`, `NaN`,
+`Infinity`, and `1e400` — none of which are JSON — and normalizes several of them. `01` and `+1`
+both digest to `sha256("1")`, so jq maps three distinct inputs to one identity. Ghost-Ark and
+CPython cannot have these kernel members because they reject the input outright. Strictness at
+the parse boundary is a soundness property, not a usability cost.
+
+**F7.5 — Ghost-Ark is the permissive outlier on lone surrogates.** `"\ud800"` is accepted by the
+V8 arm and rejected by both CPython and jq. That is Ghost-Ark being the odd one out on a validity
+question, reported because it is unflattering.
+
+### Coverage boundary
+
+Synthetic inputs from a declared generator; the interval describes that generator, not production
+traffic. Agreement is not correctness — three implementations can share a misreading. The arms
+use *different* canonical forms by design, so E7 compares the **equivalence structure** (which
+inputs are identified) rather than raw digest equality, since comparing canonical bytes across
+different canonicalizers would measure nothing.
 
 ---
 
