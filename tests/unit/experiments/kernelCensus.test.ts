@@ -133,3 +133,56 @@ describe("E1 kernel census (measured behavior)", () => {
     expect(report.universal_unintended_kernel).toContain("duplicate-key-last-wins");
   }, 120_000);
 });
+
+describe("E1 mitigation arm — strict admission control eliminates the kernel members", () => {
+  it("reduces Ghost-Ark's unintended kernel members from three to zero", async () => {
+    const report = await runE1Census();
+    const unguarded = report.arms.find((arm) => arm.armId === "ghost-ark-receipt-schema");
+    const guarded = report.arms.find((arm) => arm.armId === "ghost-ark-strict-admission");
+
+    expect(unguarded).toBeDefined();
+    expect(guarded).toBeDefined();
+
+    // The defect, still present on the unguarded path.
+    expect(unguarded?.unintendedKernel).toBe(3);
+    // The fix. This is the assertion that makes strictJsonAdmission worth shipping: it is
+    // measured on the same alphabet, by the same census, as the defect it removes.
+    expect(guarded?.unintendedKernel).toBe(0);
+    expect(guarded?.unintendedKernelMembers).toEqual([]);
+  }, 120_000);
+
+  it("removes them by refusing the pathological document, not by discriminating", async () => {
+    const report = await runE1Census();
+
+    // duplicate-key and decimal-literal: side A is refused, side B (the honest document)
+    // is still admitted. That is sound-by-rejection, and it means the mitigation does not
+    // simply reject everything.
+    for (const pathologyId of ["duplicate-key-last-wins", "decimal-literal-collapse"]) {
+      const cell = report.cells.find((entry) => entry.pathologyId === pathologyId && entry.armId === "ghost-ark-strict-admission");
+      expect(cell?.verdict, pathologyId).toBe("sound-by-rejection");
+      expect(cell?.observed, pathologyId).toBe("rejected-one");
+
+      // EXACTLY one side keeps an identity. Which side is pathological differs by class —
+      // in duplicate-key-last-wins it is rawA, in decimal-literal-collapse it is rawB — so
+      // asserting a specific side would encode an accident of how the alphabet is written.
+      const withIdentity = [cell?.digestA, cell?.digestB].filter((digest) => digest !== null && digest !== undefined);
+      expect(withIdentity, `${pathologyId}: the honest document must still receive an identity`).toHaveLength(1);
+    }
+
+    // integer-precision-loss: both sides exceed the safe range, so both are refused.
+    const integerCell = report.cells.find((entry) => entry.pathologyId === "integer-precision-loss" && entry.armId === "ghost-ark-strict-admission");
+    expect(integerCell?.verdict).toBe("fail-closed");
+  }, 120_000);
+
+  it("costs no availability on the equivalent classes", async () => {
+    const report = await runE1Census();
+    const guarded = report.arms.find((arm) => arm.armId === "ghost-ark-strict-admission");
+
+    // A strict rule that rejected semantically-equivalent documents would trade a soundness
+    // defect for an availability defect. Zero rejection-asymmetry means it does not.
+    expect(guarded?.rejectionAsymmetry).toBe(0);
+    // And it stays sound on everything the unguarded arm was already sound on.
+    const unguarded = report.arms.find((arm) => arm.armId === "ghost-ark-receipt-schema");
+    expect(guarded?.sound).toBe(unguarded?.sound);
+  }, 120_000);
+});

@@ -24,6 +24,7 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { loadEsmModule } from "./loadEsm";
 import { canonicalize as receiptSchemaCanonicalize } from "../../packages/receipt-schema/src/hashCanonicalization";
+import { parseStrictJson } from "../../packages/receipt-schema/src/strictJsonAdmission";
 
 /** Outcome of running one arm on one raw input. */
 export type ArmOutcome =
@@ -185,6 +186,20 @@ export async function buildArms(): Promise<CanonicalizerArm[]> {
         wrapThrow(() => {
           const parsed: unknown = JSON.parse(rawJson);
           return independent.canonicalize(parsed);
+        })
+    },
+    {
+      // The mitigation arm. Same canonicalizer as ghost-ark-receipt-schema, but input passes
+      // text-level admission control BEFORE JSON.parse — which is where E1 showed all three
+      // of Ghost-Ark's unintended kernel members actually occur. If this arm still reports
+      // unintended kernel members, the mitigation does not work and must not be shipped.
+      id: "ghost-ark-strict-admission",
+      independentParser: false,
+      description: "parseStrictJson (text-level admission control) + packages/receipt-schema canonicalize",
+      run: (rawJson) =>
+        wrapThrow(() => {
+          const parsed: unknown = parseStrictJson(rawJson);
+          return receiptSchemaCanonicalize(parsed);
         })
     },
     {
