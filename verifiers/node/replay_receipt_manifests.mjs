@@ -157,8 +157,19 @@ function validateCorpusManifest(value, fixtureMap) {
       throw new TypeError(`Corpus attack ${attackId} has unsupported fixture_kind.`);
     }
     requireNonEmptyString(attack.receipt_path, `Corpus attack ${attackId} receipt_path`);
-    if (attack.expected_verdict !== "reject" && attack.expected_verdict !== "reject_by_consumer_tenant_expectation") {
-      throw new TypeError(`Corpus attack ${attackId} must declare a rejection verdict.`);
+    if (
+      attack.expected_verdict !== "reject" &&
+      attack.expected_verdict !== "reject_by_consumer_tenant_expectation" &&
+      attack.expected_verdict !== "accept_documented_boundary"
+    ) {
+      throw new TypeError(`Corpus attack ${attackId} must declare a rejection verdict or a documented boundary.`);
+    }
+    // A documented boundary is a fixture the verifier is EXPECTED to accept: a compromised
+    // signer producing a valid signature over a mutated payload, where the verifier implements
+    // no freshness or semantic-truth check. It must carry a claim_boundary explaining the
+    // non-detection, so the category cannot be used to quietly downgrade a real failure.
+    if (attack.expected_verdict === "accept_documented_boundary") {
+      requireNonEmptyString(attack.claim_boundary, `Corpus attack ${attackId} claim_boundary`);
     }
     requireNonEmptyString(attack.expected_rejection_phase, `Corpus attack ${attackId} expected_rejection_phase`);
     if (attack.expected_error_substring !== null && typeof attack.expected_error_substring !== "string") {
@@ -265,7 +276,33 @@ function reproCase(fixture, expected, reproBaseDir) {
   };
 }
 
+function documentedBoundaryCase(attack, fixture, corpusBaseDir, reproBaseDir) {
+  const report = verifyArtifact(resolve(corpusBaseDir, attack.receipt_path), fixture, reproBaseDir, undefined);
+  const mismatches = [];
+  // The assertion is inverted for this category: the fixture MUST be accepted. A rejection here
+  // means the documented boundary no longer holds and the manifest is stale.
+  if (report.verdict !== "PASS") {
+    mismatches.push("unexpected_rejection_of_documented_boundary");
+  }
+  return {
+    attack_id: attack.attack_id,
+    expected_verdict: "PASS",
+    observed_verdict: report.verdict,
+    expected_rejection_phase: attack.expected_rejection_phase,
+    expected_error_substring: attack.expected_error_substring,
+    observed_failed_checks: report.checks.filter((entry) => !entry.passed).map((entry) => ({ name: entry.name, detail: entry.detail })),
+    rejection_phase_matched: true,
+    rejection_detail_matched: true,
+    documented_boundary: true,
+    matched: mismatches.length === 0,
+    mismatches
+  };
+}
+
 function corpusCase(attack, fixture, corpusBaseDir, reproBaseDir) {
+  if (attack.expected_verdict === "accept_documented_boundary") {
+    return documentedBoundaryCase(attack, fixture, corpusBaseDir, reproBaseDir);
+  }
   const expectedTenant =
     attack.expected_verdict === "reject_by_consumer_tenant_expectation" ? attack.expected_tenant_id : undefined;
   const report = verifyArtifact(resolve(corpusBaseDir, attack.receipt_path), fixture, reproBaseDir, expectedTenant);
@@ -331,7 +368,10 @@ function summarize(reproCases, corpusCases) {
     corpus: {
       total: corpusCases.length,
       matched: corpusCases.filter((entry) => entry.matched).length,
-      unexpected_acceptances: corpusCases.filter((entry) => entry.observed_verdict === "PASS").length,
+      // Excludes documented-boundary fixtures, which are EXPECTED to be accepted. Counting them
+      // here would report a permanent nonzero "unexpected acceptance" figure for behavior the
+      // manifest explicitly declares, which would train a reader to ignore the number.
+      unexpected_acceptances: corpusCases.filter((entry) => entry.observed_verdict === "PASS" && entry.documented_boundary !== true).length,
       expectation_mismatches: corpusCases.filter(
         (entry) => entry.observed_verdict === "FAIL" && (!entry.rejection_phase_matched || !entry.rejection_detail_matched)
       ).length

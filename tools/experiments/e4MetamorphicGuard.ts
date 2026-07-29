@@ -83,6 +83,13 @@ interface CorpusAttack {
   attack_name: string;
   base_fixture_id: string;
   expected_rejection_phase?: string;
+  /**
+   * Consumer expectation the fixture requires in order to be rejectable at all. Without
+   * threading this through, checks that only fire when a consumer declares an expectation
+   * (tenant, tenant_expectation) can never be isolated and would be misreported as having no
+   * dependent fixture.
+   */
+  expected_tenant_id?: string;
 }
 
 interface ReproFixture {
@@ -129,6 +136,14 @@ export interface E4Report {
    */
   noDependentFixtures: CheckName[];
   /**
+   * Checks that CANNOT be isolated by any receipt fixture, as a matter of what they inspect
+   * rather than of corpus coverage. `configuration` fires on missing VERIFIER options (no HMAC
+   * secret, no public key), which is a property of the caller and not of any receipt. Listing
+   * these separately keeps the "unisolated" number honest: a 10/10 target is unreachable in
+   * principle, and reporting it as a gap to be closed would be misleading.
+   */
+  notFixtureIsolable: CheckName[];
+  /**
    * THE TAUTOLOGY VERDICT. When every check is forced to pass, a sound corpus should
    * lose nearly all of its detections. Attacks still "detected" under the ALL mutant
    * are detected by something other than verifier logic — parse failure is legitimate,
@@ -172,11 +187,21 @@ function buildMutant(targetCheck: CheckName | "ALL", scratchDir: string): string
   return mutantPath;
 }
 
-function optionsForFixture(fixture: ReproFixture | undefined): Record<string, unknown> {
+function optionsForFixture(fixture: ReproFixture | undefined, attack?: CorpusAttack): Record<string, unknown> {
   if (!fixture) {
     return {};
   }
   const options: Record<string, unknown> = {};
+
+  // Supply the consumer's declared expectation when the corpus records one. This is what
+  // makes the tenant and tenant_expectation checks reachable.
+  if (attack?.expected_tenant_id) {
+    options.tenant = attack.expected_tenant_id;
+    const identity = fixture.identity as Record<string, string> | undefined;
+    if (identity?.hmac_secret_dev_only_test_vector) {
+      options.identityHmacSecret = identity.hmac_secret_dev_only_test_vector;
+    }
+  }
   if (fixture.signing?.key_id) {
     options.expectedKeyId = fixture.signing.key_id;
   }
@@ -217,7 +242,7 @@ function detectedSet(
     }
 
     try {
-      const report = verifier.verifyReceipt(receipt, optionsForFixture(fixtureById.get(attack.base_fixture_id)));
+      const report = verifier.verifyReceipt(receipt, optionsForFixture(fixtureById.get(attack.base_fixture_id), attack));
       if (report.verdict !== "PASS") {
         detected.add(attack.attack_id);
       }
@@ -277,9 +302,29 @@ export async function runE4Guard(): Promise<E4Report> {
     .filter((entry) => entry.mutatedCheck !== "ALL" && entry.flippedToUndetected.length > 0)
     .map((entry) => entry.mutatedCheck as CheckName);
 
+  /**
+   * Checks no receipt fixture can isolate, as a matter of what they inspect.
+   *
+   * `configuration` fires on missing VERIFIER options (no HMAC secret, no public key). That is
+   * a property of the caller, not of any receipt.
+   *
+   * `canonical_payload` fires only when canonicalize() throws on the unsigned receipt. It
+   * rejects non-JSON host values -- undefined, bigint, Date, Buffer, Map, Set, non-finite
+   * numbers, sparse arrays, custom prototypes -- none of which JSON.parse can produce. It is a
+   * defensive guard against host objects reaching the signer IN-PROCESS, and is therefore
+   * unreachable from any receipt file by construction. It is exercised by the unit tests for
+   * hashCanonicalization, not by the corpus.
+   *
+   * Listing these separately keeps the unisolated count honest. A 10/10 fixture-isolation
+   * target is unreachable in principle, and reporting it as a gap to be closed would be
+   * misleading.
+   */
+  const NOT_FIXTURE_ISOLABLE: CheckName[] = ["configuration", "canonical_payload"];
+
   const noDependents = mutants
     .filter((entry) => entry.mutatedCheck !== "ALL" && entry.flippedToUndetected.length === 0)
-    .map((entry) => entry.mutatedCheck as CheckName);
+    .map((entry) => entry.mutatedCheck as CheckName)
+    .filter((checkName) => !NOT_FIXTURE_ISOLABLE.includes(checkName));
 
   // Under the ALL mutant, only rejections that do not come from check logic should
   // survive. Parse failures are legitimate; anything else warrants investigation.
@@ -308,6 +353,7 @@ export async function runE4Guard(): Promise<E4Report> {
     mutants,
     loadBearingChecks: loadBearing,
     noDependentFixtures: noDependents,
+    notFixtureIsolable: NOT_FIXTURE_ISOLABLE,
     survivesAllChecksMutant: allMutantDetectedIds,
     tautology_verdict: tautologyVerdict,
     non_claim: NON_CLAIM
@@ -340,6 +386,8 @@ async function main(): Promise<void> {
   }
   lines.push("");
   lines.push(`checks with NO dependent corpus fixture (corpus gap, not a useless check): ${report.noDependentFixtures.join(", ") || "none"}`);
+  lines.push(`checks NOT isolable by any fixture, by construction: ${report.notFixtureIsolable.join(", ") || "none"}`);
+  lines.push("  (configuration inspects verifier options; canonical_payload rejects non-JSON host values JSON.parse cannot produce)");
   lines.push("");
   lines.push(`TAUTOLOGY VERDICT: ${report.tautology_verdict}`);
   lines.push("");

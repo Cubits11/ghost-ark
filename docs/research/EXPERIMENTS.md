@@ -16,6 +16,7 @@ npm run experiments
 | E2 | Verification cost | repeated measurement | no — p50 with IQR |
 | E3 | Adversarial corpus detection | census | no — exact counts |
 | E4 | Metamorphic guard | census | no — exact counts |
+| E4-B | Compromised-signer fixtures | census | no — exact counts |
 | E5 | Cross-language verifier agreement | census | no — exact counts |
 
 ## Reporting rules (binding on all experiments)
@@ -285,6 +286,103 @@ interval". **Real-traffic frequency remains an open gap.**
 
 ---
 
+## E4-B — Compromised-signer fixtures
+
+**Hypothesis.** The verifier checks that E4 found unisolatable are load-bearing, and can be
+shown so by an adversary who holds the signing key.
+
+**Why it exists.** E4 found 5 of 10 checks flip zero attacks when neutered. The cause was a
+threat-model gap: every existing fixture that mutates a signed field also invalidates the
+digest and signature, the verifier short-circuits at `signature`, and the earlier checks were
+never the thing that caught it. Isolating them requires a **valid signature over a mutated
+payload**.
+
+**Feasible without any secret.** The HMAC path uses a *published dev-only test vector*
+recorded in `examples/reproducibility/manifest.json`. It is not a credential — local HMAC
+signing is dev-only and is never a production signing mode. Holding it lets the generator play
+the compromised signer exactly. **The RSA/KMS path is not covered**: this repository holds only
+the public key, so a valid RSA-PSS signature over a mutated payload cannot be produced here.
+That asymmetry is a real limit, recorded rather than worked around.
+
+**The lever.** `receipt_id` is *inside* the signed payload but is itself derived from the
+payload *without* it:
+
+```
+unsigned         = receipt − receipt_signature
+canonicalPayload = canonicalize(unsigned)              <- signature and envelope digest cover THIS
+receipt_id       = "grct_" + sha256(canonicalize(unsigned − receipt_id))
+```
+
+So a signer can validly sign a payload containing a *wrong* `receipt_id`. Digest and signature
+pass over exactly the bytes presented; the independent recomputation fails.
+
+**Command:** `npm run experiment:e4b` (regenerate), `npm run experiment:e4` (measure)
+
+### The four fixtures
+
+| id | isolates | verifier verdict | what it demonstrates |
+|:---|:---|:---|:---|
+| MAL-027 | `receipt_id` | FAIL (`receipt_id`) | Digest and signature valid; only the id recomputation rejects |
+| MAL-028 | `tenant_expectation` | PASS, then FAIL with a consumer expectation | Every intrinsic rule passes; only the consumer set distinguishes |
+| MAL-029 | — | **PASS by design** | Backdated by one year, validly signed. No freshness policy exists |
+| MAL-030 | — | **PASS by design** | `decision_post` rewritten to ALLOW, validly signed |
+
+### Measured effect on E4
+
+| | before E4-B | after E4-B |
+|:---|---:|---:|
+| load-bearing checks | 5 | **7** |
+| checks with no dependent fixture | 5 | **1** (`tenant`) |
+| checks not fixture-isolable by construction | not distinguished | **2** |
+
+Now load-bearing: `schema`, `receipt_id`, `digest`, `signature`, `envelope`, `key_id`,
+`tenant_expectation`.
+
+### Findings
+
+**F4B.1 — The isolation works, and the digest check is the evidence.** MAL-027 reports
+`receipt_id` FAIL. The verifier then reports `signature` as *skipped* rather than invalid,
+because it short-circuits once an earlier check fails. The **passing `digest` check** is what
+proves the signature was genuinely valid over these bytes.
+
+**F4B.2 — A 10/10 isolation target is unreachable in principle, and claiming it would be
+dishonest.** Two checks cannot be isolated by any receipt fixture:
+
+- `configuration` fires on missing *verifier options* (no HMAC secret, no public key). That is
+  a property of the caller, not of any receipt.
+- `canonical_payload` fires only when `canonicalize()` throws — on `undefined`, bigint, `Date`,
+  `Buffer`, `Map`, `Set`, non-finite numbers, sparse arrays, custom prototypes. **`JSON.parse`
+  cannot produce any of those.** It is a defensive guard against host objects reaching the
+  signer in-process, exercised by the `hashCanonicalization` unit tests, not by the corpus.
+
+The honest exit condition is therefore *every check accounted for in exactly one bucket*:
+7 isolated + 1 genuine gap + 2 principled limits = 10. A test asserts that sum.
+
+**F4B.3 — One genuine gap remains.** `tenant` is emitted only by `verifyReceiptRecord`, the
+record-receipt (`rct_`) path, and the corpus contains no record receipts.
+
+**F4B.4 — Two fixtures are expected to be ACCEPTED, and that is the most important result
+here.** MAL-029 and MAL-030 pass every check. A validly-signed receipt can assert a backdated
+timestamp, or that a REFUSE decision was an ALLOW, and remain cryptographically flawless.
+Signing proves signing authorization over a payload; **it does not make the payload true.** No
+verifier rule detects this and none is claimed to.
+
+To keep that from silently weakening the corpus, the manifest contract is now explicit: every
+fixture must be REJECTED unless it declares `accept_documented_boundary`, in which case it must
+be ACCEPTED *and* carry a `claim_boundary`. The default stays strict, so a fixture cannot become
+non-strict by omission — only by an explicit, reviewed declaration. E3 gives these their own
+`documented-boundary` stratum and excludes them from both numerator and denominator, so
+"undetected: 0" keeps meaning something.
+
+### Coverage boundary
+
+Dev HMAC path only. No RSA/KMS compromised-signer coverage, because only the public key is
+present. These fixtures show specific checks are independently load-bearing under a
+key-holding adversary; they are not evidence about cryptographic strength, and a receipt that
+passes every check is not thereby true.
+
+---
+
 ## E5 — Cross-language verifier agreement
 
 **Hypothesis.** The independent verifiers reach identical verdicts on every fixture, and the
@@ -502,8 +600,11 @@ detections are parse failures. No corpus detection is tautological.
 
 **F4.2 — Five checks are provably load-bearing**, each with named dependent fixtures.
 
-**F4.3 — `receipt_id` cannot be isolated by this corpus, and the reason is a threat-model
-gap.** Every fixture that mutates `receipt_id` also breaks the digest and signature, so
+**F4.3 — RESOLVED by E4-B (2026-07-29).** `receipt_id` is now load-bearing. See §E4-B. The
+original finding is retained below because it is the reasoning that produced the fix.
+
+**F4.3 (original) — `receipt_id` cannot be isolated by this corpus, and the reason is a
+threat-model gap.** Every fixture that mutates `receipt_id` also breaks the digest and signature, so
 neutering the `receipt_id` check alone changes nothing. Isolating it would require a
 receipt whose `receipt_id` is inconsistent with its payload *while carrying a valid
 signature over the mutated payload* — i.e. an attacker who controls the signing key. The
@@ -542,7 +643,9 @@ Honest list of what is missing, ordered by how much it would strengthen the work
 
 1. **No real-traffic corpus.** E1 establishes that unintended kernel members exist, not
    how often. This is falsifier F2 and the largest open weakness.
-2. **No compromised-signer fixtures.** Blocks isolation of 5 of 10 verifier checks (F4.3).
+2. ~~**No compromised-signer fixtures.**~~ CLOSED by E4-B. Remaining: no RSA/KMS
+   compromised-signer coverage (public key only), and no record-receipt (`rct_`) fixtures,
+   which leaves the `tenant` check unisolated.
 3. **No live AWS evidence bundle.** Every AWS-path claim is synth-only or local-only.
 4. **E1's randomized arm is not built.** Only the census arm exists, so no experiment here
    currently earns a confidence interval. Building it is the only way to get one honestly.

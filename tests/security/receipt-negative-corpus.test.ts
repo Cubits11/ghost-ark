@@ -128,6 +128,13 @@ describe("malicious decision receipt corpus", () => {
 
   it("never accepts any corpus mutant end-to-end under its consumer rule", async () => {
     for (const attack of corpus.attacks) {
+      // The corpus contract, stated explicitly: every fixture must be REJECTED unless it
+      // declares `accept_documented_boundary`, in which case it must be ACCEPTED and must carry
+      // a claim boundary explaining the non-detection. The default stays strict, so a fixture
+      // cannot become non-strict by omission -- only by an explicit, reviewed declaration.
+      if (attack.expected_verdict === "accept_documented_boundary") {
+        continue;
+      }
       if (attack.fixture_kind === "malformed-json") {
         expect(
           () => readJsonFile(join(corpusBaseDir, attack.receipt_path)),
@@ -152,6 +159,26 @@ describe("malicious decision receipt corpus", () => {
       }
 
       expect(accepted, `${attack.attack_id} (${attack.attack_name}) was accepted — malicious receipt admitted silently`).toBe(false);
+    }
+  });
+
+  it("accepts documented-boundary fixtures, and requires each to explain itself", async () => {
+    // The counterpart to the strict rule above. These fixtures model a compromised signer
+    // producing a VALID signature over a mutated payload, and the verifier is expected to
+    // accept them because it implements no freshness or semantic-truth check. Asserting the
+    // acceptance makes the boundary explicit: if someone later claimed either property was
+    // covered without implementing it, this test would fail.
+    const documented = corpus.attacks.filter((attack) => attack.expected_verdict === "accept_documented_boundary");
+    expect(documented.length, "expected at least the compromised-signer boundary fixtures").toBeGreaterThanOrEqual(2);
+
+    for (const attack of documented) {
+      const receipt = readJsonFile(join(corpusBaseDir, attack.receipt_path));
+      const result = await verifyDecisionReceipt(receipt, verifierForAttack(attack));
+      expect(result.verdict, `${attack.attack_id} is declared a documented boundary but was rejected`).toBe(true);
+      expect(
+        (attack as { claim_boundary?: string }).claim_boundary?.length ?? 0,
+        `${attack.attack_id} is accepted by design and must carry a claim_boundary`
+      ).toBeGreaterThan(80);
     }
   });
 
