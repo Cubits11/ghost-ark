@@ -1,9 +1,9 @@
 {
-  "name": "ghost-ark-v50",
-  "version": "50.0.0",
+  "name": "ghost-ark",
+  "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "AWS-native evidence lakehouse and cryptographic receipt-control platform.",
+  "description": "Provenance-kernel verifier and bounded governance-receipt research artifact.",
   "type": "commonjs",
   "bin": {
     "ghost-verify": "tools/ghost-verify.mjs"
@@ -23,12 +23,18 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist coverage cdk.out",
-    "docs:check": "node -e \"const fs=require('fs'); const required=['docs/GLOSSARY.md','docs/research/PROVENANCE_KERNEL_PROBLEM.md','docs/security/THREAT_MODEL.md','docs/architecture/system-overview.md','docs/architecture/transparency-witness-model.md','docs/compliance/non-claims.md','docs/compliance/control-mapping.json','docs/governance/claim-evidence-matrix.md','docs/governance/risk-register.md','docs/governance/external-reviewer-guide.md','docs/operations/runbooks/live-aws-evidence-preflight.md','docs/operations/runbooks/live-aws-evidence-window.md','docs/operations/runbooks/live-aws-evidence-cleanup.md','docs/operations/runbooks/object-lock-transparency-window.md','docs/research/GUARDRAIL_OBSERVATION_MODEL.md','docs/research/CC_CORRELATION_ANALYSIS.md','docs/research/HUMAN_REVIEW_INCIDENT_WORKFLOW.md','docs/architecture/ASSUMPTION_LATTICE.md','docs/research/AUTHENTICATED_REVOCATION_INVARIANTS.md','docs/research/WITNESS_FORK_TAXONOMY.md','schemas/ghostark.assumptions.registry.v1.json','schemas/live-aws-evidence-bundle.schema.json','examples/evidence/live-aws-evidence-bundle.sample.json','README.md']; for (const f of required) { if (!fs.existsSync(f)) throw new Error('Missing '+f); }\"",
+    "docs:check": "node -e \"const fs=require('fs'); const required=['docs/GLOSSARY.md','docs/research/PROVENANCE_KERNEL_PROBLEM.md','docs/research/00_THESIS.md','docs/research/EXPERIMENTS.md','docs/research/RESEARCH_INDEX.json','docs/artifact/CI_COVERAGE.md','docs/artifact/REVIEWER_ATTACK_SHEET.md','dab/bench/README.md','dab/gateway/UNBUILT_PROTOTYPES/README.md','docs/security/THREAT_MODEL.md','docs/architecture/system-overview.md','docs/architecture/transparency-witness-model.md','docs/compliance/non-claims.md','docs/compliance/control-mapping.json','docs/governance/claim-evidence-matrix.md','docs/governance/risk-register.md','docs/governance/external-reviewer-guide.md','docs/operations/runbooks/live-aws-evidence-preflight.md','docs/operations/runbooks/live-aws-evidence-window.md','docs/operations/runbooks/live-aws-evidence-cleanup.md','docs/operations/runbooks/object-lock-transparency-window.md','docs/research/GUARDRAIL_OBSERVATION_MODEL.md','docs/research/CC_CORRELATION_ANALYSIS.md','docs/research/HUMAN_REVIEW_INCIDENT_WORKFLOW.md','docs/architecture/ASSUMPTION_LATTICE.md','docs/research/AUTHENTICATED_REVOCATION_INVARIANTS.md','docs/research/WITNESS_FORK_TAXONOMY.md','schemas/ghostark.assumptions.registry.v1.json','schemas/live-aws-evidence-bundle.schema.json','examples/evidence/live-aws-evidence-bundle.sample.json','README.md']; for (const f of required) { if (!fs.existsSync(f)) throw new Error('Missing '+f); }\"",
     "test:research": "vitest run tests/unit/research-frontier",
     "validate:claims": "node tools/research/check-forbidden-claims.mjs",
     "validate:fast": "npm run test:research && npm run validate:claims",
     "claims:check": "npm run validate:claims",
     "assumptions": "node tools/assumptions/check-assumptions.mjs",
+    "experiment:e1": "ts-node tools/experiments/e1KernelCensus.ts",
+    "experiment:e2": "ts-node tools/experiments/e2VerificationCost.ts",
+    "experiment:e3": "ts-node tools/experiments/e3CorpusDetection.ts",
+    "experiment:e4": "ts-node tools/experiments/e4MetamorphicGuard.ts",
+    "experiments": "npm run experiment:e1 && npm run experiment:e2 && npm run experiment:e3 && npm run experiment:e4",
+    "test:experiments": "vitest run tests/unit/experiments tests/unit/repo-hygiene",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "validate": "npm run lint && npm test && npm run docs:check && npm run claims:check && npm run assumptions",

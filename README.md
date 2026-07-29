@@ -1,12 +1,16 @@
-# Ghost-Ark: A Transactional Control Plane for Untrusted AI Agents
+# Ghost-Ark: A Provenance-Kernel Verifier for AI Governance Receipts
 
-[![Artifact Evaluation: Functional](https://img.shields.io/badge/Artifact-Functional-green)](#)
+**The research claim, in one sentence.** A governance receipt identifies an execution only up to the *kernel* of its canonicalizer — the set of distinct inputs that the canonicalizer maps to the same digest — and because that kernel is fixed while the set of downstream consumers keeps growing, **receipt soundness does not persist over time even when nothing about the receipt system changes.**
 
-Ghost-Ark is a transactional control plane for AI agents. It does not use probabilistic classification. It computes exact worst-case correlation bounds (Fréchet-style linear-program bounds) over declared guardrail marginals, and aborts trajectories that exceed a declared evaluation-iteration budget.
+Ghost-Ark is the executable demonstration of that claim. It ships the verifier, the adversarial corpora, the formal models, and the measurement harness needed to check it — including real unintended kernel members found in Ghost-Ark's *own* canonicalizer.
 
-What this is: A runnable impossibility spine, $O(1)$ stateless refutability, and cohort-scoped measurement of correlated failure.
+- **The problem statement:** [docs/research/PROVENANCE_KERNEL_PROBLEM.md](./docs/research/PROVENANCE_KERNEL_PROBLEM.md)
+- **The one-page thesis, evidence map, and falsification conditions:** [docs/research/00_THESIS.md](./docs/research/00_THESIS.md)
+- **The pre-registered experiments and their measured results:** [docs/research/EXPERIMENTS.md](./docs/research/EXPERIMENTS.md)
 
-What this is not: Post-quantum secure, scaled for enterprise identity, or semantically 'safe'. We do not evaluate what the AI means; we evaluate the exact mathematical structure of its state-space.
+**What this is not.** Not a proof that any model, output, or deployment is safe, aligned, compliant, or correct. Not post-quantum secure. Not production-hardened. Ghost-Ark evaluates the *identifiability structure* of evidence, never the meaning of what the evidence describes. Every non-claim is mechanically enforced — see [Claim Discipline](#claim-discipline--reviewer-interpretation).
+
+**Two instruments serve the claim, and neither is the claim itself:** an AWS-native evidence/receipt control plane (`packages/`, `services/`, `infra/`), and the DAB speculative-execution gateway (`dab/`). Where each is only local, only synthesized, or unbuilt is stated in [docs/artifact/CI_COVERAGE.md](./docs/artifact/CI_COVERAGE.md).
 
 ---
 
@@ -34,7 +38,33 @@ This verifier executes entirely locally against the supplied public key.
 
 ---
 
-# Architecture
+# Verify the Research Claim in 5 Minutes
+
+The receipt demo above shows the machinery works. These four experiments are the actual
+research contribution — each prints measured results, its own coverage boundary, and its
+non-claim.
+
+```bash
+npm run experiments
+```
+
+| | Experiment | What it measures |
+|:--|:---|:---|
+| **E1** | Provenance kernel census | 12 pre-registered pathology classes × 4 independent canonicalizer pipelines. Finds **3 unintended kernel members in Ghost-Ark's own canonicalizer**, and shows the kernel is set by the *parser*, not the canonicalizer. |
+| **E2** | Verification cost | p50 with IQR against a declared baseline on a recorded host. Asymmetric verification is 65.89× the parse baseline. |
+| **E3** | Adversarial corpus detection | 26 fixtures through the real verifier, stratified by who rejects. **25/25 verifier-intrinsic**, 3/3 controls pass. |
+| **E4** | Metamorphic guard | Forces each verifier check to pass and re-runs the corpus. Proves the detections in E3 are **not tautological**. |
+
+Measured numbers, findings, coverage boundaries, and a written list of **retracted prior
+claims**: [docs/research/EXPERIMENTS.md](./docs/research/EXPERIMENTS.md).
+
+---
+
+# Architecture — the DAB instrument
+
+The diagram below is the **DAB speculative-execution gateway** (`dab/`), one of the two
+instruments serving the thesis. It is not the thesis, and it is not the AWS evidence plane
+described under [Core Planes](#core-planes).
 
 ```mermaid
 graph TD
@@ -62,6 +92,10 @@ graph TD
 
 ## Start Here — Reading Map
 
+- **What is the contribution, and what would refute it?** → [docs/research/00_THESIS.md](./docs/research/00_THESIS.md) (one page)
+- **Reviewing this adversarially?** → [Reviewer Attack Sheet](./docs/artifact/REVIEWER_ATTACK_SHEET.md) — the ten sharpest questions against this work, answered with commands, including the unflattering ones
+- **Which of the 39 research documents matter?** → [RESEARCH_INDEX.json](./docs/research/RESEARCH_INDEX.json) classifies every one as core / supporting / exploratory / process / non-research. Six are core.
+- **What does CI actually verify, and what can rot?** → [CI_COVERAGE.md](./docs/artifact/CI_COVERAGE.md)
 - New to the terminology (spine, evidence class, governed invoke)? → [Glossary](./docs/GLOSSARY.md)
 - Who are the adversaries and what holds at each boundary? → [Threat Model](./docs/security/THREAT_MODEL.md)
 - Want the formal models and their logs? → `proofs/tla/` (tenant isolation, speculative collapse, transport boundary — each with a mutant showing the property is load-bearing), `proofs/dab/artifacts/` (nonce-ledger TLC logs), `proofs/cloud/`
@@ -188,10 +222,20 @@ It validates:
 
 ```bash
 npm ci
-npm run lint
-npm run validate:claims
-npm test
-npm run spine:a
+npm run validate            # lint, full test suite, docs check, claim scan, assumption lattice
+npm run test:experiments     # experiment guards + repo-hygiene assertions
+npm run experiments          # E1-E4, printing measured results
+```
+
+Rust and TLA+ need non-Node toolchains and are therefore not in `npm run validate`:
+
+```bash
+cd dab/gateway && cargo clippy --locked --all-targets -- -D warnings && cargo test --locked
+```
+
+```bash
+curl -fsSL -o tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+bash tools/proofs/run-tlc.sh   # 4 baselines must pass; 4 mutants must violate
 ```
 
 Or use the wrappers (same gates, one command each):
@@ -286,7 +330,12 @@ It prefers:
 
 ---
 
-# Core Planes
+# Core Planes — the AWS evidence instrument
+
+The second of the two instruments. **Evidence tier: local-only and AWS-synth-only.** No
+live AWS evidence bundle exists in this repository, so nothing below is evidence of live
+cloud behavior. See [CI_COVERAGE.md](./docs/artifact/CI_COVERAGE.md) for the per-artifact
+matrix.
 
 ## Ingest
 
@@ -385,6 +434,14 @@ A completed item means the repository contains evidence for that narrow claim.
 
 | Item | Status | Spine | Evidence Status |
 |:---|:---|:---|:---|
+| Thesis, evidence map, falsification conditions | Complete | Research | One page, five stated falsifiers, every claim mapped to a command |
+| E1 provenance kernel census | Complete locally | Research | 12 pre-registered classes × 4 arms; 3 unintended kernel members found in Ghost-Ark's own pipeline; curated alphabet, not real traffic |
+| E2 verification cost | Complete locally | Research | p50 + IQR vs declared baseline, host recorded; single machine only |
+| E3 adversarial corpus detection | Complete locally | Research | 25/25 verifier-intrinsic, 3/3 controls; no compromised-signer fixtures |
+| E4 metamorphic guard | Complete locally | Research | Tautology verdict PASS; 5 of 10 checks unisolatable by the corpus (documented gap) |
+| Rust gateway/verifier in CI | Complete | Research | 26 tests, clippy `-D warnings`, `--locked`; previously unguarded |
+| TLA+ specs + mutants in CI | Complete | Research | 4 baselines pass and 4 mutants must violate; `TenantIsolation` and `proofs/cloud/*` remain unchecked stubs |
+| Real-traffic kernel frequency | Not complete | Research | Falsifier F2 and the largest open weakness; requires a corpus this repository does not have |
 | Claim/evidence matrix | Complete | Spine A | Versioned local documentation and claim boundaries |
 | Non-claim scanner | Complete | Spine A | Local enforcement with exact-path quarantine |
 | Receipt reproducibility harness | Complete | Spine B | Local tests and fixtures |

@@ -1,0 +1,59 @@
+{
+  "schema_version": "ghost.research_index.v1",
+  "updated_at": "2026-07-29T00:00:00.000Z",
+  "purpose": "Every document in docs/research/ is classified by its epistemic tier so a reviewer can tell load-bearing research from exploratory speculation without reading all of it. tests/unit/repo-hygiene/researchIndex.test.ts fails if any file here is unclassified or any classified file is missing, so this index cannot silently drift.",
+  "tiers": {
+    "core": "Load-bearing for the thesis in 00_THESIS.md. Every claim maps to a runnable command or a checked-in artifact. A reviewer should read these.",
+    "supporting": "Grounded protocol, contract, or mechanism documents that a core claim depends on. Specific and checkable, but not themselves the contribution.",
+    "exploratory": "Speculative or theoretical drafts. NOT evidence for any claim. Retained for design provenance. May contain framing that the implementation does not support.",
+    "process": "Audit trails, roadmaps, rebuttals, and working notes. Historical record of how the work proceeded, not claims about the system.",
+    "non-research": "Business, market, or commercial material. Present in the repository for convenience; carries no research weight and should not be read as a finding."
+  },
+  "documents": [
+    { "file": "PROVENANCE_KERNEL_PROBLEM.md", "tier": "core", "note": "The thesis problem statement. Formalizes ternary Sound(C,Sigma,P) and the monotone/antitone non-persistence result." },
+    { "file": "00_THESIS.md", "tier": "core", "note": "One-page claim, evidence map, and falsification conditions." },
+    { "file": "EXPERIMENTS.md", "tier": "core", "note": "Pre-registered experiment definitions E1-E4 with measured results and coverage boundaries." },
+    { "file": "NON_CLAIM_ENGINEERING.md", "tier": "core", "note": "The mechanically-enforced non-claim vocabulary; the discipline the whole artifact rests on." },
+    { "file": "RECEIPT_TRUTH_LADDER.md", "tier": "core", "note": "Evidence-tier ladder distinguishing local, synth, and live claims." },
+    { "file": "EVIDENCE_PROVENANCE_LATTICE.md", "tier": "core", "note": "Provenance lattice P1-P4 and impossibility I2; formalized in proofs/tla/ProvenanceLattice.tla." },
+
+    { "file": "RECEIPT_REPRODUCIBILITY_PROTOCOL.md", "tier": "supporting", "note": "Fixture and manifest protocol behind examples/reproducibility." },
+    { "file": "GUARDRAIL_OBSERVATION_MODEL.md", "tier": "supporting", "note": "Closed observation schema; Spine E." },
+    { "file": "CC_CORRELATION_ANALYSIS.md", "tier": "supporting", "note": "Frechet bound adapter contract; Spine F." },
+    { "file": "CC_GHOST_DISCRETIZATION_CONTRACT.md", "tier": "supporting", "note": "Discretization contract between CC-Framework observations and Ghost-Ark receipts." },
+    { "file": "M_ESTIMATION.md", "tier": "supporting", "note": "M estimator with pre-registered epsilon; implemented in packages/research-frontier/src/oracle/mEstimator.ts." },
+    { "file": "AUTHENTICATED_REVOCATION_INVARIANTS.md", "tier": "supporting", "note": "Revocation invariants." },
+    { "file": "WITNESS_FORK_TAXONOMY.md", "tier": "supporting", "note": "Fork detectability taxonomy; Phase II." },
+    { "file": "WITNESS_MECHANISM_DESIGN.md", "tier": "supporting", "note": "Witness incentive and mechanism design." },
+    { "file": "LOCAL_WITNESS_BUNDLE.md", "tier": "supporting", "note": "Local witness bundle format." },
+    { "file": "HUMAN_REVIEW_INCIDENT_WORKFLOW.md", "tier": "supporting", "note": "Human review and incident schema; Spine H." },
+    { "file": "CLAIM_EVIDENCE_MATRIX.md", "tier": "supporting", "note": "Claim-to-evidence mapping." },
+    { "file": "CLAIM_ENTAILMENT_MODEL.md", "tier": "supporting", "note": "What a claim entails and what it does not." },
+    { "file": "AUDITABILITY_SAFETY_SEPARATION.md", "tier": "supporting", "note": "Core separation: auditability is not safety." },
+    { "file": "PHASE_III_EFFECT_ORACLE.md", "tier": "supporting", "note": "Byte reconciler; decode-before-compare." },
+    { "file": "PHASE_VI_RUNTIME_CUSTODY.md", "tier": "supporting", "note": "Transit ledger and runtime custody layer." },
+    { "file": "PHASE_V_LATENCY_BENCHMARK.md", "tier": "supporting", "note": "Latency benchmark protocol. Superseded for reporting discipline by EXPERIMENTS.md E2." },
+    { "file": "FORMAL_METHODS_NOTES.md", "tier": "supporting", "note": "TLA+ modelling notes for proofs/." },
+    { "file": "ASSURANCE_MATURITY_LADDER.md", "tier": "supporting", "note": "Assurance maturity tiers." },
+    { "file": "THREAT_MODEL_FRONTIER.md", "tier": "supporting", "note": "Frontier threat model; see docs/security/THREAT_MODEL.md for the primary one." },
+    { "file": "PRIOR_ART_AND_NOVELTY.md", "tier": "supporting", "note": "Prior art positioning." },
+    { "file": "NITRO_ENCLAVE_ISOLATION_ARCHITECTURE.md", "tier": "supporting", "note": "Enclave architecture. No attestation flow is implemented; treat as design only." },
+    { "file": "STM_ISOLATION_MAPPING.md", "tier": "supporting", "note": "Maps agentic execution onto software transactional memory." },
+    { "file": "TEMPORAL_TRUST_MODEL.md", "tier": "supporting", "note": "Freshness and temporal trust assumptions." },
+
+    { "file": "AGI_EPISTEMIC_DEFICIT_THEORY.md", "tier": "exploratory", "note": "Speculative theory of bounded-AGI epistemic limits. Not evidence for any Ghost-Ark claim." },
+    { "file": "GEOMETRIC_JURISPRUDENCE_DRAFT.md", "tier": "exploratory", "note": "Speculative draft applying convex-polyhedron framing to policy. Explicitly a draft." },
+    { "file": "TEMPORAL_ONTOLOGY_DRAFT.md", "tier": "exploratory", "note": "Speculative draft on time topology in multi-modal architectures. Explicitly a draft." },
+    { "file": "LOBIAN_BOUNDARY.md", "tier": "exploratory", "note": "Loeb-style argument for why the system records rather than licenses. Philosophical framing, not a measured result." },
+    { "file": "REJECTION_SAMPLING_OVERHEAD.md", "tier": "exploratory", "note": "Analysis of constrained-decoding overhead. Not measured against this repository's code." },
+
+    { "file": "RESEARCH_FRONTIER_ROADMAP.md", "tier": "process", "note": "Forward roadmap." },
+    { "file": "MVE_ROADMAP.md", "tier": "process", "note": "Phase I-IV roadmap." },
+    { "file": "AGENT_RESEARCH_AUDIT_2026-07-08.md", "tier": "process", "note": "Dated audit record." },
+    { "file": "ACC_DEFENSE_INQUIRIES.md", "tier": "process", "note": "Adversarial committee inquiry record." },
+    { "file": "COMMITTEE_REBUTTAL.md", "tier": "process", "note": "Drafted rebuttal to a hypothetical program committee. Not an actual received review." },
+
+    { "file": "CYBER_INSURANCE_UNDERWRITING_MODEL.md", "tier": "non-research", "note": "Commercial underwriting framing. Carries no research weight." },
+    { "file": "GHOST_ARK_GTM_STRATEGY.md", "tier": "non-research", "note": "Go-to-market and capitalization strategy. Carries no research weight and states no verified claim." }
+  ]
+}
