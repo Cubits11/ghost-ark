@@ -40,3 +40,6 @@ secrets/
 
 # gcloud configuration
 .gcloudignore
+# TLA+ tooling (downloaded by tools/proofs/run-tlc.sh and CI; never tracked)
+tla2tools.jar
+states/
