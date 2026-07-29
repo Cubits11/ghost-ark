@@ -95,7 +95,7 @@ jobs:
         run: bash tools/proofs/run-tlc.sh
 
   experiments:
-    name: experiments E1-E5
+    name: experiments E1-E7
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -113,7 +113,11 @@ jobs:
         run: npm run test:experiments
       # E2 is a timing experiment; a shared CI runner is noisy, so it runs with reduced
       # iterations purely as a smoke test. CI numbers are NOT the reported numbers.
-      - name: run all experiments (E1, E1-B, E2, E3, E4, E5)
+      # jq is E7's third independent parser arm. Without it E7 still runs on two arms and says
+      # so, rather than silently reporting zero divergence for lack of anything to disagree with.
+      - name: install jq for the E7 third arm
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq
+      - name: run all experiments (E1, E1-B, E2, E3, E4, E5, E6, E7)
         run: npm run experiments
 
   supply-chain:
