@@ -17,7 +17,7 @@ project.
 | Artifact | What runs | Workflow | Directionally asserted? |
 |:---|:---|:---|:---|
 | TypeScript workspace (57k lines) | `tsc --noEmit`, full `vitest run` | `ci.yml` → `npm run validate` | — |
-| Claim-language discipline | `scan:claims` over 772 files, 0 violations required | `ci.yml` | yes: forbidden vocabulary fails the build |
+| Claim-language discipline | `scan:claims` over 801 files, 0 violations required | `ci.yml` | yes: forbidden vocabulary fails the build |
 | Assumption lattice | `check-assumptions.mjs` | `ci.yml` | yes |
 | Required-docs presence | `docs:check` | `ci.yml` | yes: a missing core doc fails the build |
 | Terraform | `fmt -check`, `init -backend=false`, `validate` | `ci.yml` | — |
@@ -27,7 +27,8 @@ project.
 | **Rust: tools/experiments** | same, `--locked` (4 tests) | `artifacts-verify.yml` | — |
 | **Python verifier behavior** | verifies a valid fixture **and** must reject `MAL-003` | `artifacts-verify.yml` | yes: negative control fails the job if a tampered receipt is accepted |
 | **TLA+ specs + mutants** | 4 baselines must pass, 4 mutants must violate | `artifacts-verify.yml` → `tools/proofs/run-tlc.sh` | **yes: a mutant that passes fails CI** |
-| **Experiments E1–E4** | all four run; guard tests assert measured findings | `artifacts-verify.yml` | yes: E4's tautology verdict must be PASS |
+| **Experiments E1–E5** | all six run; guard tests assert measured findings | `artifacts-verify.yml` | yes: E4's tautology verdict must be PASS; E1-B's intervals must be disjoint; E5 must report 0 peer disagreements |
+| **E1-B determinism** | same seed reproduces byte-identical report; different seed does not | `ci.yml` (in `npm test`) | yes: both directions asserted |
 | Repo hygiene | no tracked build output, no tracked private keys or `.env`, unbuilt prototypes stay inert, `dab/bench` stays quarantined | `ci.yml` (in `npm test`) | yes |
 | Research classification | every `docs/research/*.md` must be classified | `ci.yml` (in `npm test`) | yes: an unclassified doc fails the build |
 | CodeQL / Semgrep / gitleaks | static analysis and secret scanning | `ci.yml` | — |
@@ -53,7 +54,8 @@ These are real gaps. None of them is hidden behind a passing badge.
 | **No cross-machine reproduction** | All latency figures are one host, one architecture. | Not automated. |
 | **`dab/roundtrip`, `dab/k8s`, `dab/agent-runtime` not exercised** | Socket-level and k8s round-trip evidence exists as recorded runs, not as CI-reproduced runs. | Needs a container runtime and network setup in CI. |
 | **Stryker mutation testing not in CI** | `stryker.config.json` exists; mutation score is not gated. | Runtime cost. Run locally. |
-| **No real-traffic corpus for E1** | E1 shows unintended kernel members are *possible and present*, never how *frequent*. | This is falsifier F2 in `00_THESIS.md` and the single largest open weakness. |
+| **No real-traffic corpus for E1/E1-B** | E1-B quantifies the collapse rate under a *declared synthetic generator* (52.5% [49.0%, 56.1%] unguarded). That interval describes sampling variability under that generator, NOT production receipt traffic. | This is falsifier F2 in `00_THESIS.md` and remains the single largest open weakness. Breadth (12→31 classes) and a sampled arm narrow it; only real traffic closes it. |
+| **Verifier independence is authorial, not third-party** | E5 reports 0 disagreements across Node and Python, but all three verifiers were written by the same author from the same specification. They can share a misreading. | A genuinely independent reimplementation by another party is the only thing that fixes this, and none exists. |
 | **No compromised-signer fixtures** | 5 of 10 verifier checks cannot be isolated by the corpus (E4 finding F4.3). | The corpus does not model an attacker holding the signing key. Highest-value next fixture. |
 | **8 high-severity npm advisories remain** | `npm audit` reports 10 advisories (8 high, 2 moderate), all devDependencies. Not in the shipped runtime path, but CI and developer machines execute them, so dev-only lowers severity rather than eliminating it. | The chain roots in the SBOM toolchain (`@cyclonedx/cyclonedx-npm` → `libxmljs2` → `node-gyp` → …) and clearing it needs a breaking major. `npm audit fix` took 13 → 10. The CI gate is set at `critical`, which the repository actually meets, rather than at `high`, which it would fail — a threshold met is worth more than a threshold declared. Dependabot is configured to move these. |
 | **GitHub Actions are pinned to mutable tags** | `actions/checkout@v4` and similar can be repointed by whoever controls the action repository, so each is an unpinned dependency with access to CI. | Pinning every action to a commit SHA is the strong fix and is not yet done. Dependabot's `github-actions` ecosystem is configured as the prerequisite. The `supply-chain` job sets `persist-credentials: false` so the job that executes third-party code does not also hold the workflow token. |
