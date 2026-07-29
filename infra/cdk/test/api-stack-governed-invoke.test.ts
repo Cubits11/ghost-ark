@@ -1,9 +1,28 @@
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { ApiStack } from "../lib/api-stack";
 
+/**
+ * CDK synthesis is expensive and dominated by the one-time cold load of
+ * aws-cdk-lib/jsii. Synthesizing once per `it` made this file exceed the 15s
+ * global vitest timeout under parallel load, which produced a *nondeterministic*
+ * red `npm test` on a clean clone. Memoizing per option-set removes the repeated
+ * cost, and the `beforeAll` pre-warm pays the cold-load cost under a hook
+ * timeout instead of a test timeout.
+ *
+ * Templates are read-only assertion views, so sharing one across assertions in
+ * this file does not couple the tests.
+ */
+const templateCache = new Map<string, Template>();
+
 function synthApiTemplate(options: { allowlist?: string[]; wildcard?: boolean } = {}) {
+  const cacheKey = JSON.stringify({ allowlist: options.allowlist ?? null, wildcard: options.wildcard ?? null });
+  const cached = templateCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const app = new App();
   const stack = new ApiStack(app, "GhostArkDevApiTest", {
     stage: "dev",
@@ -11,10 +30,16 @@ function synthApiTemplate(options: { allowlist?: string[]; wildcard?: boolean } 
     bedrockModelAllowlist: options.allowlist,
     allowWildcardBedrockModels: options.wildcard
   });
-  return Template.fromStack(stack);
+  const template = Template.fromStack(stack);
+  templateCache.set(cacheKey, template);
+  return template;
 }
 
 describe("ApiStack governed invoke AWS reality gate", () => {
+  beforeAll(() => {
+    synthApiTemplate();
+  }, 180_000);
+
   it("wires the invoke route behind a Cognito authorizer", () => {
     const template = synthApiTemplate();
 
