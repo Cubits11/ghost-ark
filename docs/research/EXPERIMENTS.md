@@ -3,11 +3,20 @@
 Tier: **core**. Every number here was produced by a command in this repository and can be
 regenerated. Where a number is unflattering, it is reported anyway.
 
-**Run all four:**
+**Run all six:**
 
 ```bash
 npm run experiments
 ```
+
+| | Experiment | Provenance | Confidence intervals? |
+|:--|:---|:---|:---|
+| E1 | Provenance kernel census (31 classes x 5 arms) | census | no — exact counts |
+| E1-B | Randomized kernel probe (declared generator) | **sampled** | **yes — the only place they are legitimate** |
+| E2 | Verification cost | repeated measurement | no — p50 with IQR |
+| E3 | Adversarial corpus detection | census | no — exact counts |
+| E4 | Metamorphic guard | census | no — exact counts |
+| E5 | Cross-language verifier agreement | census | no — exact counts |
 
 ## Reporting rules (binding on all experiments)
 
@@ -37,7 +46,7 @@ These exist because this repository previously violated each of them.
 
 | Component | Path |
 |:---|:---|
-| E1–E4 harnesses | `tools/experiments/*.ts` |
+| E1–E5 harnesses | `tools/experiments/*.ts` |
 | Pre-registered E1 alphabet | `tools/experiments/kernelAlphabet.ts` |
 | TypeScript reporting discipline | `packages/research-frontier/src/stats/descriptive.ts` |
 | Rust measurement stats (MAD, tie-corrected Mann-Whitney, counter quantum) | `tools/experiments/src/stats.rs` |
@@ -57,11 +66,12 @@ module's for two-sample comparisons; prefer it over writing a weaker equivalent.
 members that a declared consumer distinguishes; and the kernel is determined by
 `parse → canonicalize → digest` rather than by canonicalization alone.
 
-**Design.** 12 pre-registered pathology classes, each a pair of byte-distinct raw JSON
-texts with a declared consumer intent (`distinct` or `equivalent`). Four independent
-arms. Verdicts: `sound`, `unintended-kernel` (collapsed a distinction a consumer needs),
-`over-discrimination` (split something every consumer unifies), `fail-closed`,
-`split-decision`.
+**Design.** 31 pre-registered pathology classes, each a pair of byte-distinct raw JSON
+texts with a declared consumer intent (`distinct` or `equivalent`). Five arms, one of which
+(CPython) has a genuinely independent parser and one of which is the strict-admission
+mitigation. Verdicts: `sound`, `unintended-kernel` (collapsed a distinction a consumer
+needs), `over-discrimination` (split something every consumer unifies), `fail-closed`,
+`sound-by-rejection`, `rejection-asymmetry`.
 
 **Provenance: census.** Curated and adversarial. No confidence intervals. Exact counts only.
 
@@ -69,13 +79,31 @@ arms. Verdicts: `sound`, `unintended-kernel` (collapsed a distinction a consumer
 
 ### Measured result
 
+Alphabet expanded from 12 to **31** classes on 2026-07-29, specifically to attack falsifier F2
+("the finding may be an artifact of what the author chose to look at"). Breadth is the only
+honest answer to that. Every added intent was declared before the arms were re-run.
+
 | arm | indep. parser | sound | **unintended-kernel** | over-discrim. | fail-closed | sound-by-rejection | rejection-asymmetry |
 |:---|:---|---:|---:|---:|---:|---:|---:|
-| `ghost-ark-receipt-schema` | no | 7 | **3** | 1 | 1 | 0 | 0 |
-| `ghost-ark-independent-verifier` | no | 7 | **3** | 1 | 1 | 0 | 0 |
-| `ghost-ark-strict-admission` (mitigation) | no | 7 | **0** | 1 | 2 | 2 | 0 |
-| `naive-sorted-stringify` (control) | no | 7 | **4** | 1 | 0 | 0 | 0 |
-| `python-json-sorted` | **yes** | 6 | 2 | 2 | 1 | 1 | 0 |
+| `ghost-ark-receipt-schema` | no | 23 | **5** | 1 | 1 | 1 | 0 |
+| `ghost-ark-independent-verifier` | no | 23 | **5** | 1 | 1 | 1 | 0 |
+| `ghost-ark-strict-admission` (mitigation) | no | 23 | **0** | 1 | 2 | 5 | 0 |
+| `naive-sorted-stringify` (control) | no | 23 | **6** | 1 | 0 | 1 | 0 |
+| `python-json-sorted` | **yes** | 21 | 4 | 3 | 1 | 2 | 0 |
+
+**Widening the alphabet found two MORE defects, and the mitigation still holds at zero.**
+The new members are `nested-duplicate-key-in-array` (a duplicate key two levels deep, inside
+an array) and `duplicate-empty-key` (the degenerate `""` key repeated). Both matter: a guard
+that only inspected top-level keys, or that special-cased the empty string, would pass the
+original 12 classes while leaving the collapse fully exploitable. Universal unintended kernel
+members (collapsed by every deciding arm) rose from 2 to 4.
+
+The added positive controls all pass, which is what makes the mitigation credible rather than
+merely strict: `safe-integer-neighbours` (two adjacent integers just *inside* the safe range,
+which must stay distinct and do), `array-element-order` (arrays are ordered, and no arm sorts
+them), `deep-nesting-depth` (200 vs 201, catching silent truncation), and
+`large-document-single-byte` (two 64 KiB documents differing in one late byte, catching a
+digest computed over a prefix).
 
 Verdict vocabulary: `sound-by-rejection` means one side was admitted and the other refused
 where a consumer needs them distinguished — no false shared identity is issued, and the
@@ -83,7 +111,8 @@ honest document still receives one. `rejection-asymmetry` is the failure mode of
 rule: refusing one of two documents every consumer treats as identical. The mitigation arm
 scores **0** on that, which is what makes it a fix rather than a trade.
 
-Per-class result for Ghost-Ark's own pipeline:
+Per-class result for Ghost-Ark's own pipeline (the original 12 classes; run
+`npm run experiment:e1 -- --json` for all 31):
 
 | pathology class | intent | observed | verdict |
 |:---|:---|:---|:---|
@@ -102,10 +131,11 @@ Per-class result for Ghost-Ark's own pipeline:
 
 ### Findings
 
-**F1.1 — Ghost-Ark's own pipeline has three unintended kernel members.** `{"amount":1,"amount":2}`
+**F1.1 — Ghost-Ark's own pipeline has five unintended kernel members.** `{"amount":1,"amount":2}`
 and `{"amount":2}` receive the same receipt identity. So do two integers one apart above
-2^53, and two distinct decimal literals that round to the same double. All three
-collapses happen inside `JSON.parse`, before any Ghost-Ark code executes.
+2^53; two distinct decimal literals that round to the same double; a duplicate key nested
+inside an array; and the degenerate `""` key repeated. Every one of these collapses happens
+inside `JSON.parse`, before any Ghost-Ark code executes.
 
 **F1.2 — The kernel is set by the parser, which is the corollary C1.** On
 `integer-precision-loss` all three V8 arms are unsound and the CPython arm is **sound** —
@@ -138,7 +168,9 @@ runs **before** `JSON.parse`, which is where all three collapses occur. Three ru
 | `unsafe_integer_magnitude` | integer literals above 2^53−1 | above this, distinct integers share a double |
 | `excess_significant_digits` | numeric literals with >17 significant digits | 17 is a double's round-trip precision; beyond it the text asserts precision the receipt cannot carry |
 
-Measured effect: **unintended kernel members 3 → 0**, with **zero** rejection-asymmetry.
+Measured effect: **unintended kernel members 5 → 0**, with **zero** rejection-asymmetry. The
+mitigation was built against the original 12 classes and still holds at zero after the alphabet
+was widened to 31 — it generalizes rather than being fitted to the cases that motivated it.
 
 Two design decisions that keep this a fix rather than a trade:
 
@@ -162,6 +194,156 @@ documents, JSON5/relaxed-syntax inputs, BOM handling, duplicate keys nested insi
 `__proto__` as a literal key, integer keys, or locale-dependent number parsing. **Absence
 of a class here is not evidence of its absence in practice.** E1 shows these collapses are
 possible and present; it does not establish how often they occur in real traffic.
+
+---
+
+## E1-B — Randomized kernel probe (the only experiment with confidence intervals)
+
+**Hypothesis.** Under a declared adversarial generator, the unguarded pipeline collapses
+semantics-changing mutations at a substantial rate, and strict admission drives that rate to
+zero without cost to semantics-preserving mutations.
+
+**Why it exists.** E1's census establishes that unintended kernel members EXIST and are
+PRESENT. It cannot establish how OFTEN they arise, because a curated corpus has no sampling
+distribution to generalize from. That is falsifier **F2**, and adding more curated classes
+does not close it. E1-B closes it the only way available: draw documents at random from a
+declared generator, apply a mutation operator drawn from a declared set, and measure the
+collapse rate. Because the draws are genuinely random from a stated distribution, **a Wilson
+interval here describes real sampling variability and is legitimate** — the only place in this
+repository where that is true.
+
+**Design.** 8 mutation operators split by declared semantics: `preserving` (key reorder,
+insignificant whitespace, escape form — a collapse is CORRECT) and `changing` (duplicate a
+key, adjacent unsafe integers, adjacent decimal literals, excess precision, type swap, null
+to absent — a collapse is an UNINTENDED KERNEL MEMBER). 400 trials per operator, seeded
+mulberry32 PRNG, exactly reproducible from the seed. `Math.random()` is deliberately unused:
+a result that cannot be replayed is not evidence.
+
+**Command:** `npm run experiment:e1b` (add `--seed N` to replay, `--trials N` to scale)
+
+### Measured result — seed 6221083, 400 trials/operator
+
+Changing operators; a collapse is an unintended kernel member. Denominator is
+**decided + rejected**, so both arms face the same denominator:
+
+| operator | arm | decided | rejected | collapsed | unsound | 95% Wilson |
+|:---|:---|---:|---:|---:|---:|:---|
+| `duplicate-an-object-key` | unguarded | 96 | 0 | 96 | 100.0% | [96.2%, 100.0%] |
+| | strict admission | 0 | 96 | 0 | **0.0%** | [0.0%, 3.8%] |
+| `adjacent-unsafe-integers` | unguarded | 121 | 0 | 120 | 99.2% | [95.5%, 99.9%] |
+| | strict admission | 0 | 121 | 0 | **0.0%** | [0.0%, 3.1%] |
+| `adjacent-decimal-literals` | unguarded | 93 | 0 | 93 | 100.0% | [96.0%, 100.0%] |
+| | strict admission | 0 | 93 | 0 | **0.0%** | [0.0%, 4.0%] |
+| `add-excess-precision-digits` | unguarded | 94 | 0 | 94 | 100.0% | [96.1%, 100.0%] |
+| | strict admission | 0 | 94 | 0 | **0.0%** | [0.0%, 3.9%] |
+| `swap-scalar-type` | both | 133 | 2 | 0 | 0.0% | [0.0%, 2.8%] |
+| `null-to-absent` | both | 65 | 41 | 0 | 0.0% | [0.0%, 3.5%] |
+| `promote-integer-past-safe-range` | unguarded | 122 | 0 | 0 | 0.0% | [0.0%, 3.1%] |
+
+Preserving operators; a collapse is correct behavior and a split would be
+over-discrimination. Both arms score 100% on all three (`reorder-object-keys` 86/86,
+`insert-insignificant-whitespace` 222/222, `escape-ascii-letter` 52/52).
+
+**Aggregate over all changing operators, same denominator for both arms:**
+
+| arm | unsound outcomes | rate | 95% Wilson |
+|:---|:---|---:|:---|
+| `ghost-ark-receipt-schema` | 403/767 | **52.5%** | **[49.0%, 56.1%]** |
+| `ghost-ark-strict-admission` | 0/767 | **0.0%** | **[0.0%, 0.5%]** |
+
+The intervals are **disjoint**, which is what establishes the effect rather than asserting it.
+
+### Findings
+
+**F1B.1 — The effect is large and interval-bounded.** Over half of semantics-changing
+mutations collapse to a shared receipt identity on the unguarded pipeline under this
+generator. Strict admission takes that to zero, and the two intervals do not overlap.
+
+**F1B.2 — The comparison is denominator-fair, and that mattered.** An earlier version of
+this experiment scored each arm over its own `decided` trials only. That let the guarded arm
+look good by *rejecting* precisely the inputs the unguarded arm collapses and then being
+graded on what remained — 505 vs 193 trials, an apples-to-oranges result. Rejection now
+counts as a sound outcome and both arms are scored over all applicable trials.
+
+**F1B.3 — Two operators measure "value changed", not "identity collapsed", and are retained
+as controls.** `promote-integer-past-safe-range` substitutes one large integer for a small
+one, producing two genuinely different values, so 0% collapse is the correct result. Detecting
+the actual large-integer collapse required operators that construct BOTH sides
+(`adjacent-unsafe-integers`, `adjacent-decimal-literals`), which is why those exist.
+
+**F1B.4 — Determinism is tested in both directions.** One test asserts the same seed
+reproduces a byte-identical report; another asserts a different seed does not. A harness that
+silently ignored its seed would look perfectly deterministic.
+
+### Coverage boundary
+
+The interval describes sampling variability **under this generator**, which is a model of
+adversarial input, not a sample of production traffic. Quoting it as a real-world frequency
+would be exactly the inferential overreach the census rules exist to prevent. E1-B narrows F2
+from "no idea how often" to "under a declared adversarial generator, at this rate, with this
+interval". **Real-traffic frequency remains an open gap.**
+
+---
+
+## E5 — Cross-language verifier agreement
+
+**Hypothesis.** The independent verifiers reach identical verdicts on every fixture, and the
+identity-only check never rejects what a full verifier accepts.
+
+**Why it matters.** A receipt is only verifiable evidence if a party who does not run your
+code reaches the same verdict. Independence is worthless without agreement: two verifiers that
+disagree mean at least one is wrong, and a consumer cannot tell which.
+
+**Design.** All 26 corpus fixtures plus the valid HMAC fixtures, against every available
+verifier. Two are **peers** (full verifiers: `verifiers/node` built-ins-only, and
+`verifiers/python`) and are compared for unanimity. The third,
+`packages/receipt-schema` receipt-identity recomputation, is deliberately weaker — it never
+verifies a signature — so it is held to a **subsumption** property instead: identity failure
+must imply verification failure. The converse is not required.
+
+**Provenance: census.** Exact counts, no intervals.
+
+**Command:** `npm run experiment:e5`
+
+### Measured result
+
+```
+peer verifiers:      node-independent, python-independent
+subsumed verifier:   ts-receipt-identity
+
+peers unanimous on fixtures that must FAIL: 25/25
+peers unanimous on fixtures that must PASS:   2/2
+
+PEER DISAGREEMENTS:      0
+SUBSUMPTION VIOLATIONS:  0
+```
+
+### Findings
+
+**F5.1 — Zero disagreements across two independently-implemented verifiers in two languages**,
+over both the reject arm and the accept arm.
+
+**F5.2 — Both arms are reported, because agreement on rejects alone is worthless.** A verifier
+that rejected everything would score 100% on the reject arm. The accept arm (2/2) is what makes
+the reject figure meaningful.
+
+**F5.3 — Peer selection is a real methodological decision, and getting it wrong manufactured
+12 false defects.** An earlier version of this experiment held the identity-only check to peer
+agreement and reported 12 "disagreements" — every one of which was the weaker check correctly
+declining to detect signature tampering it never inspects. A harness that scores a deliberately
+weaker component as a dissenting peer measures its own design error.
+
+**F5.4 — An unavailable verifier is reported as unavailable, never as agreeing.** A silently
+absent verifier would inflate agreement to 100% by having nothing to disagree with — the same
+defect class E1's Python probe guards against.
+
+### Coverage boundary
+
+Agreement is **not correctness**: three implementations can share a misreading, and all three
+were written by the same author from the same specification, so they are not independent in the
+strong sense a third-party reimplementation would provide. The RSA fixtures are excluded from
+the accept arm because the shared verifier options here are the HMAC ones, and scoring an RSA
+fixture under HMAC options would measure option mismatch rather than agreement.
 
 ---
 

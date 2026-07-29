@@ -47,15 +47,17 @@ Every row is a command. Run them; do not take this document's word for anything.
 
 | Claim | Evidence | Command |
 |:---|:---|:---|
-| C2: Ghost-Ark's own pipeline has unintended kernel members | 3 of 12 pathology classes collapse against pre-registered consumer intent | `npm run experiment:e1` |
+| C2: Ghost-Ark's own pipeline has unintended kernel members | 5 of 31 pathology classes collapse against pre-registered consumer intent | `npm run experiment:e1` |
+| The rate is substantial, not incidental | Under a declared random generator: **52.5% [49.0%, 56.1%]** of semantics-changing mutations collapse unguarded vs **0.0% [0.0%, 0.5%]** guarded — disjoint 95% Wilson intervals over a shared denominator | `npm run experiment:e1b` |
+| Independent verifiers agree | 25/25 rejects and 2/2 accepts unanimous across Node and Python; 0 peer disagreements, 0 subsumption violations | `npm run experiment:e5` |
 | C1: the kernel is set by parse∘canonicalize, not canonicalize | `integer-precision-loss` is unsound in all three V8 arms and **sound** in the CPython arm — same canonicalization rules, different parser | `npm run experiment:e1` |
 | Fail-closed rejection is load-bearing, not decoration | On `non-finite-overflow` Ghost-Ark rejects; the naive control arm issues one digest for two different numbers | `npm run experiment:e1` |
-| The kernel defects are **fixed**, and the fix is measured by the census that found them | Text-level admission control before `JSON.parse` takes unintended kernel members 3 → 0, with zero rejection-asymmetry and `canonicalize()` byte-unchanged | `npm run experiment:e1` |
+| The kernel defects are **fixed**, and the fix is measured by the census that found them | Text-level admission control before `JSON.parse` takes unintended kernel members 5 → 0, with zero rejection-asymmetry and `canonicalize()` byte-unchanged | `npm run experiment:e1` |
 | Verification cost, with dispersion and a baseline | p50 + IQR over 5000 iterations per arm, ratio to a `json-parse-only` baseline, host recorded | `npm run experiment:e2` |
 | The adversarial corpus is rejected by the real verifier | 26/26 rejected; 25/25 by verifier rules alone; 3/3 unmutated controls PASS | `npm run experiment:e3` |
 | Those rejections are **not tautological** | With every verifier check forced to pass, only the parse failure still rejects | `npm run experiment:e4` |
 | Formal invariants are load-bearing | Each TLA+ spec ships with a mutant that produces a counterexample | `proofs/tla/`, `proofs/dab/artifacts/` |
-| Non-claim vocabulary is enforced, not promised | 772 files scanned, 0 violations | `npm run scan:claims` |
+| Non-claim vocabulary is enforced, not promised | 801 files scanned, 0 violations | `npm run scan:claims` |
 
 The full pre-registration, measured numbers, and coverage boundaries:
 [EXPERIMENTS.md](./EXPERIMENTS.md). The formal problem statement:
@@ -73,11 +75,20 @@ Stated before the fact so the thesis is refutable rather than merely defended.
 | F4 | **A parser-independent kernel.** Show the pipeline kernel is fixed by canonicalization alone. | C1 is false, and auditing canonicalizers alone would suffice. |
 | F5 | **The corpus results are tautological.** Show E3's detections survive when the mechanisms they depend on are broken. | E4 exists precisely to test this, and currently reports PASS. A failure here would void E3. |
 
-F2 is the live weakness and this document will not pretend otherwise: E1's alphabet is
-hand-curated and adversarial. It shows these collapses are *possible* and *present*, not
-that they are *frequent*. Establishing frequency needs a corpus of real receipt traffic,
-which this repository does not have. That gap is recorded in EXPERIMENTS.md §Open Gaps,
-not papered over.
+F2 is the live weakness and this document will not pretend otherwise. Two moves narrow it and
+neither closes it:
+
+- **Breadth.** E1's alphabet went from 12 to 31 classes, and widening it found two MORE
+  defects rather than diluting the finding. A curated corpus that keeps yielding defects as it
+  grows is weaker evidence than a random sample, but it is not nothing.
+- **A genuinely sampled arm.** E1-B draws from a declared generator, so its confidence
+  intervals are legitimate: 52.5% [49.0%, 56.1%] unguarded versus 0.0% [0.0%, 0.5%] guarded.
+
+What remains open is the step neither move makes: **the generator is a model of adversarial
+input, not a sample of production receipt traffic.** Quoting E1-B's interval as a real-world
+frequency would be precisely the inferential overreach the census rules exist to prevent.
+Establishing real-traffic frequency needs a corpus this repository does not have, and that is
+recorded in EXPERIMENTS.md §Open Gaps rather than papered over.
 
 ## 5. What Is Explicitly Not Claimed
 
@@ -102,6 +113,6 @@ Signing proves signing authorization over a payload. It does not make the payloa
 ## Reviewer shortcut
 
 If you have five minutes and want to attack this rather than read it, start with
-[docs/artifact/REVIEWER_ATTACK_SHEET.md](../artifact/REVIEWER_ATTACK_SHEET.md) — the ten
+[docs/artifact/REVIEWER_ATTACK_SHEET.md](../artifact/REVIEWER_ATTACK_SHEET.md) — the
 sharpest questions against this work, each answered with a command and its real output,
 including the ones that are unflattering.

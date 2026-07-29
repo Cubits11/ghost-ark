@@ -67,10 +67,12 @@ E2: n = 5000 per arm after 500 discarded warmup iterations, p50 with IQR.
 For proportions the honest answer is that **most of this repository's corpora do not warrant
 inferential statistics at all**, and the code now enforces that:
 
-- The 26-fixture corpus and the 12-class alphabet are **censuses** — hand-curated, the whole
+- The 26-fixture corpus and the 31-class alphabet are **censuses** — hand-curated, the whole
   population, size chosen by an author. `reportProportion` refuses to attach a confidence
   interval when provenance is `census`, and `assertCensusReporting` throws.
 - Intervals are additionally refused below n = 30.
+- **One** experiment earns intervals: E1-B, which draws at random from a declared generator.
+  See Q9a.
 
 This repository previously computed a Wilson interval at **n = 2** and called it a "robust
 statistical lower bound." At 2/2 successes that interval's lower bound is below 0.4 —
@@ -165,6 +167,66 @@ are excluded from the runner rather than passed vacuously, and listed as gaps in
 
 ---
 
+### Q9a. "Your alphabet is curated. How do I know you didn't just pick inputs that break?"
+
+You don't, from the census alone — that is falsifier F2 and it is the best argument against
+this work. Two responses, neither of which fully closes it:
+
+**Breadth.** The alphabet went from 12 to 31 classes, and widening it found **two more**
+defects (`nested-duplicate-key-in-array`, `duplicate-empty-key`) rather than diluting the
+finding. It also added positive controls that must NOT collapse — adjacent integers just
+inside the safe range, array element order, nesting depth 200 vs 201, two 64 KiB documents
+differing in one late byte — and all of them pass. A guard that simply rejected aggressively
+would fail those.
+
+**A genuinely sampled arm.** E1-B draws documents at random from a declared generator and
+applies mutation operators drawn from a declared set, so its confidence intervals are
+legitimate — the only place in this repository where that is true:
+
+```bash
+npm run experiment:e1b
+```
+
+> unguarded 403/767 = **52.5%**, 95% Wilson **[49.0%, 56.1%]**
+> strict admission 0/767 = **0.0%**, 95% Wilson **[0.0%, 0.5%]**
+> disjoint intervals, same denominator for both arms
+
+The denominator fairness is not incidental. An earlier version scored each arm over its own
+`decided` trials, which let the guarded arm look good by rejecting exactly the inputs the other
+collapses and then being graded on the remainder — 505 versus 193 trials. Rejection now counts
+as a sound outcome and both arms face all 767 applicable trials.
+
+**What this still does not establish:** the generator is a model of adversarial input, not a
+sample of production traffic. Quoting 52.5% as a real-world frequency would be exactly the
+overreach the census rules prohibit. Real-traffic frequency is open.
+
+---
+
+### Q9b. "Three verifiers that all agree could all be wrong."
+
+Correct, and E5 says so in its own non-claim. Agreement is not correctness: three
+implementations can share a misreading, and **all three were written by the same author from
+the same specification**, so they are not independent in the strong sense a third-party
+reimplementation would give. That is recorded as a gap in `CI_COVERAGE.md`.
+
+What E5 does establish, over the full corpus rather than selected fixtures:
+
+```bash
+npm run experiment:e5
+```
+
+> 25/25 rejects and 2/2 accepts unanimous across Node and Python; 0 peer disagreements;
+> 0 subsumption violations
+
+Both arms are reported because agreement on rejects alone is worthless — a verifier that
+rejected everything would score 100%. And peer selection turned out to be a real methodological
+decision: an earlier version held the identity-only check to peer agreement and reported 12
+"disagreements", every one of which was the weaker check correctly declining to detect
+signature tampering it never inspects. It is now held to subsumption instead — identity failure
+must imply verification failure, but not the converse.
+
+---
+
 ### Q9. "What is the strongest argument against your thesis?"
 
 **Falsifier F2: the pathology alphabet is hand-curated and adversarial.** E1 proves
@@ -189,7 +251,9 @@ Initially, yes. That was the right criticism and it is now addressed.
 `packages/receipt-schema/src/strictJsonAdmission.ts` adds text-level admission control that
 runs **before** `JSON.parse` — which is where all three collapses actually occur, so no fix
 inside the canonicalizer could have worked. Measured by the same census that found the
-defects: **unintended kernel members 3 → 0, with zero rejection-asymmetry.**
+defects: **unintended kernel members 5 → 0, with zero rejection-asymmetry.** The fix was built
+against 12 classes and still holds at zero after the alphabet was widened to 31, so it
+generalizes rather than being fitted to the cases that motivated it.
 
 ```bash
 npm run experiment:e1
