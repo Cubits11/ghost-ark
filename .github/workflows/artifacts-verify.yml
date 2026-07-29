@@ -95,7 +95,7 @@ jobs:
         run: bash tools/proofs/run-tlc.sh
 
   experiments:
-    name: experiments E1-E4
+    name: experiments E1-E5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -113,7 +113,7 @@ jobs:
         run: npm run test:experiments
       # E2 is a timing experiment; a shared CI runner is noisy, so it runs with reduced
       # iterations purely as a smoke test. CI numbers are NOT the reported numbers.
-      - name: run all experiments
+      - name: run all experiments (E1, E1-B, E2, E3, E4, E5)
         run: npm run experiments
 
   supply-chain:
