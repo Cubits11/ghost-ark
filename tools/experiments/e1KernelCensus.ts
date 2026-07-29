@@ -21,11 +21,18 @@
  *                         cannot evidence a difference that matters downstream.
  *   over-discrimination   Split a pair every consumer unifies. Semantically
  *                         unchanged evidence fails re-verification.
- *   fail-closed           At least one side was rejected. Safe: no false identity
- *                         is issued. Counted separately from `sound` because
- *                         rejecting valid input is a availability cost, not a win.
- *   split-decision        One side digested, the other rejected. Also fail-closed
- *                         in effect, tracked separately for diagnosis.
+ *   fail-closed           BOTH sides rejected. No false identity is issued. Counted
+ *                         separately from `sound` because refusing input is an
+ *                         availability cost even when it is the safe outcome.
+ *   sound-by-rejection    One side admitted, one refused, intent "distinct". The two
+ *                         documents do not share an identity — one has none. A consumer
+ *                         can still tell them apart and no false shared identity was
+ *                         issued. This is the goal state for admission control, reached
+ *                         by refusal rather than by discrimination.
+ *   rejection-asymmetry   One side admitted, one refused, intent "equivalent". Two
+ *                         documents every consumer treats as one fact, and only one was
+ *                         accepted. An availability failure and a real cost of a strict
+ *                         rule, reported as such rather than counted as a win.
  *
  * NON-CLAIM: a `sound` verdict holds only for the declared consumer set and only
  * for the pairs in this alphabet. This experiment measures identifiability
@@ -38,7 +45,13 @@ import { buildArms, probePython, type ArmOutcome, type CanonicalizerArm } from "
 
 export const E1_REPORT_SCHEMA_VERSION = "ghost.e1_kernel_census.v1";
 
-export type CensusVerdict = "sound" | "unintended-kernel" | "over-discrimination" | "fail-closed" | "split-decision";
+export type CensusVerdict =
+  | "sound"
+  | "unintended-kernel"
+  | "over-discrimination"
+  | "fail-closed"
+  | "sound-by-rejection"
+  | "rejection-asymmetry";
 
 export interface CellResult {
   pathologyId: string;
@@ -61,7 +74,8 @@ export interface ArmSummary {
   unintendedKernel: number;
   overDiscrimination: number;
   failClosed: number;
-  splitDecision: number;
+  soundByRejection: number;
+  rejectionAsymmetry: number;
   /** Ids of the pairs this arm collapsed against intent. The headline list. */
   unintendedKernelMembers: string[];
 }
@@ -94,8 +108,23 @@ function classify(intent: ConsumerIntent, outcomeA: ArmOutcome, outcomeB: ArmOut
   if (aRejected && bRejected) {
     return { observed: "rejected-both", verdict: "fail-closed" };
   }
+
   if (aRejected !== bRejected) {
-    return { observed: "rejected-one", verdict: "split-decision" };
+    // One side admitted, one refused. The verdict depends entirely on intent, and
+    // collapsing both cases into one label would misreport the mitigation arm.
+    //
+    // intent "distinct": the two documents do NOT share an identity — one has none at
+    // all. A consumer can still tell them apart, and no false shared identity was
+    // issued. That is the goal state for admission control, reached by refusal rather
+    // than by discrimination.
+    //
+    // intent "equivalent": two documents every consumer treats as one fact, and the
+    // system accepted only one of them. That is an availability failure, and it is a
+    // real cost of a strict rule, not a win.
+    return {
+      observed: "rejected-one",
+      verdict: intent === "distinct" ? "sound-by-rejection" : "rejection-asymmetry"
+    };
   }
 
   const collapsed = (outcomeA as { digest: string }).digest === (outcomeB as { digest: string }).digest;
@@ -146,7 +175,8 @@ export async function runE1Census(alphabet: readonly PathologyClass[] = PATHOLOG
       unintendedKernel: armCells.filter((cell) => cell.verdict === "unintended-kernel").length,
       overDiscrimination: armCells.filter((cell) => cell.verdict === "over-discrimination").length,
       failClosed: armCells.filter((cell) => cell.verdict === "fail-closed").length,
-      splitDecision: armCells.filter((cell) => cell.verdict === "split-decision").length,
+      soundByRejection: armCells.filter((cell) => cell.verdict === "sound-by-rejection").length,
+      rejectionAsymmetry: armCells.filter((cell) => cell.verdict === "rejection-asymmetry").length,
       unintendedKernelMembers: armCells.filter((cell) => cell.verdict === "unintended-kernel").map((cell) => cell.pathologyId)
     };
   });
@@ -205,10 +235,10 @@ async function main(): Promise<void> {
   lines.push(`alphabet: ${report.alphabet_size} pathology classes | provenance: ${report.sample_provenance} (no confidence intervals)`);
   lines.push(`python arm: ${report.python_probe.available ? report.python_probe.detail : `UNAVAILABLE (${report.python_probe.detail})`}`);
   lines.push("");
-  lines.push("arm                              indep-parser  sound  unintended-kernel  over-discrim  fail-closed  split");
+  lines.push("arm                              indep-parser  sound  UNINTENDED-KERNEL  over-discrim  fail-closed  sound-by-rej  rej-asym");
   for (const arm of report.arms) {
     lines.push(
-      `${arm.armId.padEnd(32)} ${String(arm.independentParser).padEnd(13)} ${String(arm.sound).padEnd(6)} ${String(arm.unintendedKernel).padEnd(18)} ${String(arm.overDiscrimination).padEnd(13)} ${String(arm.failClosed).padEnd(12)} ${arm.splitDecision}`
+      `${arm.armId.padEnd(32)} ${String(arm.independentParser).padEnd(13)} ${String(arm.sound).padEnd(6)} ${String(arm.unintendedKernel).padEnd(18)} ${String(arm.overDiscrimination).padEnd(13)} ${String(arm.failClosed).padEnd(12)} ${String(arm.soundByRejection).padEnd(13)} ${arm.rejectionAsymmetry}`
     );
   }
   lines.push("");
