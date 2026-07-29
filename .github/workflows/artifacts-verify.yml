@@ -1,0 +1,117 @@
+name: artifacts-verify
+
+# CI previously verified only the TypeScript workspace. The Rust gateway/verifier
+# (2,877 lines), the TLA+ specifications and their mutants, and the Python verifier were
+# all unguarded, so the repository's most load-bearing artifacts could rot without any
+# signal. This workflow closes that gap. The exact coverage matrix, including what is
+# STILL unverified, is docs/artifact/CI_COVERAGE.md.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: rust (${{ matrix.crate }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # tools/experiments is the dependency-free Rust measurement crate (MAD,
+        # tie-corrected Mann-Whitney, counter-resolution probe). It was orphaned:
+        # referenced by no CI, no doc, and no test runner, and it carried two clippy
+        # violations when first gated here.
+        crate: [dab/gateway, dab/verifier, tools/experiments]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ matrix.crate }}
+      # --locked so a drifting Cargo.lock fails the build instead of being silently updated.
+      - name: cargo fmt
+        run: cargo fmt --check
+        working-directory: ${{ matrix.crate }}
+      - name: cargo clippy (deny warnings)
+        run: cargo clippy --locked --all-targets -- -D warnings
+        working-directory: ${{ matrix.crate }}
+      - name: cargo test
+        run: cargo test --locked
+        working-directory: ${{ matrix.crate }}
+
+  python-verifier:
+    name: python independent verifier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: compile all tracked python
+        run: python -m py_compile verifiers/python/ghost_receipt_verify.py services/transform/glue/jobs/*.py tests/aws/dev-account/*.py
+      # The third independent verifier arm must actually verify, not merely compile.
+      - name: verify the HMAC baseline fixture
+        run: |
+          python3 verifiers/python/ghost_receipt_verify.py \
+            --receipt examples/reproducibility/receipts/hmac-baseline.receipt.json \
+            --hmac-secret ghost-ark-repro-signing-dev-only-test-vector-v1 \
+            --expected-key-id local-dev-hmac
+      - name: confirm a tampered receipt is REJECTED (negative control)
+        run: |
+          # A verifier that passes everything would pass the step above too. This step
+          # fails the job if the tampered fixture is NOT rejected.
+          if python3 verifiers/python/ghost_receipt_verify.py \
+              --receipt examples/malicious-receipts/receipts/MAL-003.altered-signature.receipt.json \
+              --hmac-secret ghost-ark-repro-signing-dev-only-test-vector-v1 \
+              --expected-key-id local-dev-hmac > /dev/null 2>&1; then
+            echo "FAIL: python verifier accepted a receipt with an altered signature"
+            exit 1
+          fi
+          echo "OK: altered-signature fixture rejected"
+
+  tla-proofs:
+    name: TLA+ specs and their mutants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: fetch tla2tools
+        run: |
+          curl -fsSL -o tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+      # A specification that passes proves nothing on its own — an invariant can hold
+      # vacuously. Each spec is paired with a mutant that MUST produce a violation. This
+      # job asserts both directions, which is what makes the invariants load-bearing.
+      - name: check specs (must pass) and mutants (must fail)
+        run: bash tools/proofs/run-tlc.sh
+
+  experiments:
+    name: experiments E1-E4
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          # E1's fourth arm needs a genuinely independent JSON parser. Without Python the
+          # arm reports itself unavailable rather than silently inflating agreement.
+          python-version: "3.12"
+      - run: npm ci
+      - name: experiment guards and repo hygiene
+        run: npm run test:experiments
+      # E2 is a timing experiment; a shared CI runner is noisy, so it runs with reduced
+      # iterations purely as a smoke test. CI numbers are NOT the reported numbers.
+      - name: run all experiments
+        run: npm run experiments

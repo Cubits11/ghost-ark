@@ -33,10 +33,7 @@ pub fn summarize(samples: &[u64]) -> Summary {
     let mut s = samples.to_vec();
     s.sort_unstable();
     let median = percentile_sorted(&s, 0.50);
-    let mut devs: Vec<u64> = s
-        .iter()
-        .map(|&v| if v > median { v - median } else { median - v })
-        .collect();
+    let mut devs: Vec<u64> = s.iter().map(|&v| v.abs_diff(median)).collect();
     devs.sort_unstable();
     Summary {
         n: s.len(),
@@ -104,8 +101,8 @@ pub fn mann_whitney(a: &[u64], b: &[u64]) -> MannWhitney {
         let group = (j - i + 1) as f64;
         // Average of ranks (i+1 ..= j+1), 1-indexed.
         let avg_rank = ((i + 1) as f64 + (j + 1) as f64) / 2.0;
-        for k in i..=j {
-            if pooled[k].1 {
+        for entry in &pooled[i..=j] {
+            if entry.1 {
                 rank_sum_a += avg_rank;
             }
         }
