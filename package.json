@@ -33,6 +33,7 @@
     "experiment:e2": "ts-node tools/experiments/e2VerificationCost.ts",
     "experiment:e3": "ts-node tools/experiments/e3CorpusDetection.ts",
     "experiment:e4": "ts-node tools/experiments/e4MetamorphicGuard.ts",
+    "experiment:e4b": "ts-node tools/experiments/generateCompromisedSignerFixtures.ts",
     "experiment:e1b": "ts-node tools/experiments/e1bRandomizedKernel.ts",
     "experiment:e5": "ts-node tools/experiments/e5VerifierAgreement.ts",
     "experiments": "npm run experiment:e1 && npm run experiment:e1b && npm run experiment:e2 && npm run experiment:e3 && npm run experiment:e4 && npm run experiment:e5",

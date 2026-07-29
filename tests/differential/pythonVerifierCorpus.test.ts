@@ -123,6 +123,13 @@ describe("independent Python verifier — full corpus differential", () => {
       return;
     }
     for (const attack of corpus.attacks) {
+      // Documented-boundary fixtures are ACCEPTED by design (compromised signer, valid
+      // signature over a mutated payload, no freshness or semantic-truth check implemented).
+      // They are asserted positively in tests/unit/experiments/compromisedSigner.test.ts and in
+      // the negative-corpus suite. The default here stays strict.
+      if (attack.expected_verdict === "accept_documented_boundary") {
+        continue;
+      }
       const run = runPython(pythonArgsForAttack(attack));
       expect(run.status, `${attack.attack_id} must exit nonzero`).not.toBe(0);
       expect(run.report.verdict, `${attack.attack_id} must report FAIL`).toBe("FAIL");
@@ -141,6 +148,13 @@ describe("independent Python verifier — full corpus differential", () => {
       return;
     }
     for (const attack of corpus.attacks) {
+      // Documented-boundary fixtures are ACCEPTED by design (compromised signer, valid
+      // signature over a mutated payload, no freshness or semantic-truth check implemented).
+      // They are asserted positively in tests/unit/experiments/compromisedSigner.test.ts and in
+      // the negative-corpus suite. The default here stays strict.
+      if (attack.expected_verdict === "accept_documented_boundary") {
+        continue;
+      }
       const pythonAccepted = runPython(pythonArgsForAttack(attack)).report.verdict === "PASS";
 
       let nodeAccepted: boolean;

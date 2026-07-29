@@ -115,8 +115,17 @@ export interface CorpusAttack {
   mutated_field: string;
   mutation_description: string;
   receipt_path: string;
-  expected_verdict: "reject" | "reject_by_consumer_tenant_expectation";
-  /** Verifier check name expected to fail, or "tenant_expectation" for consumer-level rejection. */
+  /**
+   * "reject"                              a verifier rule must reject it.
+   * "reject_by_consumer_tenant_expectation" the verifier passes; only a consumer expectation rejects it.
+   * "accept_documented_boundary"          the verifier is EXPECTED to accept it. Used for
+   *   compromised-signer fixtures whose signature is genuinely valid over a mutated payload,
+   *   where this verifier implements no freshness or semantic-truth check. Such a fixture MUST
+   *   carry a claim_boundary explaining the non-detection, so the category cannot be used to
+   *   quietly downgrade a real failure into an expected one.
+   */
+  expected_verdict: "reject" | "reject_by_consumer_tenant_expectation" | "accept_documented_boundary";
+  /** Verifier check name expected to fail, "tenant_expectation" for consumer-level rejection, or "none_implemented" for a documented boundary. */
   expected_rejection_phase: string;
   expected_error_substring: string | null;
   /** For cross-tenant expectation cases: the tenant id the consumer expects. */

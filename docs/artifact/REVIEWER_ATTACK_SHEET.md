@@ -280,15 +280,38 @@ policy for string values, which changes what gets signed and does need a migrati
 It partly is, and E4 says so. Quote **25/25 verifier-intrinsic**, not 26/26 — the aggregate
 folds in MAL-014, which no verifier rule can reject.
 
-More damningly, E4 shows **5 of 10 verifier checks have no dependent fixture**: neutering
-`receipt_id`, `canonical_payload`, `configuration`, `tenant`, or `tenant_expectation` changes
-nothing, because every fixture that mutates `receipt_id` also breaks the digest and the
-signature. Isolating that check needs a receipt carrying a *valid signature over a mutated
-payload* — an attacker holding the signing key.
+E4 originally showed **5 of 10 verifier checks had no dependent fixture**, because every
+fixture that mutated `receipt_id` also broke the digest and signature, so the verifier
+short-circuited and neutering the earlier checks changed nothing. That gap is now closed by
+E4-B, which models a **compromised signer**: fixtures carrying a genuinely valid signature over
+a mutated payload, produced with the published dev-only HMAC test vector.
 
-**The corpus does not model a compromised signer.** That is a threat-model gap, published in
-`EXPERIMENTS.md` §E3 coverage boundary and §E4 finding F4.3, and it is the highest-value
-next fixture to author.
+```bash
+npm run experiment:e4
+```
+
+> load-bearing checks: 5 → **7** (`receipt_id` and `tenant_expectation` now isolated)
+
+**What remains, stated precisely rather than as a round number.** A 10/10 isolation target is
+unreachable *in principle*, and claiming it would be dishonest. Two checks cannot be reached by
+any receipt fixture: `configuration` inspects the verifier's own options, and
+`canonical_payload` rejects non-JSON host values (`undefined`, bigint, `Date`, `Map`, non-finite
+numbers) that `JSON.parse` cannot produce — it guards against host objects reaching the signer
+in-process. One genuine gap survives: `tenant` belongs to the record-receipt (`rct_`) path and
+the corpus has no record receipts.
+
+So: **7 isolated + 1 genuine gap + 2 principled limits = 10**, and a test asserts that sum.
+
+**The two fixtures that PASS are the most important ones.** MAL-029 (backdated one year) and
+MAL-030 (`decision_post` rewritten to ALLOW) satisfy every check. A validly-signed receipt can
+assert that a REFUSE was an ALLOW and remain cryptographically flawless. Signing proves signing
+authorization over a payload; it does not make the payload true. The corpus contract is now
+explicit — reject everything unless a fixture declares `accept_documented_boundary`, in which
+case it must be accepted *and* carry a claim boundary — so the category cannot be used to
+quietly downgrade a real failure.
+
+Still uncovered: the RSA/KMS path, because this repository holds only the public key and cannot
+produce a valid RSA signature over a mutated payload.
 
 The control arm is what keeps the number meaningful at all: 3/3 unmutated fixtures must
 PASS, so a verifier that rejected everything would fail, not score 100%.

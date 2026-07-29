@@ -50,7 +50,7 @@ interface CorpusAttack {
   verifier: "hmac" | "kms_public_key" | "hmac_with_expected_tenant";
   fixture_kind?: "receipt" | "malformed-json";
   receipt_path: string;
-  expected_verdict: "reject" | "reject_by_consumer_tenant_expectation";
+  expected_verdict: "reject" | "reject_by_consumer_tenant_expectation" | "accept_documented_boundary";
   expected_rejection_phase: string;
   expected_error_substring: string | null;
   expected_tenant_id?: string;
@@ -179,6 +179,13 @@ describe("standalone Node receipt verifier", () => {
     expect(corpus.attacks.length).toBeGreaterThanOrEqual(26);
 
     for (const attack of corpus.attacks) {
+      // Documented-boundary fixtures are ACCEPTED by design (compromised signer, valid
+      // signature over a mutated payload, no freshness or semantic-truth check implemented).
+      // They are asserted positively in tests/unit/experiments/compromisedSigner.test.ts and in
+      // the negative-corpus suite. The default here stays strict.
+      if (attack.expected_verdict === "accept_documented_boundary") {
+        continue;
+      }
       const run = runVerifier(standaloneArgsForAttack(attack));
       const failingCheck = run.report.checks.find((entry) => entry.name === attack.expected_rejection_phase);
 
@@ -195,6 +202,13 @@ describe("standalone Node receipt verifier", () => {
 
   it("agrees with the production verifier's end-to-end acceptance decision for every corpus case", async () => {
     for (const attack of corpus.attacks) {
+      // Documented-boundary fixtures are ACCEPTED by design (compromised signer, valid
+      // signature over a mutated payload, no freshness or semantic-truth check implemented).
+      // They are asserted positively in tests/unit/experiments/compromisedSigner.test.ts and in
+      // the negative-corpus suite. The default here stays strict.
+      if (attack.expected_verdict === "accept_documented_boundary") {
+        continue;
+      }
       const standaloneAccepted = runVerifier(standaloneArgsForAttack(attack)).report.verdict === "PASS";
       let productionAccepted = false;
 

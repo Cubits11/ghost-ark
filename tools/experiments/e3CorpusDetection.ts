@@ -59,6 +59,15 @@ interface CorpusAttack {
    */
   expected_tenant_id?: string;
   expected_rejection_phase?: string;
+  /**
+   * "accept_documented_boundary" marks a fixture the verifier is EXPECTED to accept -- a
+   * compromised signer producing a valid signature over a mutated payload, where the verifier
+   * implements no freshness or semantic-truth check. Folding these into `undetected` would
+   * report a permanent detection failure for behavior the corpus explicitly declares, and would
+   * train a reader to ignore the number.
+   */
+  expected_verdict?: string;
+  claim_boundary?: string;
 }
 
 interface CorpusManifest {
@@ -88,7 +97,8 @@ export type RejectionStratum =
   | "verifier-intrinsic" // a verifier rule failed
   | "load" // the document would not parse
   | "consumer-expectation" // verifier PASSes; only a supplied consumer expectation rejects it
-  | "undetected"; // nothing rejected it
+  | "documented-boundary" // the corpus DECLARES this should be accepted; not a detection failure
+  | "undetected"; // nothing rejected it, and nothing declared that acceptable
 
 export interface DetectionOutcome {
   attack_id: string;
@@ -225,8 +235,25 @@ export async function runE3Detection(): Promise<E3Report> {
     const receiptPath = resolve(CORPUS_DIR, "receipts", `${attack.attack_id}.${attack.attack_name}.receipt.json`);
     const fixture = fixtureById.get(attack.base_fixture_id);
     const declaredConsumerBoundary = attack.expected_rejection_phase === "tenant_expectation";
+    const declaredAcceptBoundary = attack.expected_verdict === "accept_documented_boundary";
 
     const { verdict, failedChecks, detail } = verifyFile(receiptPath, fixture);
+
+    if (declaredAcceptBoundary) {
+      return {
+        attack_id: attack.attack_id,
+        attack_name: attack.attack_name,
+        mutated_field: attack.mutated_field,
+        verdict,
+        // Not "detected", and deliberately not "undetected" either. The corpus declares this
+        // acceptance, so it is neither a win nor a failure -- it is a stated boundary.
+        detected: false,
+        stratum: "documented-boundary",
+        declaredConsumerBoundary,
+        failedChecks,
+        detail: attack.claim_boundary ?? detail
+      };
+    }
 
     let stratum: RejectionStratum;
     let detected: boolean;
@@ -283,7 +310,11 @@ export async function runE3Detection(): Promise<E3Report> {
     return { fixture_id: fixture.fixture_id, verdict, failedChecks };
   });
 
-  const detectedCount = outcomes.filter((outcome) => outcome.detected).length;
+  // Documented boundaries are excluded from BOTH numerator and denominator. Including them in
+  // the denominator would permanently depress the detection rate for declared behavior;
+  // including them in the numerator would claim credit for a non-detection.
+  const detectable = outcomes.filter((outcome) => outcome.stratum !== "documented-boundary");
+  const detectedCount = detectable.filter((outcome) => outcome.detected).length;
   const basePassCount = baseFixtures.filter((fixture) => fixture.verdict === "PASS").length;
 
   // Census provenance means reportProportion returns interval: null by construction.
@@ -295,19 +326,20 @@ export async function runE3Detection(): Promise<E3Report> {
     "verifier-intrinsic": outcomes.filter((outcome) => outcome.stratum === "verifier-intrinsic").length,
     load: outcomes.filter((outcome) => outcome.stratum === "load").length,
     "consumer-expectation": outcomes.filter((outcome) => outcome.stratum === "consumer-expectation").length,
+    "documented-boundary": outcomes.filter((outcome) => outcome.stratum === "documented-boundary").length,
     undetected: outcomes.filter((outcome) => outcome.stratum === "undetected").length
   };
 
   // The intrinsic denominator excludes attacks the corpus itself declares to be
   // consumer-boundary cases. Counting them against the verifier would understate it;
   // counting them for the verifier would overstate it. They get their own stratum.
-  const intrinsicCandidates = outcomes.filter((outcome) => !outcome.declaredConsumerBoundary);
+  const intrinsicCandidates = detectable.filter((outcome) => !outcome.declaredConsumerBoundary);
   const intrinsicDetected = intrinsicCandidates.filter((outcome) => outcome.stratum === "verifier-intrinsic" || outcome.stratum === "load").length;
 
   return {
     schema_version: E3_REPORT_SCHEMA_VERSION,
     sample_provenance: "census",
-    detection: reportProportion(detectedCount, outcomes.length, "census", neverCalled),
+    detection: reportProportion(detectedCount, detectable.length, "census", neverCalled),
     verifier_intrinsic_detection: reportProportion(intrinsicDetected, intrinsicCandidates.length, "census", neverCalled),
     strata,
     base_fixture_control: reportProportion(basePassCount, baseFixtures.length, "census", neverCalled),
@@ -330,7 +362,8 @@ async function main(): Promise<void> {
   lines.push(`provenance: ${report.sample_provenance} — exact counts, no confidence interval`);
   lines.push(`  reason: ${report.detection.intervalOmittedBecause}`);
   lines.push("");
-  lines.push(`aggregate detection:        ${report.detection.successes}/${report.detection.total} mutations rejected somewhere in the pipeline`);
+  lines.push(`aggregate detection:        ${report.detection.successes}/${report.detection.total} DETECTABLE mutations rejected somewhere in the pipeline`);
+  lines.push(`documented boundaries:      ${report.strata["documented-boundary"]} fixtures the corpus declares should be ACCEPTED (excluded from the rate)`);
   lines.push(
     `verifier-intrinsic:         ${report.verifier_intrinsic_detection.successes}/${report.verifier_intrinsic_detection.total} rejected by verifier rules alone (quote THIS for verifier claims)`
   );
@@ -343,8 +376,10 @@ async function main(): Promise<void> {
   lines.push(`  (load-fail ids: ${report.detected_by_load_failure_only.join(", ") || "none"})`);
   lines.push("");
 
-  const undetected = report.outcomes.filter((outcome) => !outcome.detected);
-  lines.push(`UNDETECTED (verifier returned PASS on a mutation): ${undetected.length}`);
+  // Filters on the stratum, not on `detected`. A documented boundary is not detected and must
+  // not be listed here, or the headline number contradicts the strata table directly above it.
+  const undetected = report.outcomes.filter((outcome) => outcome.stratum === "undetected");
+  lines.push(`UNDETECTED and NOT declared acceptable: ${undetected.length}`);
   for (const outcome of undetected) {
     lines.push(`  - ${outcome.attack_id} ${outcome.attack_name} (field: ${outcome.mutated_field})`);
   }

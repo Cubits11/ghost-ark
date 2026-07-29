@@ -35,7 +35,7 @@ interface Attack {
   attack_id: string;
   base_fixture_id: string;
   receipt_path: string;
-  expected_verdict: "reject" | "reject_by_consumer_tenant_expectation";
+  expected_verdict: "reject" | "reject_by_consumer_tenant_expectation" | "accept_documented_boundary";
   expected_rejection_phase: string;
   expected_error_substring: string | null;
   expected_tenant_id?: string;

@@ -3,10 +3,15 @@ import { CHECK_NAMES, runE4Guard } from "../../../tools/experiments/e4Metamorphi
 import { runE3Detection } from "../../../tools/experiments/e3CorpusDetection";
 
 describe("E3 corpus detection (measured against the real verifier)", () => {
-  it("rejects every corpus mutation somewhere in the pipeline", async () => {
+  it("rejects every DETECTABLE corpus mutation somewhere in the pipeline", async () => {
     const report = await runE3Detection();
     expect(report.detection.successes).toBe(report.detection.total);
+    // "undetected" now means undetected AND not declared acceptable. The compromised-signer
+    // boundary fixtures (MAL-029, MAL-030) live in their own stratum and are excluded from the
+    // detection denominator, so this invariant stays meaningful rather than becoming permanently
+    // nonzero.
     expect(report.strata.undetected).toBe(0);
+    expect(report.strata["documented-boundary"]).toBeGreaterThanOrEqual(2);
   }, 120_000);
 
   it("keeps the control arm meaningful: unmutated fixtures must PASS", async () => {
@@ -77,11 +82,19 @@ describe("E4 metamorphic guard (are detections load-bearing?)", () => {
 
   it("reports checks with no dependent fixture as a corpus gap rather than hiding them", async () => {
     const report = await runE4Guard();
-    // receipt_id is the documented case: every corpus fixture that mutates receipt_id
-    // also breaks the signature, so the corpus cannot isolate this check. Isolating it
-    // would require modelling a compromised signer, which this corpus does not do.
-    expect(report.noDependentFixtures).toContain("receipt_id");
-    expect(report.loadBearingChecks.length + report.noDependentFixtures.length).toBe(CHECK_NAMES.length);
+    // receipt_id WAS the documented case, and E4-B closed it: MAL-027 carries a valid signature
+    // over a payload containing an inconsistent id, which isolates the check. See
+    // tests/unit/experiments/compromisedSigner.test.ts.
+    expect(report.loadBearingChecks).toContain("receipt_id");
+    // `tenant` remains a genuine gap: it belongs to the record-receipt (rct_) path and the
+    // corpus contains no record receipts.
+    expect(report.noDependentFixtures).toContain("tenant");
+    // Every check must be accounted for in exactly one bucket. `notFixtureIsolable` holds the
+    // two that no receipt fixture can reach by construction, so a 10/10 isolation target is
+    // unreachable in principle rather than merely unmet.
+    expect(report.loadBearingChecks.length + report.noDependentFixtures.length + report.notFixtureIsolable.length).toBe(
+      CHECK_NAMES.length
+    );
   }, 180_000);
 
   it("refuses to run if the verifier's check factory no longer matches the mutation target", async () => {
