@@ -97,15 +97,27 @@ Verifiable Agent Governance under Correlated Guardrail Failure.
 
 ## Current Baseline
 
-Recent known passing baseline:
+Measured at head on 2026-07-29. Re-measure before quoting; do not copy a stale number
+forward. The previous entry in this file read "86/86 test files, 559/559 tests" while the
+actual suite was 133 files and 849 tests — a documented baseline that disagreed with reality
+on the first thing a reviewer checks.
 
 - npm run lint passes
 
 - npm test passes
 
-- 86/86 test files passed (as of 2026-07-14; re-run at head)
+- npm run scan:claims: 772 files scanned, 0 forbidden-claim violations
 
-- 559/559 tests passed (as of 2026-07-14; re-run at head)
+- npm run assumptions: 7 annotated modules, 0 lattice violations
+
+- cargo test --locked: 26 Rust tests pass (13 dab/gateway + 13 dab/verifier); clippy clean under -D warnings
+
+- tools/proofs/run-tlc.sh: 4 TLA+ baselines clean, 4 mutants violate as required
+
+Known flake, fixed: two CDK-synth tests exceeded the 15s global vitest timeout under
+parallel load, making npm test nondeterministically red on a clean clone. The synth is now
+memoized and pre-warmed in beforeAll. Do not reintroduce a per-test synth in
+infra/cdk/test/api-stack-governed-invoke.test.ts or tests/integration/api/template-auth.test.ts.
 
 Recent hardening areas:
 
@@ -170,6 +182,44 @@ packages/enforcement-runtime/src/vault/
 infra/cdk/lib/api-stack.ts
 
 README.md
+
+## Empirical and Statistical Rules
+
+These are binding. Each exists because this repository violated it and the violation was
+found in audit. Full detail in docs/research/EXPERIMENTS.md.
+
+No point estimate without a dispersion measure. Latency is p50 with IQR, never a bare p50.
+
+No proportion without its denominator, and no detection rate without a control arm. A
+verifier that rejects everything scores 100% detection and is useless; the control arm is
+what makes the number mean anything.
+
+No confidence interval over a curated census. A CI describes sampling variability under
+repeated random draws. A hand-authored corpus has none: it is the whole population and its
+size is an authoring decision. Use reportProportion with provenance "census" and report exact
+counts. A Wilson interval was once computed at n = 2 and called a robust lower bound; at 2/2
+that lower bound is below 0.4.
+
+No interval below n = 30 (MIN_N_FOR_PROPORTION_INTERVAL), even for genuine random samples.
+
+No hypothesis selected from the same data used to bound it. Discovery and confirmation are
+separate tiers.
+
+Pre-register intent before measuring. E1's consumer intents live in
+tools/experiments/kernelAlphabet.ts and are pinned by a test, so editing one to match a
+result surfaces in review.
+
+State the host for any timing claim. A latency figure without a machine is not reproducible.
+
+Report what was not measured. A silently dropped arm makes the system look better than it is.
+
+A detection benchmark must invoke a real component. If a check would still report
+"detected" when the mechanism it depends on is broken, it is tautological and measures
+nothing. Apply the E4 discriminator: break the mechanism, confirm detection stops. Do not add
+new benchmarks to dab/bench, which is quarantined for exactly this defect.
+
+Never present a placeholder as measured output. The string "sha256:A" once appeared inside a
+block labelled "Raw Benchmark Output" in the dissertation, emitted by the benchmark itself.
 
 ## Receipt Rules
 
