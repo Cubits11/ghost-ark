@@ -50,6 +50,7 @@ Every row is a command. Run them; do not take this document's word for anything.
 | C2: Ghost-Ark's own pipeline has unintended kernel members | 3 of 12 pathology classes collapse against pre-registered consumer intent | `npm run experiment:e1` |
 | C1: the kernel is set by parse∘canonicalize, not canonicalize | `integer-precision-loss` is unsound in all three V8 arms and **sound** in the CPython arm — same canonicalization rules, different parser | `npm run experiment:e1` |
 | Fail-closed rejection is load-bearing, not decoration | On `non-finite-overflow` Ghost-Ark rejects; the naive control arm issues one digest for two different numbers | `npm run experiment:e1` |
+| The kernel defects are **fixed**, and the fix is measured by the census that found them | Text-level admission control before `JSON.parse` takes unintended kernel members 3 → 0, with zero rejection-asymmetry and `canonicalize()` byte-unchanged | `npm run experiment:e1` |
 | Verification cost, with dispersion and a baseline | p50 + IQR over 5000 iterations per arm, ratio to a `json-parse-only` baseline, host recorded | `npm run experiment:e2` |
 | The adversarial corpus is rejected by the real verifier | 26/26 rejected; 25/25 by verifier rules alone; 3/3 unmutated controls PASS | `npm run experiment:e3` |
 | Those rejections are **not tautological** | With every verifier check forced to pass, only the parse failure still rejects | `npm run experiment:e4` |

@@ -71,6 +71,28 @@ of which breaks a receipt verified in one runtime and re-verified in another. No
 CPython round-trips a lone surrogate into a canonical form that has **no UTF-8 encoding**
 and therefore cannot be digested at all.
 
+**Result 5. The defects are fixed, and the fix is measured by the census that found them.**
+All three collapses occur inside `JSON.parse`, so no change to the canonicalizer could
+address them; the guard has to inspect the raw text. `strictJsonAdmission.ts` rejects
+duplicate object keys at any depth, integer literals above 2^53−1, and numeric literals with
+more than 17 significant digits. Measured on the same alphabet:
+
+| arm | unintended-kernel | rejection-asymmetry |
+|:---|---:|---:|
+| `ghost-ark-receipt-schema` (unguarded) | 3 | 0 |
+| `ghost-ark-strict-admission` (guarded) | **0** | **0** |
+
+Two properties make this a fix rather than a trade. It is **additive** — `canonicalize()` is
+untouched, every existing receipt identity and signature is byte-identical, and no schema
+migration is required. And it costs no availability: zero rejection-asymmetry means no
+semantically-equivalent document was refused. The rule deliberately does not demand exact
+representability, which would reject `0.1` and be unusable, nor a canonical numeric form,
+which would reject `1e2`; it targets over-precision only.
+
+The dual defect remains open. `unicode-nfc-vs-nfd` over-discrimination is not addressed,
+because fixing it means choosing a normalization policy for signed string values, which
+changes what gets signed and does require a receipt schema migration.
+
 Coverage boundary: the alphabet is hand-curated and adversarial. It establishes that these
 collapses are possible and present, **not** how frequently they occur in real traffic. That
 remains the largest open gap in this work.

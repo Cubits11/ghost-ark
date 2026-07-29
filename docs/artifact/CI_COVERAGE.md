@@ -31,6 +31,9 @@ project.
 | Repo hygiene | no tracked build output, no tracked private keys or `.env`, unbuilt prototypes stay inert, `dab/bench` stays quarantined | `ci.yml` (in `npm test`) | yes |
 | Research classification | every `docs/research/*.md` must be classified | `ci.yml` (in `npm test`) | yes: an unclassified doc fails the build |
 | CodeQL / Semgrep / gitleaks | static analysis and secret scanning | `ci.yml` | — |
+| **Lockfile integrity** | `lockfile-lint`: every resolved URL must be an HTTPS npm host | `artifacts-verify.yml` | yes |
+| **Dependency advisories** | `npm audit --audit-level=critical` blocks; full report printed non-blocking | `artifacts-verify.yml` | yes (at critical) |
+| **Strict JSON admission** | 24 tests pinning the fix for E1's three unintended kernel members | `ci.yml` (in `npm test`) | yes: each rule paired with a demonstration that the collapse it prevents is real |
 
 "Directionally asserted" means CI checks that the guard can *fail*, not merely that it
 passes. A green invariant with no failing mutant is not evidence.
@@ -52,6 +55,9 @@ These are real gaps. None of them is hidden behind a passing badge.
 | **Stryker mutation testing not in CI** | `stryker.config.json` exists; mutation score is not gated. | Runtime cost. Run locally. |
 | **No real-traffic corpus for E1** | E1 shows unintended kernel members are *possible and present*, never how *frequent*. | This is falsifier F2 in `00_THESIS.md` and the single largest open weakness. |
 | **No compromised-signer fixtures** | 5 of 10 verifier checks cannot be isolated by the corpus (E4 finding F4.3). | The corpus does not model an attacker holding the signing key. Highest-value next fixture. |
+| **8 high-severity npm advisories remain** | `npm audit` reports 10 advisories (8 high, 2 moderate), all devDependencies. Not in the shipped runtime path, but CI and developer machines execute them, so dev-only lowers severity rather than eliminating it. | The chain roots in the SBOM toolchain (`@cyclonedx/cyclonedx-npm` → `libxmljs2` → `node-gyp` → …) and clearing it needs a breaking major. `npm audit fix` took 13 → 10. The CI gate is set at `critical`, which the repository actually meets, rather than at `high`, which it would fail — a threshold met is worth more than a threshold declared. Dependabot is configured to move these. |
+| **GitHub Actions are pinned to mutable tags** | `actions/checkout@v4` and similar can be repointed by whoever controls the action repository, so each is an unpinned dependency with access to CI. | Pinning every action to a commit SHA is the strong fix and is not yet done. Dependabot's `github-actions` ecosystem is configured as the prerequisite. The `supply-chain` job sets `persist-credentials: false` so the job that executes third-party code does not also hold the workflow token. |
+| **NFC/NFD over-discrimination is unfixed** | Semantically identical strings in different normalization forms receive different receipt identities, so evidence that crossed a normalizing hop fails re-verification. | A fix requires choosing a normalization policy for signed string values, which changes what gets signed and needs a receipt schema migration. Deliberately not done as a side effect of a hardening pass. |
 
 ## Evidence-tier vocabulary
 
