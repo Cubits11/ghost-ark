@@ -1,0 +1,49 @@
+# Dependency and action update automation.
+#
+# Two reasons this exists, both found in a 2026-07-29 supply-chain audit:
+#
+# 1. `npm audit` reported 13 vulnerabilities (10 high). All were devDependencies, so none
+#    are in the shipped runtime path — but CI and developer machines execute them, so
+#    "dev-only" lowers severity rather than eliminating it. `npm audit fix` brought this to
+#    10 (8 high); the remainder sit behind a breaking major in the SBOM toolchain and are
+#    tracked in docs/artifact/CI_COVERAGE.md rather than force-upgraded.
+#
+# 2. Every GitHub Actions step referenced a MUTABLE tag (`actions/checkout@v4`). A tag can
+#    be repointed by whoever controls the repository, so a mutable tag is an unpinned
+#    dependency with write access to CI. Pinning every action to a commit SHA is the strong
+#    fix; keeping them continuously updated here is the maintainable one, and is the
+#    prerequisite for pinning without going stale.
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the routine noise, so security PRs stay visible.
+      dev-dependencies:
+        dependency-type: development
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: cargo
+    directory: "/dab/gateway"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: cargo
+    directory: "/dab/verifier"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: cargo
+    directory: "/tools/experiments"
+    schedule:
+      interval: weekly

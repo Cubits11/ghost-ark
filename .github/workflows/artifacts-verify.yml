@@ -115,3 +115,37 @@ jobs:
       # iterations purely as a smoke test. CI numbers are NOT the reported numbers.
       - name: run all experiments
         run: npm run experiments
+
+  supply-chain:
+    name: supply chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do not leave the job's GITHUB_TOKEN in .git/config where any later step or
+          # dependency script could read it. This job installs and executes third-party
+          # code, so it is exactly the job that should not hold a credential.
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+
+      # lockfile-lint has been a devDependency for some time but was never executed.
+      # It asserts every resolved URL is an HTTPS npm host, which is what makes a lockfile
+      # a supply-chain control rather than a record of whatever resolved that day.
+      - name: lockfile integrity
+        run: npx lockfile-lint --path package-lock.json --allowed-hosts npm --validate-https
+
+      # Threshold set to what the repository can actually hold green today. The remaining
+      # advisories are devDependency-only and are enumerated in docs/artifact/CI_COVERAGE.md.
+      # Raising this to --audit-level=high requires clearing the SBOM toolchain chain; the
+      # honest move is a failing threshold we meet, not a passing one we ignore.
+      - name: npm audit (critical)
+        run: npm audit --audit-level=critical
+
+      # Report the dev-only advisories without failing, so the count is visible in every run
+      # and a regression is noticed rather than discovered during a review.
+      - name: npm audit report (non-blocking, visibility only)
+        run: npm audit || true

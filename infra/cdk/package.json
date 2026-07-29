@@ -1,6 +1,6 @@
 {
   "name": "@ghost-ark/infra-cdk",
-  "version": "50.0.0",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "synth": "cdk synth",

@@ -1,6 +1,6 @@
 {
   "name": "ghost-ark",
-  "version": "50.0.0",
+  "version": "0.1.0",
   "private": true,
   "license": "MIT",
   "description": "AWS-native evidence lakehouse and cryptographic receipt-control platform.",
