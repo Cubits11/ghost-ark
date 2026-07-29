@@ -166,6 +166,195 @@ export const PATHOLOGY_ALPHABET: readonly PathologyClass[] = [
     consumerRationale:
       "Type is semantic: a schema validator, a typed deserializer, and a database column all distinguish the string " +
       '"100" from the number 100. A shared digest would let a type-confusion payload inherit a valid identity.'
+  },
+
+  // ---------------------------------------------------------------------------
+  // Expansion added 2026-07-29 to widen the coverage boundary that falsifier F2
+  // attacks ("the alphabet is curated, so the finding may be an artifact of what
+  // the author chose to look at"). Breadth is the only honest answer to that, and
+  // every intent below was declared before the arms were re-run.
+  // ---------------------------------------------------------------------------
+
+  {
+    id: "nested-duplicate-key-in-array",
+    description: "Duplicate key inside an object nested within an array.",
+    rawA: '{"items":[{"qty":1,"qty":2}]}',
+    rawB: '{"items":[{"qty":2}]}',
+    intent: "distinct",
+    consumerRationale:
+      "Same reasoning as duplicate-key-last-wins, but nested two levels deep. A guard that only inspects top-level " +
+      "keys would pass this while leaving the collapse fully exploitable, so depth coverage is load-bearing."
+  },
+  {
+    id: "duplicate-empty-key",
+    description: "The empty-string key repeated.",
+    rawA: '{"":1,"":2}',
+    rawB: '{"":2}',
+    intent: "distinct",
+    consumerRationale:
+      'The empty string is a legal JSON key. A duplicate-key guard that special-cases or skips "" would leave a ' +
+      "bypass, so the degenerate key name is checked explicitly."
+  },
+  {
+    id: "proto-literal-key",
+    description: "A literal __proto__ key alongside ordinary data.",
+    rawA: '{"a":1,"__proto__":2}',
+    rawB: '{"a":1}',
+    intent: "distinct",
+    consumerRationale:
+      "JSON.parse creates __proto__ as an ordinary own property rather than invoking the prototype setter, so the two " +
+      "documents genuinely differ in content. A consumer that later spreads or deep-merges this object distinguishes " +
+      "them sharply, since one carries a key that can poison a prototype chain downstream."
+  },
+  {
+    id: "array-element-order",
+    description: "The same array elements in a different order.",
+    rawA: '{"v":[1,2]}',
+    rawB: '{"v":[2,1]}',
+    intent: "distinct",
+    consumerRationale:
+      "JSON arrays are ordered by RFC 8259, unlike objects. A canonicalizer that sorted array elements the way it " +
+      "sorts object keys would destroy meaning; this class exists to catch that specific over-reach."
+  },
+  {
+    id: "null-vs-absent-key",
+    description: "An explicit null value versus the key being absent.",
+    rawA: '{"a":null}',
+    rawB: "{}",
+    intent: "distinct",
+    consumerRationale:
+      '"the field was supplied and is empty" and "the field was never supplied" are different assertions. Patch ' +
+      "semantics, schema validation, and audit review all distinguish them."
+  },
+  {
+    id: "false-vs-zero",
+    description: "Boolean false versus numeric zero.",
+    rawA: '{"a":false}',
+    rawB: '{"a":0}',
+    intent: "distinct",
+    consumerRationale:
+      "Type confusion between false and 0 is a classic source of authorization bugs. Any typed consumer distinguishes them."
+  },
+  {
+    id: "empty-string-vs-null",
+    description: "The empty string versus null.",
+    rawA: '{"a":""}',
+    rawB: '{"a":null}',
+    intent: "distinct",
+    consumerRationale: "An empty value and an absent value are different facts to every schema and every reviewer."
+  },
+  {
+    id: "float-vs-integer-same-value",
+    description: "1.0 written as a float versus as an integer.",
+    rawA: '{"v":1.0}',
+    rawB: '{"v":1}',
+    intent: "equivalent",
+    consumerRationale:
+      "Both denote exactly the number one. JSON draws no int/float distinction, and no declared consumer branches on " +
+      "whether a whole number was spelled with a decimal point."
+  },
+  {
+    id: "trailing-zero-fraction",
+    description: "A fractional part padded with trailing zeros.",
+    rawA: '{"v":1.50}',
+    rawB: '{"v":1.5}',
+    intent: "equivalent",
+    consumerRationale: "Identical value; the padding carries no information a consumer reads."
+  },
+  {
+    id: "plus-signed-exponent",
+    description: "An exponent written with an explicit plus sign.",
+    rawA: '{"v":1e+2}',
+    rawB: '{"v":1e2}',
+    intent: "equivalent",
+    consumerRationale: "Both denote 100 exactly. The sign on a positive exponent is syntax, not content."
+  },
+  {
+    id: "uppercase-exponent-marker",
+    description: "Exponent marker written as E rather than e.",
+    rawA: '{"v":1E2}',
+    rawB: '{"v":1e2}',
+    intent: "equivalent",
+    consumerRationale: "RFC 8259 permits either marker for the same value; no consumer distinguishes the letter case."
+  },
+  {
+    id: "escaped-solidus",
+    description: "A forward slash escaped versus written literally.",
+    rawA: '{"v":"a\\/b"}',
+    rawB: '{"v":"a/b"}',
+    intent: "equivalent",
+    consumerRationale: "Escaping the solidus is optional in JSON and decodes to the identical string."
+  },
+  {
+    id: "escape-hex-case",
+    description: "A \\u escape with uppercase versus lowercase hex digits.",
+    rawA: '{"v":"\\u00E9"}',
+    rawB: '{"v":"\\u00e9"}',
+    intent: "equivalent",
+    consumerRationale: "Both escapes denote U+00E9. Hex digit case is wire syntax and decodes identically."
+  },
+  {
+    id: "surrogate-pair-vs-literal-astral",
+    description: "An astral-plane character as an escaped surrogate pair versus written literally.",
+    // EDITOR WARNING: rawB carries a literal U+1F600. Do not replace it with an escape.
+    rawA: '{"v":"\\ud83d\\ude00"}',
+    rawB: '{"v":"😀"}',
+    intent: "equivalent",
+    consumerRationale:
+      "Both encode exactly U+1F600. A consumer displaying, indexing, or re-emitting the value cannot distinguish the " +
+      "wire escaping of an identical character."
+  },
+  {
+    id: "key-order-non-ascii",
+    description: "Key order permuted where one key is non-ASCII.",
+    rawA: '{"é":1,"a":2}',
+    rawB: '{"a":2,"é":1}',
+    intent: "equivalent",
+    consumerRationale:
+      "Objects are unordered, so this must collapse. It is separated from object-key-order because sorting stability " +
+      "across non-ASCII keys depends on whether the implementation compares UTF-16 code units or UTF-8 bytes, and the " +
+      "two orders differ for some key sets."
+  },
+  {
+    id: "safe-integer-neighbours",
+    description: "Two adjacent integers just inside the safe range.",
+    rawA: '{"v":9007199254740991}',
+    rawB: '{"v":9007199254740990}',
+    intent: "distinct",
+    consumerRationale:
+      "The positive control for integer-precision-loss. These are one apart at 2^53-1 and 2^53-2, both exactly " +
+      "representable, so they MUST stay distinct. If the safe-range boundary were set one value too low they would " +
+      "collapse, and this class would catch that."
+  },
+  {
+    id: "deep-nesting-depth",
+    description: "Nesting depth 200 versus 201.",
+    rawA: `${"[".repeat(200)}1${"]".repeat(200)}`,
+    rawB: `${"[".repeat(201)}1${"]".repeat(201)}`,
+    intent: "distinct",
+    consumerRationale:
+      "Different structures. Included to detect a depth limit that silently truncates rather than rejecting, which " +
+      "would map two different documents onto one identity."
+  },
+  {
+    id: "large-document-single-byte",
+    description: "Two ~64 KiB documents differing in one byte near the end.",
+    rawA: `{"pad":"${"x".repeat(65536)}","tail":"a"}`,
+    rawB: `{"pad":"${"x".repeat(65536)}","tail":"b"}`,
+    intent: "distinct",
+    consumerRationale:
+      "Detects any size-based truncation or sampling in the hash path. A digest computed over a prefix would collapse " +
+      "these two, which is the classic length-extension-adjacent failure for evidence systems."
+  },
+  {
+    id: "leading-zero-integer",
+    description: "An integer with a leading zero, which RFC 8259 forbids.",
+    rawA: '{"v":01}',
+    rawB: '{"v":1}',
+    intent: "distinct",
+    consumerRationale:
+      "rawA is not valid JSON. A strict parser must reject it; a lenient one that accepts it and coerces to 1 would " +
+      "give malformed input the identity of a well-formed document."
   }
 ] as const;
 
