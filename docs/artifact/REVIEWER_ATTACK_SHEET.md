@@ -227,6 +227,73 @@ must imply verification failure, but not the converse.
 
 ---
 
+### Q9c. "Your verifier takes seven options. Can a consumer misconfigure it into accepting garbage?"
+
+Not over the 540 combinations enumerated. E6 crosses every fixture against key material
+(absent / correct / wrong), `expectedKeyId`, tenant expectation, and `pssMode`:
+
+```bash
+npm run experiment:e6
+```
+
+> 8/8 invariants hold. Nothing is accepted on absent or wrong key material. An intrinsically
+> invalid receipt is accepted under no combination. RSA acceptance is confined to a single PSS
+> mode, so mode substitution never verifies.
+
+The invariant worth reading is **I5: antitonicity.** Adding a *correct* consumer expectation never
+turns a rejection into an acceptance — the accepted set shrinks monotonically. That is
+`Sound(C, Σ, P)` being antitone in `P`, which is the thesis's central structural claim, measured on
+the implementation rather than assumed from the formalism.
+
+Two caveats. This is a declared cross-product, not an exhaustive search of misconfiguration. And
+the first version of this experiment reported two invariant violations that were **my labelling
+error**, not verifier defects: it used a globally-fixed "correct tenant", but MAL-028's tenant
+*is* tenant-repro-b and MAL-014 is a valid tenant-repro-a receipt. Their defect is *relational* —
+correct receipts presented to the wrong consumer — and holding them to "never accepted" asserts
+that a correct receipt must be rejected. The axis is now relative to the receipt.
+
+---
+
+### Q9d. "Can I verify a Ghost-Ark receipt in a runtime you didn't write it in?"
+
+**Not reliably, and E7 quantifies why.** This is the most consequential negative result in the
+repository.
+
+```bash
+npm run experiment:e7
+```
+
+Fuzzing the same byte streams through three independent pipelines — Node's `JSON.parse`, CPython's
+`json`, and `jq` — finds four distinct structural divergence classes:
+
+| pair | outlier |
+|:---|:---|
+| `9007199254740992` vs `9007199254740993` | **v8** identifies both as same |
+| `1` vs `1.0` | **v8** identifies both as same |
+| `-0` vs `0` | **jq** distinguishes |
+| `0.1` vs `0.1000000000000000055511151231257827` | **jq** distinguishes |
+
+**No two of the three induce the same equivalence relation.** Each arm is the outlier on at least
+one class, so this is not "one implementation is broken" — it is that the JSON number model does
+not pin down identity. `1` versus `1.0` is the one that should worry a reviewer: E1 classifies it
+as consumer-*equivalent* and scores Ghost-Ark *sound* for collapsing it, while CPython and jq both
+distinguish it. **Being sound for a declared consumer set does not imply being portable.**
+
+E7 also finds Ghost-Ark being the permissive outlier on a validity question: `"\ud800"`, a lone
+surrogate, is accepted by the V8 arm and rejected by both others. That is reported because it is
+unflattering.
+
+And it shows why strictness is a soundness property rather than a usability cost: jq accepts `01`,
+`+1`, `NaN`, `Infinity`, and `1e400`, and normalizes `01` and `+1` both to `sha256("1")` — three
+distinct inputs, one identity. Ghost-Ark and CPython cannot have those kernel members because they
+reject the input outright.
+
+Mitigating cross-runtime divergence is a **design decision, not a patch**: mandate one runtime,
+adopt a stricter admission profile than `strictJsonAdmission` currently enforces (it does not
+reject `1.0`), or move off JSON. That is recorded in `CI_COVERAGE.md`, not resolved.
+
+---
+
 ### Q9. "What is the strongest argument against your thesis?"
 
 **Falsifier F2: the pathology alphabet is hand-curated and adversarial.** E1 proves
