@@ -183,7 +183,35 @@ synth-only.
 
 ---
 
-### Q10. "Your corpus scores 26/26. That smells like a test written to pass."
+### Q10. "You found three vulnerabilities in your own canonicalizer and just… wrote them down?"
+
+Initially, yes. That was the right criticism and it is now addressed.
+`packages/receipt-schema/src/strictJsonAdmission.ts` adds text-level admission control that
+runs **before** `JSON.parse` — which is where all three collapses actually occur, so no fix
+inside the canonicalizer could have worked. Measured by the same census that found the
+defects: **unintended kernel members 3 → 0, with zero rejection-asymmetry.**
+
+```bash
+npm run experiment:e1
+npx vitest run tests/unit/enforcement-runtime/receipts/test_strict_json_admission.test.ts
+```
+
+Each rule test is paired with a demonstration that the collapse it prevents is *real* — the
+two documents are shown to produce identical canonical forms under plain `JSON.parse`, then
+shown to be refused under admission control. Otherwise they would be tests that a validator
+validates.
+
+The fix is **additive**: `canonicalize()` is untouched, so every existing receipt identity
+and signature is byte-identical and no schema migration is needed. A test asserts that
+directly.
+
+What is still *not* fixed: NFC/NFD over-discrimination. Fixing it requires a normalization
+policy for string values, which changes what gets signed and does need a migration. It is in
+§Open Gaps, not quietly handled.
+
+---
+
+### Q11. "Your corpus scores 26/26. That smells like a test written to pass."
 
 It partly is, and E4 says so. Quote **25/25 verifier-intrinsic**, not 26/26 — the aggregate
 folds in MAL-014, which no verifier rule can reject.

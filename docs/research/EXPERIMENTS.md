@@ -69,12 +69,19 @@ arms. Verdicts: `sound`, `unintended-kernel` (collapsed a distinction a consumer
 
 ### Measured result
 
-| arm | independent parser | sound | unintended-kernel | over-discrimination | fail-closed | split |
-|:---|:---|:---|:---|:---|:---|:---|
-| `ghost-ark-receipt-schema` | no | 7 | **3** | 1 | 1 | 0 |
-| `ghost-ark-independent-verifier` | no | 7 | **3** | 1 | 1 | 0 |
-| `naive-sorted-stringify` (control) | no | 7 | **4** | 1 | 0 | 0 |
-| `python-json-sorted` | **yes** | 6 | 2 | 2 | 1 | 1 |
+| arm | indep. parser | sound | **unintended-kernel** | over-discrim. | fail-closed | sound-by-rejection | rejection-asymmetry |
+|:---|:---|---:|---:|---:|---:|---:|---:|
+| `ghost-ark-receipt-schema` | no | 7 | **3** | 1 | 1 | 0 | 0 |
+| `ghost-ark-independent-verifier` | no | 7 | **3** | 1 | 1 | 0 | 0 |
+| `ghost-ark-strict-admission` (mitigation) | no | 7 | **0** | 1 | 2 | 2 | 0 |
+| `naive-sorted-stringify` (control) | no | 7 | **4** | 1 | 0 | 0 | 0 |
+| `python-json-sorted` | **yes** | 6 | 2 | 2 | 1 | 1 | 0 |
+
+Verdict vocabulary: `sound-by-rejection` means one side was admitted and the other refused
+where a consumer needs them distinguished — no false shared identity is issued, and the
+honest document still receives one. `rejection-asymmetry` is the failure mode of a strict
+rule: refusing one of two documents every consumer treats as identical. The mitigation arm
+scores **0** on that, which is what makes it a fix rather than a trade.
 
 Per-class result for Ghost-Ark's own pipeline:
 
@@ -120,6 +127,33 @@ and `numeric-exponent-form` (CPython over-discriminates `1e2` from `100`).
 **F1.5 — Over-discrimination is real too.** `unicode-nfc-vs-nfd` splits a name that every
 consumer treats as one string. Evidence that passed through a normalizing hop fails
 re-verification.
+
+**F1.6 — The defect is now fixed, and the fix is measured by the same census that found it.**
+`packages/receipt-schema/src/strictJsonAdmission.ts` adds text-level admission control that
+runs **before** `JSON.parse`, which is where all three collapses occur. Three rules:
+
+| Rule | Rejects | Boundary rationale |
+|:---|:---|:---|
+| `duplicate_object_key` | the same key twice at any depth | `JSON.parse` resolves duplicates last-wins, destroying the difference between a document that asserted a field twice and one that asserted it once |
+| `unsafe_integer_magnitude` | integer literals above 2^53−1 | above this, distinct integers share a double |
+| `excess_significant_digits` | numeric literals with >17 significant digits | 17 is a double's round-trip precision; beyond it the text asserts precision the receipt cannot carry |
+
+Measured effect: **unintended kernel members 3 → 0**, with **zero** rejection-asymmetry.
+
+Two design decisions that keep this a fix rather than a trade:
+
+- It is **additive**. `canonicalize()` is untouched, so every existing receipt identity and
+  signature is byte-identical. This is admission control at the trust boundary, not a change
+  to canonicalization, and it needs no schema migration. A test asserts
+  `canonicalize(parseStrictJson(t)) === canonicalize(JSON.parse(t))` for admissible input.
+- It deliberately does **not** require exact representability (that would reject `0.1`, since
+  0.1 is not a double — unusable) and does **not** require a canonical numeric form (so `1e2`,
+  `100`, and `1.0e2` all stay admissible, since no declared consumer distinguishes them). It
+  targets over-precision only. All three reproducibility fixtures remain admissible.
+
+**Still not fixed:** `unicode-nfc-vs-nfd` over-discrimination. Addressing it means choosing a
+normalization policy for string values, which changes what gets signed and therefore requires
+a receipt schema migration. Recorded in §Open Gaps rather than quietly handled.
 
 ### Coverage boundary (what E1 does NOT cover)
 
