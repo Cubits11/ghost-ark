@@ -42,7 +42,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - run: npm run validate
       - run: python -m py_compile services/transform/glue/jobs/*.py tests/aws/dev-account/*.py
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
       - run: terraform fmt -check -recursive infra/terraform
       - run: terraform -chdir=infra/terraform/bootstrap init -backend=false
       - run: terraform -chdir=infra/terraform/bootstrap validate
