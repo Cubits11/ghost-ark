@@ -77,6 +77,36 @@ describe("UNBUILT_PROTOTYPES is inert", () => {
     expect(existsSync(resolve(REPO_ROOT, "dab/gateway/src/bpf"))).toBe(false);
     expect(existsSync(join(UNBUILT_DIR, "bpf/ghost_ark_ring0.bpf.c"))).toBe(true);
   });
+
+  it("keeps the v200 Nitro attestation draft out of the gateway build", () => {
+    // v200.rs was `pub mod v200;` in the gateway library for weeks while being
+    // impossible to build on its only target platform: the NSM call used a bulk
+    // `DescribePCRs` API that does not exist, behind `#[cfg(target_os =
+    // "linux")]`. macOS never compiled it; CI did, and failed E0599 on every
+    // run. Off-Linux the mock returned EXPECTED_GHOST_ARK_V200_HASH -- the very
+    // constant the attestation check compares against -- so the check passed
+    // unconditionally on the development host.
+    //
+    // Both halves of that must stay gone: the module out of the build, and the
+    // dependency out of the manifest.
+    expect(existsSync(resolve(REPO_ROOT, "dab/gateway/src/v200.rs"))).toBe(false);
+    expect(existsSync(join(UNBUILT_DIR, "rust/v200.rs"))).toBe(true);
+
+    const libRs = readFileSync(resolve(REPO_ROOT, "dab/gateway/src/lib.rs"), "utf8");
+    expect(libRs, "v200 must not be declared as a gateway module").not.toMatch(/^\s*pub mod v200;/mu);
+
+    const cargoToml = readFileSync(resolve(REPO_ROOT, "dab/gateway/Cargo.toml"), "utf8");
+    expect(cargoToml, "the NSM dependency has no remaining consumer").not.toContain("aws-nitro-enclaves-nsm-api");
+  });
+
+  it("keeps the quarantine banner on the v200 draft so its status survives a skim", () => {
+    const source = readFileSync(join(UNBUILT_DIR, "rust/v200.rs"), "utf8");
+    expect(source).toMatch(/NOT COMPILED, NOT LOADED, NOT LOAD-BEARING/u);
+    // The specific defects, not just a generic disclaimer. A reader who opens
+    // this file should learn why it is here without consulting git history.
+    expect(source).toContain("FABRICATED PASS");
+    expect(source).toContain("DescribePCR");
+  });
 });
 
 /**

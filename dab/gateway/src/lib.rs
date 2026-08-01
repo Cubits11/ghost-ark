@@ -9,4 +9,3 @@
 pub mod nonce;
 pub mod phase1;
 pub mod signing;
-pub mod v200;
