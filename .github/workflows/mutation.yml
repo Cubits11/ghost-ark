@@ -1,0 +1,86 @@
+name: mutation
+
+# Experiment E10 — mutation score over the receipt trust kernel.
+#
+# WHY THIS IS NOT IN `ci.yml`
+#
+# Every other gate in this repository answers "does the code still do what the
+# tests say?". E10 answers the prior question the others assume: "would the
+# tests notice if it didn't?". That is worth measuring and it is expensive —
+# Stryker copies the working tree per worker and re-runs the covering tests once
+# per mutant, which is hours, not minutes. Attaching it to every pull request
+# would make the honest response to a red build "skip the slow job", and a gate
+# people learn to skip is worse than no gate.
+#
+# So it runs on a schedule and on demand, and it can be made blocking on a
+# release branch once the survivor list has been worked down.
+#
+# The threshold in stryker.config.json is `break: 75`, deliberately set to a
+# number the repository can hold rather than an aspirational one. See
+# docs/research/EXPERIMENTS.md for what the score does and does not mean.
+
+on:
+  schedule:
+    # Sundays 06:00 UTC. Weekly is the right cadence for a measurement that
+    # moves only when the trust kernel or its tests change.
+    - cron: "0 6 * * 0"
+  workflow_dispatch:
+    inputs:
+      break_threshold:
+        description: "Override the break threshold (0-100). Leave blank to use stryker.config.json."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    name: mutation score (receipt trust kernel)
+    runs-on: ubuntu-latest
+    # A wall-clock ceiling so a hung mutant cannot burn a full runner day. If
+    # this trips, the run is reported as incomplete rather than as a low score:
+    # a truncated census is missing data, not a measurement.
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          # Several tests in E10's declared scope reach E1's Python arm. Without
+          # an interpreter those tests now FAIL rather than quietly passing with
+          # the arm excluded, which would silently shrink the killer pool and
+          # depress the score for a reason unrelated to test strength.
+          python-version: "3.12"
+      - name: install jq (E7 third arm, reached by tests in scope)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq
+      - run: npm ci
+
+      # Cheap and fast: if the pre-registered scope has drifted from the import
+      # graph, the score would be measured over a different population than the
+      # one documented. Fail here rather than after five hours.
+      - name: verify the pre-registered E10 scope
+        run: npx vitest run tests/unit/experiments/mutationScope.test.ts
+
+      - name: run mutation testing
+        run: npx stryker run ${{ inputs.break_threshold && format('--thresholds.break {0}', inputs.break_threshold) || '' }}
+
+      # Runs even when the threshold breaks, because the survivor list is the
+      # actionable output and a failed threshold is exactly when it is wanted.
+      - name: summarize
+        if: always()
+        run: npm run mutation:summarize
+
+      - name: upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: |
+            artifacts/mutation/report.html
+            artifacts/mutation/report.json
+          if-no-files-found: warn
+          retention-days: 30

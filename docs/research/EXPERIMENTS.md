@@ -49,8 +49,9 @@ These exist because this repository previously violated each of them.
 
 | Component | Path |
 |:---|:---|
-| E1–E5 harnesses | `tools/experiments/*.ts` |
+| E1–E7, E10 harnesses | `tools/experiments/*.ts` |
 | Pre-registered E1 alphabet | `tools/experiments/kernelAlphabet.ts` |
+| Pre-registered E10 scope | `tools/experiments/mutationScope.ts`, `stryker.config.json` |
 | TypeScript reporting discipline | `packages/research-frontier/src/stats/descriptive.ts` |
 | Rust measurement stats (MAD, tie-corrected Mann-Whitney, counter quantum) | `tools/experiments/src/stats.rs` |
 | Side-channel timing-floor probe (Rust) | `tools/experiments/src/bin/side_channel_timing_floor.rs` |
@@ -189,6 +190,52 @@ Two design decisions that keep this a fix rather than a trade:
 **Still not fixed:** `unicode-nfc-vs-nfd` over-discrimination. Addressing it means choosing a
 normalization policy for string values, which changes what gets signed and therefore requires
 a receipt schema migration. Recorded in §Open Gaps rather than quietly handled.
+
+**F1.7 — E1's own harness had the defect E4 exists to catch, and it was found by applying E4
+to E1.** The Python arm reported a missing interpreter through the same channel CPython uses
+to reject an input: `rejected("python3 unavailable: ...")`. The consequences compounded
+silently.
+
+1. Every pathology became a `rejected-both` cell, so the arm scored `fail-closed` on all 31
+   classes.
+2. A uniformly fail-closed arm produces no `collapsed`/`distinct` cells, so it stops being a
+   *deciding* arm and drops out of the unanimity test behind `universal_unintended_kernel`.
+3. That headline count therefore moved **4 → 5**, with exit code 0 and one annotation line
+   elsewhere in the report.
+
+Measured with the E4 discriminator — shadow `python3` on `PATH` with a shim that exits 127,
+re-run:
+
+| | `python3` present | `python3` broken |
+|:---|:---|:---|
+| python arm verdicts | 21 sound / 4 unintended-kernel / 3 over-discrim | 0 sound / 31 fail-closed |
+| `universal_unintended_kernel` | **4** | **5** |
+| exit code | 0 | 0 |
+
+A number that changes with ambient environment while the run still reports success is exactly
+the tautology E4 was built to police, sitting inside the experiment infrastructure. Two
+separate faults were behind it, and they need different fixes:
+
+- **Absence of evidence was encoded as evidence.** `runPythonArm` now raises
+  `ArmUnavailableError` instead of returning a rejection, `runE1Census` probes each declared
+  arm once before committing the alphabet to it, and a missing arm is **excluded** rather than
+  scored. The census then *refuses to emit* unless the caller passes
+  `{ allowDegradedArms: true }`, and a degraded report carries `degraded: true` plus an
+  `excluded_arms` list. Dropping an arm changes `universal_unintended_kernel` rather than
+  merely widening it, so the two runs are not comparable and the report now says so.
+- **A transient spawn failure aborted the run.** Under parallel load `execFileSync` exceeded
+  its timeout and threw `ETIMEDOUT` straight out of the census, making the suite
+  nondeterministically red — the same class as the CDK-synth flake in `CLAUDE.md`. Spawns now
+  retry once on transient `errno` codes only; a definitive failure still raises
+  `ArmUnavailableError` rather than being laundered into a rejection.
+
+Pinned by `tests/unit/experiments/armAvailability.test.ts`, which shells out with a broken
+`python3` on `PATH` because `probePython` caches per process — mutating `PATH` inside the
+worker would measure the cache rather than the behavior.
+
+The measured `universal_unintended_kernel` count with all five arms present is unchanged at
+**4**. This fault affected what happens when the environment is incomplete, not the recorded
+result on a complete one.
 
 ### Coverage boundary (what E1 does NOT cover)
 
@@ -773,6 +820,106 @@ different canonicalizers would measure nothing.
 
 ---
 
+## E10 — Mutation score over the receipt trust kernel
+
+**Hypothesis.** The tests that cover the receipt trust kernel would fail if the kernel were
+wrong.
+
+**Why this experiment exists.** Every other gate in this repository answers "does the code
+still do what the tests say?" E10 answers the question all of them assume: *would the tests
+notice if it didn't?* Until now nothing checked that. A suite of 970 passing tests is
+perfectly consistent with a suite that asserts nothing load-bearing, and the repository's
+entire defence — do not trust the author, run the tests — rests on the assumption that it
+isn't.
+
+E4 established the discriminator principle for benchmarks: break the mechanism, confirm
+detection stops. E10 is that principle applied to the test suite itself, mechanically and at
+scale. Stryker introduces one small semantic change at a time into the kernel — flips a
+comparison, negates a condition, drops a call, replaces a string — and asks whether any test
+notices.
+
+| verdict | meaning |
+|:---|:---|
+| killed | a test failed. The suite detects that change. |
+| survived | every test passed. The suite does **not** detect that change. |
+| timeout | the mutant hung. Counted as killed (Stryker's convention, kept for comparability). |
+| no coverage | no test in scope executes that line at all. |
+
+**Pre-registered scope.** `tools/experiments/mutationScope.ts` declares both halves and
+`tests/unit/experiments/mutationScope.test.ts` recomputes them from the real import graph
+every run. Both halves are gameable and they drift in opposite directions:
+
+- Shrinking the mutated file set **raises** the score by dropping hard-to-kill code.
+- Shrinking the killer test set **lowers** it, so it cannot inflate — but it can make a later
+  pass look like an improvement. Pinned for that reason too.
+
+Ten source files are mutated: the five `CLAUDE.md` names under "Be careful with", plus the
+five modules those five delegate integrity decisions to (`chain`, `keyManifest`, `kmsSigner`,
+`kmsVerifier`, `strictJsonAdmission`). Storage adapters, the generated zod shape, the v2
+prototype, type-only modules, and ledger-anchored revocation are excluded **with reasons
+recorded in the module**, because an unexplained exclusion is exactly what the
+pre-registration exists to prevent. Seventy test files reach that kernel transitively; the
+scope test asserts set equality in both directions.
+
+The declared scope was written by hand first and was **wrong in both directions** — it
+missed 35 covering tests and included one (`semanticAuditReceipt.test.ts`) that does not
+reach the kernel. The import-graph check caught it before the first measurement. That is the
+whole argument for deriving the scope rather than asserting it.
+
+**Provenance: census.** Stryker enumerates every mutation its operators can produce over the
+declared files; it does not draw randomly from a population of defects. Under reporting rule
+3 that means exact counts and no confidence interval, and `reportProportion` is called with a
+throwing interval provider so a later flip to `"sampled"` fails loudly rather than quietly
+attaching an interval to a census.
+
+**Denominator.** `NoCoverage` mutants are excluded from the score and reported separately.
+They measure *reach*, not *strength*, and conflating them would hide the difference between
+"the tests are weak here" and "no test looks here" — which need different fixes.
+
+**Commands:**
+
+```bash
+npm run mutation            # slow: hours, not minutes
+npm run mutation:summarize  # per-file scores + the full survivor list
+```
+
+Deliberately **not** in `npm run validate` and not on pull requests. Stryker copies the
+working tree per worker (11 GB on the recording host) and re-runs covering tests per mutant.
+A gate slow enough that the honest response to a red build is "skip the slow job" is worse
+than no gate. It runs weekly and on demand via `.github/workflows/mutation.yml`, with
+`break: 75` in `stryker.config.json` — a threshold set to what the repository can hold, not
+an aspirational one, following the same principle as the `npm audit --audit-level=critical`
+gate.
+
+### Measured result
+
+**Status: in flight at the time of writing.** The full 10-file scope produces ~1,580 mutants,
+158 of them static (Stryker estimates static mutants alone at 50% of total runtime), and the
+run had not completed when this section was written. The score, the per-file table, and the
+survivor list are **not reported here**, because reporting a partial census as if it were
+complete is the defect this document exists to record, not repeat.
+
+What *is* established and reproducible now: the harness runs, the scope is pinned against the
+import graph, the dry run executes 420 tests in the declared scope, and the summarizer applies
+census reporting discipline. Run `npm run mutation && npm run mutation:summarize` to produce
+the numbers, and record the host — a mutation score without a machine and a scope is not a
+reproducible figure.
+
+### Coverage boundary (what E10 does NOT establish)
+
+Mutation operators are a **proxy** for defects, not a generator of them. A high score is not
+evidence of correctness, security, cryptographic soundness, or absence of design flaws — only
+that the suite detects the specific edits Stryker's operators can express. Whole defect
+classes lie outside them: a wrong algorithm choice, a missing check that was never written, a
+protocol-level flaw, a specification misreading shared by code and tests alike. E5 already
+shows the last of these is live here — three verifiers by one author can share a misreading,
+and mutation testing would not notice, because the tests encode the same misreading.
+
+A surviving mutant is a **demonstrated** gap. A killed mutant is only the absence of that one
+gap.
+
+---
+
 ## Retractions
 
 Prior claims in this repository that these experiments contradict. Listed rather than
@@ -797,8 +944,17 @@ Honest list of what is missing, ordered by how much it would strengthen the work
    compromised-signer coverage (public key only), and no record-receipt (`rct_`) fixtures,
    which leaves the `tenant` check unisolated.
 3. **No live AWS evidence bundle.** Every AWS-path claim is synth-only or local-only.
-4. **E1's randomized arm is not built.** Only the census arm exists, so no experiment here
-   currently earns a confidence interval. Building it is the only way to get one honestly.
+4. ~~**E1's randomized arm is not built.**~~ CLOSED by E1-B, which samples from a declared
+   seeded generator and therefore earns intervals. The gap text above survived the commit
+   that closed it and contradicted this document's own E1-B heading — recorded here rather
+   than silently deleted, because a stale gap list is the second thing a reviewer checks.
 5. **No cross-machine reproduction of E2.** Single host only.
 6. **CI does not run the Rust or TLA+ artifacts on every commit** — see
    [../artifact/CI_COVERAGE.md](../artifact/CI_COVERAGE.md) for the exact matrix.
+7. **E10's mutation scope covers the receipt trust kernel only.** Ten files. The rest of the
+   repository — policy evaluation, runtime, vault, retrieval, gateway, the CDK stack — has no
+   measured test strength at all. A repo-wide mutation score is not reported because it has
+   not been run.
+8. **No third-party reimplementation.** E5 reports agreement across three verifiers written
+   by the same author from the same specification; they can share a misreading. Only a
+   genuinely independent implementation fixes this, and none exists.

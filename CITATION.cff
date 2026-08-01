@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+title: >-
+  Ghost-Ark: bounded governance receipts and deterministic enforcement
+  primitives for LLM and agentic applications
+message: >-
+  If you use this artifact, cite the software. Ghost-Ark is a research
+  artifact, not a product. See the abstract for what it does and does not
+  establish before citing it as evidence for a security property.
+type: software
+authors:
+  - family-names: Bhave
+    given-names: Pranav
+repository-code: https://github.com/Cubits11/ghost-ark
+license: MIT
+abstract: >-
+  Ghost-Ark is an AWS-native reference implementation of bounded governance
+  receipts and deterministic enforcement primitives for LLM and agentic AI
+  applications. It provides deterministic receipt canonicalization, signature
+  envelope validation, tenant-boundary enforcement, fail-closed policy
+  evaluation, and a replayable verification path, together with an experiment
+  suite that measures its own limits.
+
+  Scope of what the artifact establishes: it verifies what was recorded,
+  signed, policy-bounded, and replayable under Ghost-Ark verifier rules. It does
+  not establish semantic safety, truthfulness of model output, regulatory
+  compliance, alignment, production readiness, or deployment correctness. The
+  repository enumerates its open weaknesses in docs/research/EXPERIMENTS.md and
+  docs/artifact/CI_COVERAGE.md, including a measured cross-runtime portability
+  negative result: no two of the three tested JSON pipelines induce the same
+  equivalence relation over receipt inputs, so canonical receipt identity is not
+  portable across runtimes without a mandated runtime or a stricter admission
+  profile.
+
+  The associated measurement framework for correlated guardrail failure
+  (CC-Framework) is developed in a separate repository.
+keywords:
+  - provenance
+  - canonicalization
+  - audit receipts
+  - AI governance
+  - verifiable evidence
+  - agentic systems
+  - differential testing
+  - mutation testing

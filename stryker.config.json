@@ -1,16 +1,26 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
-  "vitest": { "configFile": "vitest.config.ts" },
+  "vitest": { "configFile": "vitest.mutation.config.ts" },
   "mutate": [
-    "packages/research-frontier/src/occ/ghostReplica.ts",
-    "packages/research-frontier/src/unification/lpOracle.ts",
-    "tools/research/check-forbidden-claims.mjs"
+    "packages/enforcement-runtime/src/receipts/canonical.ts",
+    "packages/enforcement-runtime/src/receipts/chain.ts",
+    "packages/enforcement-runtime/src/receipts/emission.ts",
+    "packages/enforcement-runtime/src/receipts/keyManifest.ts",
+    "packages/enforcement-runtime/src/receipts/kmsSigner.ts",
+    "packages/enforcement-runtime/src/receipts/kmsVerifier.ts",
+    "packages/enforcement-runtime/src/receipts/signer.ts",
+    "packages/enforcement-runtime/src/receipts/verifier.ts",
+    "packages/receipt-schema/src/hashCanonicalization.ts",
+    "packages/receipt-schema/src/strictJsonAdmission.ts"
   ],
   "incremental": true,
-  "reporters": ["html", "clear-text"],
+  "incrementalFile": "artifacts/mutation/stryker-incremental.json",
+  "reporters": ["html", "json", "clear-text"],
   "htmlReporter": { "fileName": "artifacts/mutation/report.html" },
-  "thresholds": { "high": 95, "low": 90, "break": null },
-  "concurrency": 2,
-  "timeoutMS": 10000
+  "jsonReporter": { "fileName": "artifacts/mutation/report.json" },
+  "thresholds": { "high": 90, "low": 80, "break": 75 },
+  "concurrency": 4,
+  "timeoutMS": 20000,
+  "coverageAnalysis": "perTest"
 }

@@ -97,16 +97,16 @@ Verifiable Agent Governance under Correlated Guardrail Failure.
 
 ## Current Baseline
 
-Measured at head on 2026-07-29. Re-measure before quoting; do not copy a stale number
+Measured at head on 2026-08-01. Re-measure before quoting; do not copy a stale number
 forward. The previous entry in this file read "86/86 test files, 559/559 tests" while the
 actual suite was 133 files and 849 tests — a documented baseline that disagreed with reality
 on the first thing a reviewer checks.
 
 - npm run lint passes
 
-- npm test passes
+- npm test passes: 145 test files, 985 tests (1 file / 9 tests skipped)
 
-- npm run scan:claims: 772 files scanned, 0 forbidden-claim violations
+- npm run scan:claims: 817 files scanned, 0 forbidden-claim violations
 
 - npm run assumptions: 7 annotated modules, 0 lattice violations
 
@@ -118,6 +118,11 @@ Known flake, fixed: two CDK-synth tests exceeded the 15s global vitest timeout u
 parallel load, making npm test nondeterministically red on a clean clone. The synth is now
 memoized and pre-warmed in beforeAll. Do not reintroduce a per-test synth in
 infra/cdk/test/api-stack-governed-invoke.test.ts or tests/integration/api/template-auth.test.ts.
+
+Human-facing twin: `CONTRIBUTING.md` states these same operating rules for human
+contributors. The duplication is deliberate. Where the two disagree, this file governs for
+assistants and `CONTRIBUTING.md` governs for humans — and the disagreement is a bug, so fix
+both in the same commit.
 
 Recent hardening areas:
 
