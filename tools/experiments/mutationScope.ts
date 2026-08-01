@@ -133,6 +133,8 @@ const TEST_FILES = [
   "tests/unit/policy-compiler/tenantNamespace.test.ts",
   "tests/unit/proofs/receiptProof.test.ts",
   "tests/unit/receipt-schema/hashCanonicalization.test.ts",
+  "tests/unit/receipt-schema/hashCanonicalizationMutants.test.ts",
+  "tests/unit/receipt-schema/strictJsonAdmissionMutants.test.ts",
   "tests/unit/research-frontier/stateForker.test.ts",
   "tests/unit/research-frontier/transparencyArtifacts.test.ts",
   "tests/unit/signing/signer.test.ts",
