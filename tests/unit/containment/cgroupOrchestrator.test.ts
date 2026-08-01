@@ -103,9 +103,22 @@ describe('Cgroup v2 Orchestrator & Ring-0 eBPF IPC Daemon', () => {
     });
 
     it('spawns agent process with mock fallback and registers with daemon', async () => {
+        // `mockCgroupId` is a FALLBACK, not an override: getCgroupIdFromPid only
+        // returns it when the real /proc + /sys/fs/cgroup lookup fails. This test
+        // therefore passed on macOS, where those paths do not exist, and failed on
+        // Linux, where the lookup succeeds and returns the process's actual cgroup
+        // inode. It asserted the mock value while running on the only platform
+        // where the mock is never reached.
+        //
+        // Point both roots at a path that cannot exist on any platform, so the
+        // fallback is the branch under test everywhere rather than an accident of
+        // the host filesystem.
+        const unreachableRoot = path.join(tmpDir, 'no-such-root');
         const orchestrator = new CgroupOrchestrator({
             socketPath,
             useSystemdRun: false, // direct child process spawn for test portability
+            cgroupSysfsRoot: unreachableRoot,
+            procRoot: unreachableRoot,
         });
 
         const mockCgroupId = '18446744073709551615';
