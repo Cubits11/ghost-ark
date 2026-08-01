@@ -18,7 +18,28 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - run: npm ci
+      # `npm ci` failed on every run of this workflow for weeks while passing on
+      # a clean clone locally, and the runner log is not readable without repo
+      # credentials. Capturing the output into the job summary makes an install
+      # failure diagnosable from the check-run output alone — which is the only
+      # surface a reviewer without write access can see either.
+      - name: Install dependencies
+        id: install
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee /tmp/npm-ci.log
+      - name: Surface install failure
+        if: failure() && steps.install.outcome == 'failure'
+        run: |
+          {
+            echo '### npm ci failed'
+            echo ''
+            echo "node \`$(node -v)\` · npm \`$(npm -v)\` · runner \`$(uname -sr)\`"
+            echo ''
+            echo '```'
+            tail -80 /tmp/npm-ci.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - run: npm run validate
       - run: python -m py_compile services/transform/glue/jobs/*.py tests/aws/dev-account/*.py
       - uses: hashicorp/setup-terraform@v3

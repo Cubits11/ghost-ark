@@ -38,9 +38,28 @@ jobs:
       - name: cargo fmt
         run: cargo fmt --check
         working-directory: ${{ matrix.crate }}
+      # clippy is clean on macOS/aarch64 and fails on Linux/x86_64, so the
+      # difference is in cfg-gated or platform-specific code that never compiles
+      # on the development host. Surface it in the job summary, which is
+      # readable from the check-run output without repository credentials.
       - name: cargo clippy (deny warnings)
-        run: cargo clippy --locked --all-targets -- -D warnings
+        id: clippy
+        run: |
+          set -o pipefail
+          cargo clippy --locked --all-targets -- -D warnings 2>&1 | tee /tmp/clippy-${{ strategy.job-index }}.log
         working-directory: ${{ matrix.crate }}
+      - name: Surface clippy failure
+        if: failure() && steps.clippy.outcome == 'failure'
+        run: |
+          {
+            echo "### clippy failed — ${{ matrix.crate }}"
+            echo ''
+            echo "\`$(rustc --version)\` · \`$(cargo clippy --version)\` · runner \`$(uname -sm)\`"
+            echo ''
+            echo '```'
+            grep -E '^(error|warning)' -A6 /tmp/clippy-${{ strategy.job-index }}.log | head -80
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: cargo test
         run: cargo test --locked
         working-directory: ${{ matrix.crate }}
