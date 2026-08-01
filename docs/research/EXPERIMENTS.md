@@ -891,7 +891,51 @@ than no gate. It runs weekly and on demand via `.github/workflows/mutation.yml`,
 an aspirational one, following the same principle as the `npm audit --audit-level=critical`
 gate.
 
-### Measured result — 1 of 10 declared files
+### Measured result — 2 of 10 declared files
+
+Host: darwin/arm64, Apple M1 ×8, 8 GB, node v22.22.3. Scores are the **covered**
+denominator (killed + timeout over evaluated mutants); Stryker's own headline
+puts uncovered mutants in the denominator too, and both are given because
+quoting one without saying which is the error.
+
+| file | covered score | Stryker total | killed | survived | no coverage |
+|:---|---:|---:|---:|---:|---:|
+| `strictJsonAdmission.ts` (after remediation) | **87.8%** (287/327) | 85.9% | 287 | 40 | 7 |
+| `strictJsonAdmission.ts` (first run) | 81.4% (263/323) | 78.7% | 263 | 60 | 11 |
+| `hashCanonicalization.ts` | **88.2%** (149/169) | 84.2% | 149 | 20 | 8 |
+
+**The remediation is itself a measurement.** Twenty-six distinct mutant
+signatures were killed by tests written specifically against the first run's
+survivor list — every arm of the escape-sequence switch, the `\u` validation
+guard, the array-index counter, and the magnitude guard. The improvement is
+reported as a before/after on a pinned scope, not as a single number.
+
+**Two of the remediation's own predictions were wrong, and the re-run found
+them.** Two new tests asserted a bare `.toThrow()` against the colon check and
+the quoted-key check. Both mutants survived: deleting either check does not stop
+the parse from failing, it only makes it fail later with a different message. An
+assertion that cannot distinguish *failed for the right reason* from *failed for
+some reason* is not a test of that check — the E4 tautology, occurring inside
+tests written to close an E10 gap. Both now match on the message.
+
+The equivalence predictions held: both `\u` hex-regex anchor mutants were argued
+equivalent before the re-run (`hex` is a 4-character slice, so both anchors are
+redundant) and both did survive it.
+
+**`hashCanonicalization.ts` had 8 mutants with no coverage at all**, four of
+which sit in exported identity functions — `evidenceObjectId`,
+`receiptIdFromPayload`, `claimIdFromPayload`, `lineageEventIdFromPayload`. These
+are referenced by no test anywhere in the repository. The suite was not weak
+there; it was silent. Its 20 survivors cluster in the UTF-16 key comparator (a
+comparator that always returns −1 leaves V8's sort in insertion order, which is
+invisible whenever the fixture is already sorted), negative-zero normalization,
+and the plain-object boundary that implements "reject host-language non-JSON
+objects before signing."
+
+Eight declared files remain unmeasured; the summarizer names them rather than
+averaging them away.
+
+### First measured result — 1 of 10 declared files (superseded, kept for the delta)
 
 **This is a PARTIAL run and the number below is not an E10 result for the trust kernel.** The
 full 10-file scope produces ~1,580 mutants, 158 of them static, and two attempts at it were

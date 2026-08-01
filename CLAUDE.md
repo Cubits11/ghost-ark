@@ -104,15 +104,20 @@ on the first thing a reviewer checks.
 
 - npm run lint passes
 
-- npm test passes: 145 test files, 985 tests (1 file / 9 tests skipped)
+- npm test passes: 147 test files, 1032 tests (1 file / 9 tests skipped)
 
-- npm run scan:claims: 817 files scanned, 0 forbidden-claim violations
+- npm run scan:claims: 820 files scanned, 0 forbidden-claim violations
 
 - npm run assumptions: 7 annotated modules, 0 lattice violations
 
 - cargo test --locked: 26 Rust tests pass (13 dab/gateway + 13 dab/verifier); clippy clean under -D warnings
 
 - tools/proofs/run-tlc.sh: 4 TLA+ baselines clean, 4 mutants violate as required
+
+- GitHub Actions: ci, artifacts-verify, and artifact-evaluation all green on main
+  (2026-08-01). Before this date CI had failed on main for 40+ consecutive runs
+  while CI_COVERAGE.md described the same artifacts as verified. Check the badge
+  state, not the document, before believing either.
 
 Known flake, fixed: two CDK-synth tests exceeded the 15s global vitest timeout under
 parallel load, making npm test nondeterministically red on a clean clone. The synth is now
