@@ -21,144 +21,65 @@
  * - deterministic evidence
  *
  */
-
-
 use serde::Deserialize;
 
-use ed25519_dalek::{
-    Signature,
-    Verifier,
-    VerifyingKey,
-};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
-use sha2::{
-    Sha256,
-    Digest,
-};
+use sha2::{Digest, Sha256};
 
+const PROTOCOL_VERSION: &str = "DAB-TIER0-V1";
 
+const SIGNATURE_DOMAIN: &str = "GHOST-ARK:DAB:RECEIPT:";
 
-
-const PROTOCOL_VERSION:
-    &str =
-    "DAB-TIER0-V1";
-
-
-
-const SIGNATURE_DOMAIN:
-    &str =
-    "GHOST-ARK:DAB:RECEIPT:";
-
-
-
-
-
-
-
-#[derive(Debug,Deserialize)]
+#[derive(Debug, Deserialize)]
 struct DABReceipt {
+    protocol: String,
 
+    status: String,
 
-    protocol:String,
+    c_i: String,
 
+    c_e: String,
 
-    status:String,
+    nonce: String,
 
+    timestamp: String,
 
-    c_i:String,
+    policy_digest: String,
 
-
-    c_e:String,
-
-
-    nonce:String,
-
-
-    timestamp:String,
-
-
-    policy_digest:String,
-
-
-    gateway_signature:String,
-
+    gateway_signature: String,
 }
-
-
-
-
-
 
 #[derive(Debug)]
 pub enum VerificationError {
-
-
     MalformedReceipt,
-
 
     ProtocolMismatch,
 
-
     InvalidStatus,
-
 
     CommitmentMismatch,
 
-
     InvalidSignature,
 
-
     InvalidPublicKey,
-
-
 }
-
-
-
-
-
-
-
 
 // Domain-hash helper retained for evidence/transparency tooling and exercised
 // by the stability test below; not on the hot verification path.
 #[allow(dead_code)]
-fn hash(
-    input:&str
-)->String{
+fn hash(input: &str) -> String {
+    let mut hasher = Sha256::new();
 
+    hasher.update(input.as_bytes());
 
-    let mut hasher =
-        Sha256::new();
-
-
-    hasher.update(
-        input.as_bytes()
-    );
-
-
-    format!(
-        "sha256:{:x}",
-        hasher.finalize()
-    )
-
+    format!("sha256:{:x}", hasher.finalize())
 }
 
-
-
-
-
-
-
-
-
 pub fn verify_dab_receipt(
-    receipt_json:&str,
-    public_key_bytes:&[u8]
-)
-->Result<bool,VerificationError>{
-
-
+    receipt_json: &str,
+    public_key_bytes: &[u8],
+) -> Result<bool, VerificationError> {
     /*
         Strict parsing.
 
@@ -166,64 +87,25 @@ pub fn verify_dab_receipt(
         No unwrap.
     */
 
-    let receipt:DABReceipt =
-        serde_json::from_str(
-            receipt_json
-        )
-        .map_err(
-            |_| VerificationError::MalformedReceipt
-        )?;
-
-
-
-
-
-
-
+    let receipt: DABReceipt =
+        serde_json::from_str(receipt_json).map_err(|_| VerificationError::MalformedReceipt)?;
 
     /*
         Protocol binding
     */
 
-    if receipt.protocol
-        !=
-        PROTOCOL_VERSION
-    {
-
-        return Err(
-            VerificationError::ProtocolMismatch
-        );
-
+    if receipt.protocol != PROTOCOL_VERSION {
+        return Err(VerificationError::ProtocolMismatch);
     }
-
-
-
-
-
-
 
     /*
         Only successful executions
         are verifiable.
     */
 
-    if receipt.status
-        !=
-        "CERTIFIED"
-    {
-
-        return Err(
-            VerificationError::InvalidStatus
-        );
-
+    if receipt.status != "CERTIFIED" {
+        return Err(VerificationError::InvalidStatus);
     }
-
-
-
-
-
-
-
 
     /*
         Core DAB theorem:
@@ -233,150 +115,57 @@ pub fn verify_dab_receipt(
         Observed Execution
     */
 
-    if receipt.c_i
-        !=
-        receipt.c_e
-    {
-
-        return Err(
-            VerificationError::CommitmentMismatch
-        );
-
+    if receipt.c_i != receipt.c_e {
+        return Err(VerificationError::CommitmentMismatch);
     }
-
-
-
-
-
-
-
 
     /*
         Verify gateway identity
     */
 
-
-    let key =
-        VerifyingKey::from_bytes(
-            public_key_bytes
+    let key = VerifyingKey::from_bytes(
+        public_key_bytes
             .try_into()
-            .map_err(
-                |_| VerificationError::InvalidPublicKey
-            )?
-        )
-        .map_err(
-            |_| VerificationError::InvalidPublicKey
-        )?;
+            .map_err(|_| VerificationError::InvalidPublicKey)?,
+    )
+    .map_err(|_| VerificationError::InvalidPublicKey)?;
 
-
-
-
-
-
-
-
-    let message =
-        format!(
-            "{}{}|{}|{}|{}|{}|{}",
-            SIGNATURE_DOMAIN,
-            receipt.protocol,
-            receipt.c_i,
-            receipt.c_e,
-            receipt.nonce,
-            receipt.timestamp,
-            receipt.policy_digest
-        );
-
-
-
-
-
-
-
+    let message = format!(
+        "{}{}|{}|{}|{}|{}|{}",
+        SIGNATURE_DOMAIN,
+        receipt.protocol,
+        receipt.c_i,
+        receipt.c_e,
+        receipt.nonce,
+        receipt.timestamp,
+        receipt.policy_digest
+    );
 
     let signature_bytes =
-        hex::decode(
-            receipt.gateway_signature
-        )
-        .map_err(
-            |_| VerificationError::InvalidSignature
-        )?;
-
-
-
-
+        hex::decode(receipt.gateway_signature).map_err(|_| VerificationError::InvalidSignature)?;
 
     let signature =
-        Signature::from_slice(
-            &signature_bytes
-        )
-        .map_err(
-            |_| VerificationError::InvalidSignature
-        )?;
+        Signature::from_slice(&signature_bytes).map_err(|_| VerificationError::InvalidSignature)?;
 
-
-
-
-
-
-
-
-    key.verify(
-        message.as_bytes(),
-        &signature
-    )
-    .map_err(
-        |_| VerificationError::InvalidSignature
-    )?;
-
-
-
-
-
+    key.verify(message.as_bytes(), &signature)
+        .map_err(|_| VerificationError::InvalidSignature)?;
 
     Ok(true)
-
 }
-
-
-
-
-
-
-
 
 #[cfg(test)]
 mod tests {
 
-
     use super::*;
 
-
-
     #[test]
-    fn domain_hash_is_stable(){
+    fn domain_hash_is_stable() {
+        let a = hash("hello");
 
+        let b = hash("hello");
 
-        let a =
-            hash(
-                "hello"
-            );
-
-
-        let b =
-            hash(
-                "hello"
-            );
-
-
-        assert_eq!(
-            a,
-            b
-        );
-
+        assert_eq!(a, b);
     }
-
-
 
     // ---- Round-trip contract tests -------------------------------------
     //
@@ -417,16 +206,14 @@ mod tests {
 
     #[test]
     fn certified_receipt_verifies() {
-        let (json, pk) =
-            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        let (json, pk) = signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
         assert!(matches!(verify_dab_receipt(&json, &pk), Ok(true)));
     }
 
     #[test]
     fn commitment_mismatch_is_rejected() {
         // c_i != c_e: the DAB theorem fails before the signature is even trusted.
-        let (json, pk) =
-            signed_receipt_json("cAFE", "dEAD", "n-1", "0", "sha256:policy");
+        let (json, pk) = signed_receipt_json("cAFE", "dEAD", "n-1", "0", "sha256:policy");
         assert!(matches!(
             verify_dab_receipt(&json, &pk),
             Err(VerificationError::CommitmentMismatch)
@@ -437,8 +224,7 @@ mod tests {
     fn tampered_field_breaks_signature() {
         // Sign one policy_digest, present another: the signed message no longer
         // matches, so ed25519 verification fails.
-        let (json, pk) =
-            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        let (json, pk) = signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
         let tampered = json.replace("sha256:policy", "sha256:ATTACKER");
         assert!(matches!(
             verify_dab_receipt(&tampered, &pk),
@@ -448,9 +234,11 @@ mod tests {
 
     #[test]
     fn wrong_public_key_is_rejected() {
-        let (json, _pk) =
-            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
-        let mut wrong = SigningKey::from_bytes(&[7u8; 32]).verifying_key().to_bytes().to_vec();
+        let (json, _pk) = signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        let mut wrong = SigningKey::from_bytes(&[7u8; 32])
+            .verifying_key()
+            .to_bytes()
+            .to_vec();
         // Ensure it differs from the real key.
         wrong[0] ^= 0xFF;
         assert!(matches!(
@@ -461,8 +249,7 @@ mod tests {
 
     #[test]
     fn non_certified_status_is_rejected() {
-        let (json, pk) =
-            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        let (json, pk) = signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
         let halted = json.replace("CERTIFIED", "MUTATION_DETECTED_HALT");
         assert!(matches!(
             verify_dab_receipt(&halted, &pk),
@@ -478,8 +265,7 @@ mod tests {
 
     #[test]
     fn protocol_downgrade_is_rejected() {
-        let (json, pk) =
-            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        let (json, pk) = signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
         let downgraded = json.replace("DAB-TIER0-V1", "DAB-TIER0-V0");
         assert!(matches!(
             verify_dab_receipt(&downgraded, &pk),
@@ -489,8 +275,7 @@ mod tests {
 
     #[test]
     fn non_hex_signature_is_rejected() {
-        let (json, pk) =
-            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        let (json, pk) = signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
         // Replace the signature body with a non-hex string of the same shape.
         let forged = regex_lite_replace_signature(&json, "zz not hex zz");
         assert!(matches!(
@@ -501,8 +286,7 @@ mod tests {
 
     #[test]
     fn truncated_signature_is_rejected() {
-        let (json, pk) =
-            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        let (json, pk) = signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
         // A single hex byte: valid hex, wrong length for an ed25519 signature.
         let forged = regex_lite_replace_signature(&json, "ab");
         assert!(matches!(
@@ -513,8 +297,7 @@ mod tests {
 
     #[test]
     fn all_zero_signature_is_rejected() {
-        let (json, pk) =
-            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        let (json, pk) = signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
         // 64 zero bytes: correct length, not a valid signature for this key/msg.
         let zeros = "0".repeat(128);
         let forged = regex_lite_replace_signature(&json, &zeros);
@@ -529,11 +312,9 @@ mod tests {
         // A valid signature over receipt A pasted onto receipt B (different
         // c_i/c_e that still satisfy c_i==c_e). The signed message differs, so
         // ed25519 verification must fail — the signature is bound to content.
-        let (json_a, pk) =
-            signed_receipt_json("aaaa", "aaaa", "n-1", "0", "sha256:policy");
+        let (json_a, pk) = signed_receipt_json("aaaa", "aaaa", "n-1", "0", "sha256:policy");
         let sig_a = extract_signature(&json_a);
-        let (json_b, _pk_b) =
-            signed_receipt_json("bbbb", "bbbb", "n-2", "0", "sha256:policy");
+        let (json_b, _pk_b) = signed_receipt_json("bbbb", "bbbb", "n-2", "0", "sha256:policy");
         let transplanted = regex_lite_replace_signature(&json_b, &sig_a);
         assert!(matches!(
             verify_dab_receipt(&transplanted, &pk),
@@ -554,8 +335,7 @@ mod tests {
 
     #[test]
     fn empty_public_key_is_rejected() {
-        let (json, _pk) =
-            signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
+        let (json, _pk) = signed_receipt_json("cAFE", "cAFE", "n-1", "0", "sha256:policy");
         assert!(matches!(
             verify_dab_receipt(&json, &[]),
             Err(VerificationError::InvalidPublicKey)
@@ -579,5 +359,4 @@ mod tests {
             1,
         )
     }
-
 }

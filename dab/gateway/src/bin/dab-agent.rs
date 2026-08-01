@@ -27,7 +27,9 @@ fn sha256_bytes(bytes: &[u8]) -> String {
 }
 
 fn arg_after(args: &[String], flag: &str) -> Option<String> {
-    args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1).cloned())
+    args.iter()
+        .position(|a| a == flag)
+        .and_then(|i| args.get(i + 1).cloned())
 }
 
 fn main() {
@@ -64,7 +66,9 @@ fn main() {
     let mut stream = UnixStream::connect(&socket).expect("connect /ipc/dab.sock");
     stream.write_all(request.as_bytes()).expect("write request");
     // The gateway reads to EOF; half-close so it sees end-of-request.
-    stream.shutdown(Shutdown::Write).expect("shutdown write half");
+    stream
+        .shutdown(Shutdown::Write)
+        .expect("shutdown write half");
 
     let mut response = String::new();
     stream.read_to_string(&mut response).expect("read receipt");

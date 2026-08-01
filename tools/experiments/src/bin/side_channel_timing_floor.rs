@@ -118,8 +118,7 @@ fn stage1_resolution() -> f64 {
     let effective_hz = arch_hz.map(|h| h as f64).unwrap_or(cal_hz);
     let deltas = timebase::resolution_probe(200_000);
     let s = stats::summarize(&deltas);
-    let zero_frac =
-        deltas.iter().filter(|&&d| d == 0).count() as f64 / deltas.len() as f64 * 100.0;
+    let zero_frac = deltas.iter().filter(|&&d| d == 0).count() as f64 / deltas.len() as f64 * 100.0;
 
     print_summary(" back-to-back read delta (ticks)", &s);
     println!(" reads returning an identical tick : {:.1}%", zero_frac);
@@ -193,7 +192,10 @@ fn stage2_kernel_decision(samples: usize) {
     };
 
     println!(" allowed target : {} (listening)", allowed_addr);
-    println!(" denied  target : {} (no listener -> ECONNREFUSED)", refused_addr);
+    println!(
+        " denied  target : {} (no listener -> ECONNREFUSED)",
+        refused_addr
+    );
     println!();
 
     // Warm both paths before recording.
@@ -252,7 +254,10 @@ fn stage2_kernel_decision(samples: usize) {
     println!(" Mann-Whitney U   : {:.0}", mw.u_statistic);
     println!(" z                : {:.2}", mw.z);
     println!(" p (two-sided)    : {:.3e}", mw.p_two_sided);
-    println!(" AUC              : {:.4}   (0.5 = indistinguishable)", mw.auc);
+    println!(
+        " AUC              : {:.4}   (0.5 = indistinguishable)",
+        mw.auc
+    );
 
     let advantage = (mw.auc - 0.5).abs() * 2.0;
     println!(" oracle advantage : {:.1}%", advantage * 100.0);

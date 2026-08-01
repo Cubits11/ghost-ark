@@ -891,19 +891,52 @@ than no gate. It runs weekly and on demand via `.github/workflows/mutation.yml`,
 an aspirational one, following the same principle as the `npm audit --audit-level=critical`
 gate.
 
-### Measured result
+### Measured result — 1 of 10 declared files
 
-**Status: in flight at the time of writing.** The full 10-file scope produces ~1,580 mutants,
-158 of them static (Stryker estimates static mutants alone at 50% of total runtime), and the
-run had not completed when this section was written. The score, the per-file table, and the
-survivor list are **not reported here**, because reporting a partial census as if it were
-complete is the defect this document exists to record, not repeat.
+**This is a PARTIAL run and the number below is not an E10 result for the trust kernel.** The
+full 10-file scope produces ~1,580 mutants, 158 of them static, and two attempts at it were
+killed before completion. What completed is a single file, run with `--mutate` so the pinned
+`stryker.config.json` stayed untouched.
 
-What *is* established and reproducible now: the harness runs, the scope is pinned against the
-import graph, the dry run executes 420 tests in the declared scope, and the summarizer applies
-census reporting discipline. Run `npm run mutation && npm run mutation:summarize` to produce
-the numbers, and record the host — a mutation score without a machine and a scope is not a
-reproducible figure.
+Host: darwin/arm64, Apple M1 ×8, 8 GB, node v22.22.3. Wall clock 22m49s for 334 mutants.
+
+| file | score | killed | timeout | **survived** | no-coverage | errors |
+|:---|---:|---:|---:|---:|---:|---:|
+| `packages/receipt-schema/src/strictJsonAdmission.ts` | **81.4%** | 238 | 25 | **60** | 11 | 0 |
+
+Two denominators, because Stryker and this repository count differently and the difference is
+not cosmetic:
+
+- **81.4% = 263/323** — the figure reported here. `NoCoverage` mutants are excluded, because
+  they measure *reach*, not *strength*.
+- **78.7% = 263/334** — Stryker's headline, which puts the 11 uncovered mutants in the
+  denominator.
+
+Neither is wrong; quoting one without saying which is. The 11 uncovered mutants are a separate
+finding: lines in the admission scanner that **no test in the declared scope executes at all**.
+
+**The result that matters is the 60 survivors.** These are edits to the file implementing E1's
+headline fix that the whole 70-file scope does not detect. They cluster:
+
+| cluster | lines | what survives |
+|:---|:---|:---|
+| escape-sequence dispatch | 142–164 | every `case` arm of the string-escape switch can be deleted or emptied |
+| position/bounds arithmetic | 108, 130, 210, 217, 227 | `state.index === length` → `<=` survives in five places |
+| `\uXXXX` validation | 168 | the hex regex can be anchored away at either end |
+| diagnostic strings | ~20 sites | violation messages and paths can be blanked |
+
+The diagnostic-string survivors are largely benign — the tests assert rule identity, not message
+text. The **bounds-arithmetic and escape-dispatch survivors are not**: they are the scanner's
+parser, and E1's whole claim is that admission happens correctly at the *text* level before
+`JSON.parse`. A parser whose bounds checks can be loosened without any test noticing is exactly
+the gap E10 exists to expose.
+
+This does not retract E1's result — `strictJsonAdmission` still takes unintended kernel members
+5 → 0, and that is measured by E1 directly. It says the *tests around* that fix are weaker than
+the fix's importance warrants.
+
+Nine declared files remain unmeasured, listed by name in the summarizer output rather than
+averaged away.
 
 ### Coverage boundary (what E10 does NOT establish)
 

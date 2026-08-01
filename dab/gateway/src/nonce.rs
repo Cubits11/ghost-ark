@@ -6,9 +6,9 @@
 //! 3. Maintain O(1) concurrent execution under heavy cryptographic load.
 //!
 //! Architecture:
-//! Utilizes a sharded `DashMap` to eliminate global lock contention on the hot path. 
-//! O(N) garbage collection is completely decoupled from the commit predicate and 
-//! relegated to an asynchronous background OS thread. Hardware-level `AtomicUsize` 
+//! Utilizes a sharded `DashMap` to eliminate global lock contention on the hot path.
+//! O(N) garbage collection is completely decoupled from the commit predicate and
+//! relegated to an asynchronous background OS thread. Hardware-level `AtomicUsize`
 //! counters track capacity bounds to prevent cross-shard cache-coherency storms.
 
 #![allow(dead_code)]
@@ -74,7 +74,7 @@ impl ReplayLedger {
         }
     }
 
-    /// O(1) concurrent commit path. 
+    /// O(1) concurrent commit path.
     /// Explicitly devoid of garbage collection or global mutexes.
     pub fn consume(&self, nonce: String, transaction_id: String, commitment: String) -> bool {
         // 1. O(1) Tombstone Rejection (Post-TTL Replay)
@@ -123,7 +123,7 @@ impl ReplayLedger {
         self.spent.len()
     }
 
-    /// Executed asynchronously by a background thread. 
+    /// Executed asynchronously by a background thread.
     /// Removes expired entries to `spent` and prunes capacity.
     pub fn run_garbage_collection(&self) {
         let now = current_timestamp();
@@ -146,13 +146,16 @@ impl ReplayLedger {
         }
 
         if archived_count > 0 {
-            self.active_count.fetch_sub(archived_count, Ordering::Relaxed);
+            self.active_count
+                .fetch_sub(archived_count, Ordering::Relaxed);
         }
 
         // 3. Enforce tombstone capacity
         if self.spent.len() > self.max_spent {
             let excess = self.spent.len() - self.max_spent;
-            let to_remove: Vec<String> = self.spent.iter()
+            let to_remove: Vec<String> = self
+                .spent
+                .iter()
                 .take(excess)
                 .map(|e| e.key().clone())
                 .collect();
@@ -169,7 +172,10 @@ pub fn create_nonce_ledger() -> NonceLedger {
 }
 
 fn current_timestamp() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
 }
 
 #[cfg(test)]
@@ -234,7 +240,11 @@ mod tests {
             h.join().unwrap();
         }
 
-        assert_eq!(success_count.load(Ordering::Relaxed), 1, "Exactly one thread must successfully consume the nonce under concurrent race");
+        assert_eq!(
+            success_count.load(Ordering::Relaxed),
+            1,
+            "Exactly one thread must successfully consume the nonce under concurrent race"
+        );
     }
 
     #[test]
@@ -256,7 +266,10 @@ mod tests {
         ledger.spent.insert(nonce.clone());
 
         // Document: re_consumed succeeds during the un-guarded removal window
-        assert!(re_consumed, "Interleaving window allows re-consumption before tombstone insert");
+        assert!(
+            re_consumed,
+            "Interleaving window allows re-consumption before tombstone insert"
+        );
         // Document: entry now exists in both entries and spent
         assert!(ledger.exists(&nonce));
     }
