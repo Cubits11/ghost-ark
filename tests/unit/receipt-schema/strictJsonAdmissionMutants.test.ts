@@ -131,14 +131,21 @@ describe("E10 survivors: the magnitude rule fires only on integers past the boun
 });
 
 describe("E10 survivors: structural scanning", () => {
-  it("requires a colon between key and value", () => {
-    // Kills the ConditionalExpression mutant at line 300.
-    expect(() => parseStrictJson('{"a" 1}')).toThrow();
+  it("requires a colon between key and value, and says so", () => {
+    // The message match is the load-bearing part, and the first version of this
+    // test did not have it. A bare `.toThrow()` passed with the line-300 check
+    // deleted, because the scanner then consumed `1` as if it were the colon and
+    // failed a token later with a different message. Mutation testing caught
+    // that: the mutant survived, which is the signal that the assertion could
+    // not tell "failed for the right reason" from "failed for some reason".
+    expect(() => parseStrictJson('{"a" 1}')).toThrow(/expected ':' after object key/u);
   });
 
-  it("requires a quoted object key", () => {
-    // Kills the BlockStatement and ConditionalExpression mutants at line 124.
-    expect(() => parseStrictJson("{a:1}")).toThrow();
+  it("requires a quoted object key, and says so", () => {
+    // Same correction. With the line-124 body removed the scanner walks past the
+    // unquoted key and eventually fails elsewhere, so only a message assertion
+    // distinguishes the two.
+    expect(() => parseStrictJson("{a:1}")).toThrow(/expected a string/u);
   });
 
   it("rejects a leading plus on a numeric literal", () => {
@@ -153,25 +160,46 @@ describe("E10 survivors: structural scanning", () => {
 });
 
 /**
- * EQUIVALENT MUTANTS — recorded, not chased.
+ * MEASURED EFFECT, and what remains.
  *
- * Killing every mutant is not achievable in principle: equivalent-mutant
- * detection is undecidable, and a target of zero survivors creates pressure to
- * write assertions that kill mutants rather than tests that catch defects. These
- * are the survivors judged to have no observable effect, with the argument:
+ * Re-running E10 over this file after adding these tests, same host and same
+ * pinned scope:
+ *
+ *   covered mutation score  81.4% (263/323)  ->  87.8% (287/327)
+ *   survivors                          60    ->  40
+ *   no-coverage                        11    ->   7
+ *
+ * Twenty-six distinct mutant signatures were newly killed, including every arm
+ * of the escape-sequence switch, the `\u` validation guard, the array-index
+ * counter, and the magnitude guard.
+ *
+ * TWO PREDICTIONS IN THE FIRST VERSION OF THIS FILE WERE WRONG, and the re-run
+ * is how that was found. The tests at lines 300 and 124 were written asserting a
+ * bare `.toThrow()`, and both mutants SURVIVED: deleting each check does not stop
+ * the parse from failing, it only makes it fail later with a different message.
+ * An assertion that cannot tell "failed for the right reason" from "failed for
+ * some reason" is not a test of that check. Both now match on the message. This
+ * is the same defect class as E4's tautological benchmarks, found in tests
+ * written specifically to close an E10 gap.
+ *
+ * EQUIVALENT MUTANTS — recorded, not chased. Killing every mutant is not
+ * achievable in principle: equivalent-mutant detection is undecidable, and a
+ * zero-survivor target creates pressure to write assertions that kill mutants
+ * rather than tests that catch defects.
  *
  *   line 168, Regex `/^[0-9a-fA-F]{4}$/u` -> `/[0-9a-fA-F]{4}$/u` and
  *   -> `/^[0-9a-fA-F]{4}/u`
  *     `hex` is `text.slice(index, index + 4)`, so it is at most four characters.
  *     For a four-character subject both anchors are redundant; for a shorter one
- *     (input truncated) the `{4}` quantifier already fails. No input can
- *     distinguish the three regexes.
+ *     the `{4}` quantifier already fails. No input can distinguish the three.
+ *     PREDICTED equivalent before the re-run; both did survive it.
  *
- *   ~26 StringLiteral mutants in violation `message` fields
- *     The messages are diagnostics. Tests assert `rule`, `path`, and `offset`,
- *     which are the machine-readable contract; pinning prose would make every
- *     wording improvement a test failure for no gain in detection.
+ *   17 StringLiteral mutants in violation `message` fields
+ *     Diagnostics. Tests assert `rule`, `path`, and `offset` — the
+ *     machine-readable contract. Pinning prose would make every wording
+ *     improvement a test failure for no gain in detection.
  *
- * This list is a claim that can be checked: re-run `npm run mutation` and any
- * mutant here that turns out to be killable is a defect in this reasoning.
+ * The remaining ~21 non-string survivors are mostly loop-bound comparisons
+ * (`index < length` -> `<=`) in the scanner. They are NOT claimed equivalent;
+ * they are unexamined, and saying so is more useful than a guess.
  */
