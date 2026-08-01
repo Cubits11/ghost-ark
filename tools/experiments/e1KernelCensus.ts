@@ -41,7 +41,7 @@
  */
 
 import { PATHOLOGY_ALPHABET, assertAlphabetWellFormed, type ConsumerIntent, type PathologyClass } from "./kernelAlphabet";
-import { buildArms, probePython, type ArmOutcome, type CanonicalizerArm } from "./canonicalizerArms";
+import { ArmUnavailableError, buildArms, probePython, type ArmOutcome, type CanonicalizerArm } from "./canonicalizerArms";
 
 export const E1_REPORT_SCHEMA_VERSION = "ghost.e1_kernel_census.v1";
 
@@ -92,7 +92,21 @@ export interface E1Report {
   /** Pairs where arms disagree — the cross-implementation divergences. */
   divergent_pathologies: string[];
   python_probe: { available: boolean; detail: string };
+  /**
+   * True when at least one declared arm could not be executed. A degraded
+   * report's aggregates are NOT comparable to a full-arm run: universality
+   * quantifies over deciding arms, so removing an arm changes the set rather
+   * than widening it.
+   */
+  degraded: boolean;
+  /** Declared arms that could not be run, with the reason each failed. */
+  excluded_arms: ExcludedArm[];
   non_claim: string;
+}
+
+export interface ExcludedArm {
+  armId: string;
+  reason: string;
 }
 
 const NON_CLAIM =
@@ -153,11 +167,60 @@ function cellFor(pathology: PathologyClass, arm: CanonicalizerArm): CellResult {
   };
 }
 
-export async function runE1Census(alphabet: readonly PathologyClass[] = PATHOLOGY_ALPHABET): Promise<E1Report> {
+export interface E1CensusOptions {
+  /**
+   * Permit the census to run with one or more declared arms missing.
+   *
+   * Default false, and the default is the point. A census run with fewer arms
+   * than declared produces a DIFFERENT `universal_unintended_kernel` set — not
+   * a noisier one, a different one — because universality quantifies over
+   * deciding arms and a missing arm silently leaves that quantifier. Measured
+   * on this repository at the time the guard was added: with `python3` present
+   * the count is 4; with `python3` unavailable it is 5. Neither run reports an
+   * error, and the two numbers are not comparable.
+   *
+   * So the choice to run degraded is the caller's to make explicitly, and the
+   * resulting report carries `degraded: true` so a reader cannot mistake it for
+   * a full-arm census.
+   */
+  allowDegradedArms?: boolean;
+}
+
+export async function runE1Census(
+  alphabet: readonly PathologyClass[] = PATHOLOGY_ALPHABET,
+  options: E1CensusOptions = {}
+): Promise<E1Report> {
   assertAlphabetWellFormed(alphabet);
 
-  const arms = await buildArms();
+  const declaredArms = await buildArms();
   const cells: CellResult[] = [];
+  const excludedArms: ExcludedArm[] = [];
+
+  const arms = declaredArms.filter((arm) => {
+    // Probe each arm once on a trivial input before committing the whole
+    // alphabet to it, so an unrunnable arm is detected as an arm-level fact
+    // rather than as 31 identical per-cell failures.
+    try {
+      arm.run("{}");
+      return true;
+    } catch (error) {
+      if (error instanceof ArmUnavailableError) {
+        excludedArms.push({ armId: arm.id, reason: error.message });
+        return false;
+      }
+      throw error;
+    }
+  });
+
+  if (excludedArms.length > 0 && options.allowDegradedArms !== true) {
+    throw new Error(
+      `ghost_ark.e1: ${excludedArms.length} of ${declaredArms.length} declared arms could not be executed ` +
+        `(${excludedArms.map((arm) => arm.armId).join(", ")}). Refusing to emit a census, because dropping an arm ` +
+        "changes universal_unintended_kernel rather than merely widening it. Install the missing dependency, or " +
+        "pass { allowDegradedArms: true } to get an explicitly degraded report. Detail: " +
+        excludedArms.map((arm) => arm.reason).join(" | ")
+    );
+  }
 
   for (const pathology of alphabet) {
     for (const arm of arms) {
@@ -216,6 +279,8 @@ export async function runE1Census(alphabet: readonly PathologyClass[] = PATHOLOG
     universal_unintended_kernel: universal,
     divergent_pathologies: divergent,
     python_probe: probePython(),
+    degraded: excludedArms.length > 0,
+    excluded_arms: excludedArms,
     non_claim: NON_CLAIM
   };
 }
@@ -234,6 +299,15 @@ async function main(): Promise<void> {
   lines.push(`E1 provenance kernel census (${report.schema_version})`);
   lines.push(`alphabet: ${report.alphabet_size} pathology classes | provenance: ${report.sample_provenance} (no confidence intervals)`);
   lines.push(`python arm: ${report.python_probe.available ? report.python_probe.detail : `UNAVAILABLE (${report.python_probe.detail})`}`);
+  if (report.degraded) {
+    lines.push("");
+    lines.push("*** DEGRADED CENSUS — NOT COMPARABLE TO A FULL-ARM RUN ***");
+    for (const arm of report.excluded_arms) {
+      lines.push(`  excluded arm: ${arm.armId} — ${arm.reason}`);
+    }
+    lines.push("  universal_unintended_kernel quantifies over deciding arms. Removing an arm changes that set,");
+    lines.push("  it does not merely widen it. Do not quote these counts against a full-arm baseline.");
+  }
   lines.push("");
   lines.push("arm                              indep-parser  sound  UNINTENDED-KERNEL  over-discrim  fail-closed  sound-by-rej  rej-asym");
   for (const arm of report.arms) {

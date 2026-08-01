@@ -53,6 +53,14 @@ const skippedDirectories = new Set([
   // verdict depend on local run state instead of the committed tree.
   "artifacts",
   ".cache",
+  // Stryker's mutation sandbox (experiment E10) is a full copy of the working
+  // tree. Without this entry the gate scans every file twice: once at its real
+  // path, where the allowlist applies, and once at
+  // `.stryker-tmp/sandbox-*/<path>`, where it does not. Measured while adding
+  // E10: a clean tree reported 280 violations, all of them sandbox duplicates
+  // of allowlisted files. Same rationale as `artifacts` — the gate's verdict
+  // must describe the committed tree, not whatever a tool left on disk.
+  ".stryker-tmp",
 ]);
 
 const skippedFiles = new Set([

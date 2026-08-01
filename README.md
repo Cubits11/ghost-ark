@@ -94,13 +94,15 @@ graph TD
 
 - **What is the contribution, and what would refute it?** → [docs/research/00_THESIS.md](./docs/research/00_THESIS.md) (one page)
 - **Reviewing this adversarially?** → [Reviewer Attack Sheet](./docs/artifact/REVIEWER_ATTACK_SHEET.md) — the ten sharpest questions against this work, answered with commands, including the unflattering ones
-- **Which of the 39 research documents matter?** → [RESEARCH_INDEX.json](./docs/research/RESEARCH_INDEX.json) classifies every one as core / supporting / exploratory / process / non-research. Six are core.
+- **Which of the 41 research documents matter?** → [RESEARCH_INDEX.json](./docs/research/RESEARCH_INDEX.json) classifies every one as core / supporting / exploratory / process / non-research. Six are core; 23 supporting, 5 exploratory, 5 process, 2 non-research.
 - **What does CI actually verify, and what can rot?** → [CI_COVERAGE.md](./docs/artifact/CI_COVERAGE.md)
 - New to the terminology (spine, evidence class, governed invoke)? → [Glossary](./docs/GLOSSARY.md)
 - Who are the adversaries and what holds at each boundary? → [Threat Model](./docs/security/THREAT_MODEL.md)
 - Want the formal models and their logs? → `proofs/tla/` (tenant isolation, speculative collapse, transport boundary — each with a mutant showing the property is load-bearing), `proofs/dab/artifacts/` (nonce-ledger TLC logs), `proofs/cloud/`
 - Fastest hands-on path (zero AWS credentials): `./scripts/bootstrap-local.sh` then `./scripts/run-local-demo.sh`
 - Reviewing this as an artifact? → [README-AE.md](./README-AE.md) and [ARTIFACT_EVALUATION.md](./ARTIFACT_EVALUATION.md)
+- **About to contribute?** → [CONTRIBUTING.md](./CONTRIBUTING.md) — the invariants that must not be weakened, the empirical reporting rules, and the maturity tiers every claim must carry. Read it before your first pull request.
+- Citing this? → [CITATION.cff](./CITATION.cff)
 
 ---
 

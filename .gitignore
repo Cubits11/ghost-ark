@@ -17,6 +17,11 @@ tmp/
 # Anchored to repo root so the tracked proofs/**/artifacts/ TLC logs are kept.
 /artifacts/
 /.cache/
+
+# Stryker's mutation sandbox (experiment E10). This is a COMPLETE copy of the
+# working tree, so leaving it untracked-but-unignored means a stray `git add -A`
+# commits the entire repository a second time.
+/.stryker-tmp/
 docs/dissertation/.build/
 docs/dissertation/ghost-ark-usenix.tex
 docs/dissertation/ghost-ark-usenix.pdf

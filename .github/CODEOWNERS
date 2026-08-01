@@ -1,0 +1,58 @@
+# Ghost-Ark code ownership.
+#
+# The point of this file is narrow: the receipt trust kernel and the mechanisms
+# that keep the repository's claims honest should not be modifiable without a
+# review from someone who knows why each line is the way it is. Everything else
+# is deliberately unowned so that ordinary contribution stays cheap.
+#
+# GitHub applies the LAST matching pattern, so the order below is significant.
+
+# Default: no required owner. Ordinary changes do not need a gatekeeper.
+
+# ---------------------------------------------------------------------------
+# Receipt trust kernel — a defect here lets a receipt verify that should not,
+# or fails one that should. This is the set measured by experiment E10; keep it
+# in sync with tools/experiments/mutationScope.ts.
+# ---------------------------------------------------------------------------
+/packages/receipt-schema/src/hashCanonicalization.ts   @Cubits11
+/packages/receipt-schema/src/strictJsonAdmission.ts    @Cubits11
+/packages/enforcement-runtime/src/receipts/            @Cubits11
+
+# Runtime enforcement, retrieval, and vault paths: fail-closed behavior and
+# tenant isolation live here.
+/packages/enforcement-runtime/src/runtime/             @Cubits11
+/packages/enforcement-runtime/src/retrieval/           @Cubits11
+/packages/enforcement-runtime/src/vault/               @Cubits11
+
+# ---------------------------------------------------------------------------
+# Honesty mechanisms. These are the things that would let the repository
+# overclaim if quietly relaxed, so they are owned even though they are tooling.
+# ---------------------------------------------------------------------------
+/tools/research/check-forbidden-claims.mjs             @Cubits11
+/tools/assumptions/                                    @Cubits11
+/tools/experiments/                                    @Cubits11
+/stryker.config.json                                   @Cubits11
+/vitest.mutation.config.ts                             @Cubits11
+
+# Negative-path and boundary tests. Deleting a test is an easy way to turn a
+# failing invariant into a passing build.
+/tests/security/                                       @Cubits11
+/tests/differential/                                   @Cubits11
+/tests/unit/experiments/                               @Cubits11
+
+# ---------------------------------------------------------------------------
+# Claim surfaces and the contributor contract.
+# ---------------------------------------------------------------------------
+/README.md                                             @Cubits11
+/CONTRIBUTING.md                                       @Cubits11
+/CLAUDE.md                                             @Cubits11
+/CITATION.cff                                          @Cubits11
+/SECURITY.md                                           @Cubits11
+/docs/governance/                                      @Cubits11
+/docs/compliance/                                      @Cubits11
+/docs/research/EXPERIMENTS.md                          @Cubits11
+/docs/research/00_THESIS.md                            @Cubits11
+
+# Infrastructure that encodes security posture.
+/infra/cdk/lib/api-stack.ts                            @Cubits11
+/.github/workflows/                                    @Cubits11

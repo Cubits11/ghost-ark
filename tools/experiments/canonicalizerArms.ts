@@ -67,6 +67,67 @@ function naiveSortedStringify(value: unknown): string {
 }
 
 /**
+ * Raised when the Python arm cannot be *run*, as distinct from the Python arm
+ * *deciding* to reject an input.
+ *
+ * The distinction is load-bearing and was previously lost. `runPythonArm` used
+ * to return `rejected("python3 unavailable: ...")` when the interpreter was
+ * missing, which put an infrastructure failure into the same channel as a
+ * measurement: every pathology became a `rejected-both` cell, the arm scored
+ * `fail-closed` on all 31 classes, and E1's headline
+ * `universal_unintended_kernel` count moved from 4 to 5 — because a
+ * uniformly-fail-closed arm stops being a *deciding* arm and silently drops out
+ * of the unanimity test. Nothing failed; the number just changed.
+ *
+ * A missing interpreter is not evidence about JSON identity. It is the absence
+ * of evidence, and it must travel as an exception so callers are forced to
+ * decide what to do rather than quietly folding it into a verdict.
+ */
+export class ArmUnavailableError extends Error {
+  readonly armId: string;
+
+  constructor(armId: string, detail: string) {
+    super(`ghost_ark.e1: arm "${armId}" could not be executed: ${detail}`);
+    this.name = "ArmUnavailableError";
+    this.armId = armId;
+  }
+}
+
+/**
+ * Spawn failures that are properties of the machine at this instant rather than
+ * of the machine's configuration. Retrying these is legitimate; retrying a
+ * genuine "python3 is not installed" would just be slow.
+ */
+const TRANSIENT_SPAWN_CODES = new Set(["ETIMEDOUT", "EAGAIN", "EBUSY", "EMFILE", "ENFILE", "ENOMEM"]);
+
+function isTransientSpawnFailure(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" && TRANSIENT_SPAWN_CODES.has(code);
+}
+
+/**
+ * Runs `execFileSync`, retrying once on a transient spawn failure.
+ *
+ * Under a parallel vitest run the machine can be oversubscribed enough that
+ * spawning `python3` exceeds its timeout even though the interpreter is present
+ * and healthy. That surfaced as a nondeterministically red suite
+ * (`spawnSync python3 ETIMEDOUT` thrown straight out of the census), which is
+ * the same class of defect as the CDK-synth timeout recorded in CLAUDE.md.
+ * One retry is enough because the contention is bursty; a retry loop would just
+ * convert a fast failure into a slow one.
+ */
+function execWithOneRetry(file: string, args: string[], options: Parameters<typeof execFileSync>[2]): string {
+  try {
+    return execFileSync(file, args, options) as unknown as string;
+  } catch (error) {
+    if (!isTransientSpawnFailure(error)) {
+      throw error;
+    }
+    return execFileSync(file, args, options) as unknown as string;
+  }
+}
+
+/**
  * Lazily-resolved availability of the Python arm. Absent Python is reported as an
  * explicit skip in the E1 report rather than silently dropping the arm, because a
  * quietly-missing arm would inflate cross-implementation agreement.
@@ -78,12 +139,17 @@ export function probePython(): { available: boolean; detail: string } {
     return pythonProbe;
   }
   try {
-    const version = execFileSync("python3", ["--version"], { encoding: "utf8", timeout: 10_000 }).trim();
+    const version = execWithOneRetry("python3", ["--version"], { encoding: "utf8", timeout: 10_000 }).trim();
     pythonProbe = { available: true, detail: version };
   } catch (error) {
     pythonProbe = { available: false, detail: error instanceof Error ? error.message : String(error) };
   }
   return pythonProbe;
+}
+
+/** Test seam: forget a cached probe so a test can observe both environments. */
+export function resetPythonProbeForTesting(): void {
+  pythonProbe = null;
 }
 
 /**
@@ -118,13 +184,21 @@ const PYTHON_PROGRAM = [
 function runPythonArm(rawJson: string): ArmOutcome {
   const probe = probePython();
   if (!probe.available) {
-    return rejected(`python3 unavailable: ${probe.detail}`);
+    // Deliberately an exception, not `rejected(...)`. See ArmUnavailableError.
+    throw new ArmUnavailableError("python-json-sorted", `python3 unavailable: ${probe.detail}`);
   }
-  const stdout = execFileSync("python3", ["-c", PYTHON_PROGRAM], {
-    input: rawJson,
-    encoding: "utf8",
-    timeout: 30_000
-  });
+  let stdout: string;
+  try {
+    stdout = execWithOneRetry("python3", ["-c", PYTHON_PROGRAM], {
+      input: rawJson,
+      encoding: "utf8",
+      timeout: 30_000
+    });
+  } catch (error) {
+    // A spawn that failed twice is an unrunnable arm, not a rejected input. The
+    // previous code let this escape as a raw ETIMEDOUT and abort the census.
+    throw new ArmUnavailableError("python-json-sorted", error instanceof Error ? error.message : String(error));
+  }
   const parsed = JSON.parse(stdout) as { status: string; reason?: string; digest?: string; canonicalForm?: string };
   if (parsed.status === "rejected") {
     return rejected(parsed.reason ?? "python arm rejected without a reason");

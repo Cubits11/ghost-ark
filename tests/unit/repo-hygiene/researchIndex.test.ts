@@ -79,4 +79,26 @@ describe("docs/research classification is complete and honest", () => {
     expect(byFile.get("00_THESIS.md")).toBe("core");
     expect(byFile.get("EXPERIMENTS.md")).toBe("core");
   });
+
+  it("keeps the README's stated document count equal to the index", () => {
+    // The index itself was already gated: every research document must be
+    // classified, and that check has held. The README's PROSE count was not, and
+    // it drifted to "39 research documents" while the index held 41 — a number a
+    // reviewer can falsify with `ls`, in the reading map, which is the first
+    // thing they open.
+    //
+    // A count stated in two places needs the two places tied together, not a
+    // resolution to be careful.
+    const readme = readFileSync(resolve(REPO_ROOT, "README.md"), "utf8");
+    const stated = readme.match(/Which of the (\d+) research documents matter\?/u);
+    expect(stated, "README reading map must state the research document count").not.toBeNull();
+    expect(Number((stated as RegExpMatchArray)[1])).toBe(index.documents.length);
+  });
+
+  it("keeps the README's stated core count equal to the index", () => {
+    const readme = readFileSync(resolve(REPO_ROOT, "README.md"), "utf8");
+    const core = index.documents.filter((document) => document.tier === "core").length;
+    const words = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight"];
+    expect(readme).toContain(`${words[core]} are core`);
+  });
 });
