@@ -30,7 +30,7 @@ hex = "0.4"
 base64 = "0.22"
 
 # Receipt Authentication
-ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+ed25519-dalek = { version = "3.0", features = ["rand_core"] }
 rand = "0.8"
 
 # HTTP Execution Boundary
