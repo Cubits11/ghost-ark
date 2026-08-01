@@ -31,8 +31,7 @@ pub const POLICY_DESCRIPTOR: &str =
 /// Deterministic DEV seed used when `DAB_GATEWAY_DEV_SEED_HEX` is unset. DEV
 /// ONLY — a fixed seed keeps locally reproduced round-trip artifacts stable. A
 /// real deployment supplies key material out of band and never compiles a seed.
-const DEV_SEED_HEX: &str =
-    "0000000000000000000000000000000000000000000000000000000000000001";
+const DEV_SEED_HEX: &str = "0000000000000000000000000000000000000000000000000000000000000001";
 
 /// SHA-256 policy digest, formatted `sha256:<hex>`.
 pub fn policy_digest() -> String {
@@ -68,8 +67,8 @@ impl GatewaySigner {
     /// Load the DEV signing key from `DAB_GATEWAY_DEV_SEED_HEX` (64 hex chars)
     /// or fall back to the compiled DEV seed. DEV ONLY.
     pub fn from_dev_env() -> Result<Self, String> {
-        let seed_hex = std::env::var("DAB_GATEWAY_DEV_SEED_HEX")
-            .unwrap_or_else(|_| DEV_SEED_HEX.to_string());
+        let seed_hex =
+            std::env::var("DAB_GATEWAY_DEV_SEED_HEX").unwrap_or_else(|_| DEV_SEED_HEX.to_string());
         let seed_bytes = hex::decode(seed_hex.trim())
             .map_err(|_| "DAB_GATEWAY_DEV_SEED_HEX is not valid hex".to_string())?;
         let seed: [u8; 32] = seed_bytes

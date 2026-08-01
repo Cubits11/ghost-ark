@@ -2,7 +2,7 @@
 //
 // CLAIM BOUNDARY: This is the theoretical entry point for hardware-anchored intent verification.
 // It enforces the provenance lattice within encrypted memory of a TEE (Nitro Enclaves/Intel TDX).
-// 
+//
 // No maturity annotation: Architectural draft, migrating toward physical execution.
 
 #[cfg(target_os = "linux")]
@@ -126,11 +126,11 @@ impl SiliconAnchor {
         // 3. V100 Sinkhole Physics + STARK Constraint Check
         let f_req = intent.requires_gateway_floor() as u64;
         let b_prov = intent.has_agent_asserted_bytes() as u64;
-        
+
         let c_sinkhole = c_sinkhole_goldilocks!(f_req, b_prov);
 
         if c_sinkhole == 1 {
-            // THERMODYNAMIC OVERSIGHT CORRECTED: 
+            // THERMODYNAMIC OVERSIGHT CORRECTED:
             // Returning the error drops `intent` out of scope, triggering the Drop trait.
             // The `Zeroize` macro mathematically zeros out the `payload_buffer` (G(sigma0)),
             // explicitly dissipating Joule energy to erase the epistemic entropy of the

@@ -7,6 +7,6 @@
 #![allow(clippy::empty_line_after_doc_comments)]
 
 pub mod nonce;
-pub mod signing;
 pub mod phase1;
+pub mod signing;
 pub mod v200;

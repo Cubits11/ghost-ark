@@ -1,6 +1,6 @@
+use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
-use dashmap::DashMap;
 
 #[derive(Debug, Default)]
 pub struct VectorClock {
@@ -50,9 +50,14 @@ impl MvccEngine {
         (snap, self.state.clock.clone())
     }
 
-    pub fn commit(&self, agent_id: &str, read_clock: &VectorClock, write_intent: &HashMap<String, String>) -> Result<(), String> {
+    pub fn commit(
+        &self,
+        agent_id: &str,
+        read_clock: &VectorClock,
+        write_intent: &HashMap<String, String>,
+    ) -> Result<(), String> {
         let mut conflict = false;
-        
+
         // Check vector clock for concurrent interference
         for kv in self.state.clock.clocks.iter() {
             let id = kv.key();
@@ -83,7 +88,10 @@ impl MvccEngine {
         }
 
         // Atomic clock increment
-        self.state.clock.clocks.entry(agent_id.to_string())
+        self.state
+            .clock
+            .clocks
+            .entry(agent_id.to_string())
             .and_modify(|tick| *tick += 1)
             .or_insert(1);
 
@@ -119,13 +127,13 @@ impl LedgerNode {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::time::Instant;
-    use std::thread;
     use std::sync::mpsc::channel;
+    use std::thread;
+    use std::time::Instant;
 
     // Step 2: CPU-bound mathematical delay (simulating 45ms ZK SNARK verification)
     fn simulate_crypto_tax() {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hash = Sha256::digest(b"ghost-ark-init");
         // Tune this loop to roughly hit 45ms depending on the CPU
         // We use 50,000 iterations to guarantee a measurable tax
@@ -133,7 +141,7 @@ mod tests {
             hash = Sha256::digest(hash);
         }
         // Force the optimizer not to throw away the hash
-        let _val = hash[0]; 
+        let _val = hash[0];
     }
 
     #[test]
@@ -144,24 +152,24 @@ mod tests {
         let num_threads = 100;
         let ops_per_thread = 500;
         let total_ops = num_threads * ops_per_thread;
-        
+
         let mut handles = vec![];
-        
-        // Pre-warm the threads and use a barrier if we wanted strict start, 
+
+        // Pre-warm the threads and use a barrier if we wanted strict start,
         // but just running them is fine.
         let start = Instant::now();
-        
+
         for i in 0..num_threads {
             let engine_clone = Arc::clone(&engine);
             let success_clone = Arc::clone(&success_count);
             let conflict_clone = Arc::clone(&conflict_count);
-            
+
             handles.push(thread::spawn(move || {
                 let agent_id = format!("agent-{}", i);
-                
+
                 for j in 0..ops_per_thread {
                     let (_, read_clock) = engine_clone.read_snapshot();
-                    
+
                     let mut intent = HashMap::new();
                     // Introduce artificial collisions
                     if (i + j) % 5 == 0 {
@@ -171,8 +179,12 @@ mod tests {
                     }
 
                     match engine_clone.commit(&agent_id, &read_clock, &intent) {
-                        Ok(_) => { success_clone.fetch_add(1, Ordering::SeqCst); }
-                        Err(_) => { conflict_clone.fetch_add(1, Ordering::SeqCst); }
+                        Ok(_) => {
+                            success_clone.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Err(_) => {
+                            conflict_clone.fetch_add(1, Ordering::SeqCst);
+                        }
                     }
                 }
             }));
@@ -181,20 +193,23 @@ mod tests {
         for handle in handles {
             handle.join().unwrap();
         }
-        
+
         let elapsed = start.elapsed();
         let s = success_count.load(Ordering::SeqCst);
         let c = conflict_count.load(Ordering::SeqCst);
-        
+
         println!("\n=== Step 1: DashMap MVCC Concurrency Benchmark ===");
         println!("Threads: {} ({} ops each)", num_threads, ops_per_thread);
         println!("Total Ops: {}", total_ops);
         println!("Elapsed Time: {:?}", elapsed);
         println!("Successful Commits: {}", s);
         println!("Starved (Conflicts): {}", c);
-        println!("Throughput: {:.2} ops/sec", (total_ops as f64 / elapsed.as_secs_f64()));
+        println!(
+            "Throughput: {:.2} ops/sec",
+            (total_ops as f64 / elapsed.as_secs_f64())
+        );
         println!("==================================================\n");
-        
+
         assert!(c > 0);
     }
 
@@ -202,18 +217,18 @@ mod tests {
     fn step2_cryptographic_tax_benchmark() {
         println!("\n=== Step 2: Cryptographic Tax Benchmark ===");
         let start = Instant::now();
-        
+
         // We simulate verifying 10 sequential SNARK proofs
         for _ in 0..10 {
             simulate_crypto_tax();
         }
-        
+
         let elapsed = start.elapsed();
         let avg_tax = elapsed.as_millis() / 10;
         println!("Total time for 10 sequential ZK checks: {:?}", elapsed);
         println!("Average simulated SNARK tax: {} ms", avg_tax);
         println!("===========================================\n");
-        
+
         // Just prove it ran
         assert!(elapsed.as_millis() > 0);
     }
@@ -252,7 +267,7 @@ mod tests {
         for i in 0..num_receipts {
             let k = format!("tombstone-{}", i);
             let v = format!("hash-{}", i);
-            
+
             // Replicate to all nodes
             tx1.send((k.clone(), v.clone())).unwrap();
             tx2.send((k.clone(), v.clone())).unwrap();
@@ -275,7 +290,10 @@ mod tests {
         println!("Node 2 synced: {}", count2);
         println!("Node 3 synced: {}", count3);
         println!("Total Propagation Time: {:?}", elapsed);
-        println!("Throughput: {:.2} messages/sec per node", (num_receipts as f64 / elapsed.as_secs_f64()));
+        println!(
+            "Throughput: {:.2} messages/sec per node",
+            (num_receipts as f64 / elapsed.as_secs_f64())
+        );
         println!("===============================================================\n");
 
         assert_eq!(count1, num_receipts);

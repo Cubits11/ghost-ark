@@ -121,10 +121,7 @@ fn main() {
         "Phase A (within capacity): {accepted_a}/{attempted_a} accepted in {:.3?} -> {:.0} ops/sec (admission + real ed25519 sign)",
         dur_a, ops_sec_a
     );
-    println!(
-        "Top-up to capacity: +{topped} (active = {})",
-        ledger.size()
-    );
+    println!("Top-up to capacity: +{topped} (active = {})", ledger.size());
     println!(
         "Phase B (fail-closed at capacity): {accepted_b}/{attempted_b} accepted in {:.3?} -> {:.0} rejections/sec",
         dur_b, rej_sec_b
@@ -134,7 +131,10 @@ fn main() {
     // Two-sided oracle: a harness that cannot fail cannot be trusted.
     let mut ok = true;
     if accepted_a != attempted_a {
-        println!("FAIL: Phase A rejected {} in-capacity ops", attempted_a - accepted_a);
+        println!(
+            "FAIL: Phase A rejected {} in-capacity ops",
+            attempted_a - accepted_a
+        );
         ok = false;
     }
     if accepted_b != 0 {

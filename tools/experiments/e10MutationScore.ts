@@ -124,7 +124,20 @@ export interface E10Report {
     node_version: string;
   };
   scope: {
-    mutated_files: number;
+    /** Files the pre-registration declares. */
+    declared_files: number;
+    /**
+     * Files this report actually contains results for.
+     *
+     * These differ whenever a run is narrowed with `--mutate`, and the
+     * difference must be visible: a summary that prints the DECLARED count
+     * beside a score computed over a SUBSET states a denominator it did not
+     * measure. The first E10 run did exactly that — it printed "10 mutated
+     * files" over a score computed from one.
+     */
+    measured_files: number;
+    /** Declared files with no results in this report. */
+    unmeasured_files: string[];
     test_files_in_scope: number;
   };
   totals: {
@@ -282,7 +295,11 @@ export function summarizeStrykerReport(report: StrykerReport): E10Report {
       node_version: process.version
     },
     scope: {
-      mutated_files: MUTATION_TEST_SCOPE.kernelFiles.length,
+      declared_files: MUTATION_TEST_SCOPE.kernelFiles.length,
+      measured_files: perFile.length,
+      unmeasured_files: MUTATION_TEST_SCOPE.kernelFiles.filter(
+        (declared) => !perFile.some((entry) => entry.file === declared)
+      ),
       test_files_in_scope: MUTATION_TEST_SCOPE.testFiles.length
     },
     totals: {
@@ -329,9 +346,17 @@ function main(): void {
       `${report.host.total_memory_gb} GB, node ${report.host.node_version}`
   );
   lines.push(
-    `scope: ${report.scope.mutated_files} mutated files | ${report.scope.test_files_in_scope} test files | ` +
-      `provenance: ${report.sample_provenance} (no confidence intervals)`
+    `scope: ${report.scope.measured_files} of ${report.scope.declared_files} declared files MEASURED | ` +
+      `${report.scope.test_files_in_scope} test files | provenance: ${report.sample_provenance} (no confidence intervals)`
   );
+  if (report.scope.unmeasured_files.length > 0) {
+    lines.push("");
+    lines.push(`*** PARTIAL RUN — ${report.scope.unmeasured_files.length} declared file(s) NOT measured ***`);
+    for (const file of report.scope.unmeasured_files) {
+      lines.push(`  unmeasured: ${file}`);
+    }
+    lines.push("  The score below describes the measured subset only. It is not an E10 result for the trust kernel.");
+  }
   lines.push("");
   lines.push(
     `evaluated ${report.totals.evaluated} | killed ${report.totals.killed} | SURVIVED ${report.totals.survived} | ` +
