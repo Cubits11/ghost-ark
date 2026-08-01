@@ -59,7 +59,7 @@ jobs:
 
       - name: Upload artifacts (reports, benchmarks, proof logs)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aec-artifacts
           path: |

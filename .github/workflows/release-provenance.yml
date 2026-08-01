@@ -41,7 +41,7 @@ jobs:
         run: cosign sign-blob --yes --bundle artifacts/release-manifest.sigstore.json artifacts/release-manifest.sha256
       - name: Sign SBOM
         run: cosign sign-blob --yes --bundle artifacts/sbom.sigstore.json artifacts/sbom.spdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ghost-ark-provenance-${{ github.sha }}
           path: artifacts/
