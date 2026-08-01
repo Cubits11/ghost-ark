@@ -1,3 +1,35 @@
+// QUARANTINED — NOT COMPILED, NOT LOADED, NOT LOAD-BEARING.
+//
+// This file was `dab/gateway/src/v200.rs` and was part of the gateway library
+// via `pub mod v200;`. It is quarantined here because every claim it makes is
+// unsupported by the code beneath it:
+//
+//   * It never compiled on Linux, its only target platform. The NSM call used
+//     `Request::DescribePCRs` / `Response::DescribePCRs`, a bulk API that does
+//     not exist in aws-nitro-enclaves-nsm-api. The real API is
+//     `DescribePCR { index }`, one register per call. The Linux branch is
+//     `#[cfg(target_os = "linux")]`, so macOS never compiled it and CI, which
+//     did, failed with E0599 on every run.
+//
+//   * Off-Linux it returned a FABRICATED PASS. `fetch_local_pcrs` returned
+//     EXPECTED_GHOST_ARK_V200_HASH, the exact value `verify_and_merge_intent`
+//     compares against, so the attestation check passed unconditionally on the
+//     development host while the real path could not build.
+//
+//   * The "pristine hash" is the ASCII string `v200-pristine-hash-placeholder`,
+//     and `DummyLwwMap::apply` returns `"sha256:merged-state-root-placeholder"`.
+//     A placeholder labelled as a digest is the defect this repository already
+//     retracted once, in `"ci": "sha256:A"` under "Raw Benchmark Output".
+//
+//   * `CrdtIntent::deserialize` ignores its payload and returns fixed `true`
+//     values, so the constraint check downstream decides nothing.
+//
+// It has no tests and no callers. Restoring it to the build requires a real
+// per-index DescribePCR implementation, a mock that FAILS CLOSED rather than
+// returning the expected measurement, a real measurement to compare against,
+// and evidence from actual NSM hardware. Until then this repository does not
+// claim Nitro Enclave or PCR-bound execution integrity.
+//
 // GHOST-ARK V200+ SILICON DESCENT
 //
 // CLAIM BOUNDARY: This is the theoretical entry point for hardware-anchored intent verification.
