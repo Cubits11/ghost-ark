@@ -31,8 +31,36 @@ mkdir -p "$ARTIFACT_DIR"
 SUMMARY="$ARTIFACT_DIR/proofs_summary.json"
 
 # Pinned tla2tools release. sha256 recorded so a substituted jar is detected.
+#
+# PIN HISTORY — read before changing this value.
+#
+# The previous pin, 58d44845a37a8d776deaf8cf3a623213b59d311bc0ec287bcdfbe148dd11bb3d,
+# was recorded 2026-07-15 (commit c9b9c19) and never matched any obtainable
+# artifact. It was not upstream drift:
+#
+#   * TLA+ v1.8.0 was first published 2026-07-31T18:55:53Z -- SIXTEEN DAYS AFTER
+#     the pin was recorded. On 2026-07-15 the latest release was v1.7.4
+#     (2024-08-05), so the pinned URL returned 404 and the recorded digest can
+#     never have been computed from it.
+#   * It matches neither the current v1.8.0 asset (e22f8ffb...), nor v1.7.4
+#     (936a2620...), nor the untracked jar at the repository root (cc4803dc...).
+#
+# So this was a digest pinned to a version that did not exist: a value that looks
+# like verification and performs none. The consequence is that the proof stage of
+# `make reproduce` has failed closed since 2026-07-15 and has never once checked
+# a TLA+ specification, while `tools/proofs/run-tlc.sh` -- which downloads the
+# same jar with NO hash check -- ran and reported green.
+#
+# The value below IS verified: it is the sha256 of the asset served by the
+# official tlaplus/tlaplus release for tag v1.8.0, fetched 2026-08-01. That is
+# trust-on-first-use against the upstream project, which is the honest ceiling
+# here; there is no independent publication of this artifact to cross-check
+# against (Maven Central has no org.lamport:tla2tools:1.8.0).
+#
+# To update: fetch the asset, record its digest AND the date, and say why the
+# pin moved. Never copy a digest you have not computed from a file you hold.
 TLA_TOOLS_VERSION="v1.8.0"
-TLA_TOOLS_SHA256="58d44845a37a8d776deaf8cf3a623213b59d311bc0ec287bcdfbe148dd11bb3d"
+TLA_TOOLS_SHA256="e22f8ffb4bacdea0a871f444dd94fe5fb0d8013b3388ae39e82e26f852c735d5"
 TLA_TOOLS_URL="https://github.com/tlaplus/tlaplus/releases/download/${TLA_TOOLS_VERSION}/tla2tools.jar"
 JAR="${TLA_TOOLS_JAR:-$ROOT/.cache/tla/tla2tools.jar}"
 

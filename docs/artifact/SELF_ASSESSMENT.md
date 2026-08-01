@@ -121,13 +121,17 @@ and the sophistication of everything above it does not compensate.
 
 What would move this to 8:
 
-1. Answer the `tla2tools.jar` hash question. Three hashes are in play — the pin
-   (`58d44845…`), what the v1.8.0 URL now serves (`e22f8ffb…`), and the
-   untracked jar at root (`cc4803dc…`). Deliberately not re-pinned to the
-   observed value, because that converts an integrity check into a rubber stamp.
-   Until it is answered, the TLA+ results CI reports as green come from an
-   **unverified** download, since `artifacts-verify` fetches the jar with no
-   hash check at all.
+1. ~~Answer the `tla2tools.jar` hash question.~~ **Answered, and the answer was
+   worse than upstream drift.** The pin `58d44845…` was recorded 2026-07-15 for
+   a release first published 2026-07-31 — the URL 404'd on the day it was
+   pinned, so the digest can never have been computed from it, and it matches no
+   artifact obtainable today. The proof stage of `make reproduce` therefore
+   checked **zero** specifications for sixteen days while `tools/proofs/run-tlc.sh`
+   fetched the same jar with no integrity check and reported green. Both runners
+   now verify one digest, computed from the file actually downloaded, read from a
+   single source. The remaining limitation is honest and stated: it is
+   trust-on-first-use against upstream, because no independent publication of
+   this artifact exists to cross-check.
 2. Complete E10 over all ten declared files and work the survivor list down.
 3. A real-traffic corpus — falsifier F2, still the largest open weakness.
 4. A third-party reimplementation of the verifier. All three current verifiers

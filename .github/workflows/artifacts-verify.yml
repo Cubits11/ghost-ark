@@ -103,10 +103,27 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: fetch tla2tools
+      # This job used to fetch the jar with a bare curl and no integrity check,
+      # so it ran TLA+ against whatever the URL served while the PINNED path in
+      # scripts/run-proofs.sh refused to run at all. The green TLA+ result this
+      # repository reported therefore came from an unverified toolchain.
+      #
+      # The digest is read from scripts/run-proofs.sh rather than duplicated, so
+      # the two runners cannot drift to different pins.
+      - name: fetch tla2tools (integrity-checked against the recorded pin)
         run: |
+          set -euo pipefail
+          expected=$(grep -oE '^TLA_TOOLS_SHA256="[0-9a-f]{64}"' scripts/run-proofs.sh | cut -d'"' -f2)
+          version=$(grep -oE '^TLA_TOOLS_VERSION="[^"]+"' scripts/run-proofs.sh | cut -d'"' -f2)
+          test -n "$expected" && test -n "$version"
           curl -fsSL -o tla2tools.jar \
-            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+            "https://github.com/tlaplus/tlaplus/releases/download/${version}/tla2tools.jar"
+          actual=$(sha256sum tla2tools.jar | awk '{print $1}')
+          if [ "$actual" != "$expected" ]; then
+            echo "tla2tools.jar sha256 $actual != pinned $expected" >&2
+            exit 1
+          fi
+          echo "tla2tools ${version} verified: ${actual}"
       # A specification that passes proves nothing on its own — an invariant can hold
       # vacuously. Each spec is paired with a mutant that MUST produce a violation. This
       # job asserts both directions, which is what makes the invariants load-bearing.
