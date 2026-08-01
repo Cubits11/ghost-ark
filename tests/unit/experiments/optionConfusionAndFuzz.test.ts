@@ -134,11 +134,35 @@ describe("E7 cross-language differential fuzz", () => {
       return;
     }
 
-    // E1 found this with a hand-picked pair. E7 finds it by random search, and names V8 as the
-    // outlier against TWO independent implementations rather than one.
+    // E1 found this with a hand-picked pair. E7 finds it by random search. That much is
+    // version-independent and is asserted unconditionally.
     expect(integerClass, "E7 did not rediscover the integer-precision divergence").toBeDefined();
-    expect(integerClass?.outlier).toBe("v8");
-    expect(integerClass?.behavior).toBe("identifies-both-as-same");
+
+    // WHICH arm is the outlier is NOT version-independent, and pretending otherwise made this
+    // test pass on the development host and fail on CI.
+    //
+    // jq 1.7 preserves large integer literals; jq 1.6 converts them to a double first, so
+    // 9007199254740993 becomes ...992 exactly as it does under V8. On jq >= 1.7 two arms
+    // distinguish the pair and V8 is the lone outlier. On jq 1.6 two arms COLLAPSE it and
+    // CPython is the lone outlier. Same experiment, same code, opposite attribution — decided
+    // by whatever `apt-get install jq` happens to serve. Debian bookworm ships 1.6; macOS
+    // Homebrew ships 1.7.1.
+    //
+    // This is the same lesson as E1's Python arm and it is worth stating plainly: the reported
+    // finding is "no two implementations induce the same equivalence relation", and the
+    // identity of the odd one out is a property of the arm versions, not of JSON.
+    const jqArm = report.arms.find((arm) => arm.id === "jq");
+    const jqMajorMinor = /jq-(\d+)\.(\d+)/u.exec(jqArm?.detail ?? "");
+    const jqPreservesBigIntegers =
+      jqMajorMinor !== undefined && jqMajorMinor !== null && Number(jqMajorMinor[1]) * 100 + Number(jqMajorMinor[2]) >= 107;
+
+    if (jqPreservesBigIntegers) {
+      expect(integerClass?.outlier, `jq ${jqArm?.detail} preserves big integers, so V8 is the outlier`).toBe("v8");
+      expect(integerClass?.behavior).toBe("identifies-both-as-same");
+    } else {
+      // jq agrees with V8 here, so the arm that still distinguishes the pair is CPython.
+      expect(integerClass?.outlier, `jq ${jqArm?.detail} collapses big integers, so CPython is the outlier`).toBe("cpython");
+    }
   }, 300_000);
 
   it("reports distinct divergence CLASSES, not just a rate", () => {
