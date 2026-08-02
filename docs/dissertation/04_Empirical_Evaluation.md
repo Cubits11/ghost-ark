@@ -13,14 +13,23 @@ and that document disagree, that document is correct.
 
 ### 6.0 Retractions
 
-| Retracted | Why |
-|:---|:---|
-| DAB Tier-0 detection results as evidence about Ghost-Ark | The nonce-swap "detection" was computed as `requestA.payload !== requestB.payload && requestA.nonce === requestB.nonce` — true by construction. `replayAttack` consults a local `Set` declared in the benchmark file, not the Rust nonce ledger. |
-| "The Rust gateway's Mutex-backed `NonceLedger` cleanly survived a `double_execution_race`" | The cited benchmark is TypeScript and never invokes the Rust gateway. |
-| "Unicode spoofing is entirely eradicated at the TCB boundary" | An absolute-security claim whose evidence was a TypeScript *compile error* in a benchmark that did not execute. E1 finds Unicode handling diverges across runtimes. |
-| A Wilson confidence interval at n = 2 described as a "robust statistical lower bound" | At 2/2 successes the Wilson lower bound is below 0.4 — consistent with a true rate of one in three. Now structurally prevented. |
-| `"ci": "sha256:A"` / `"sha256:B"` in "Raw Benchmark Output" | Not hashes. Hardcoded placeholders emitted by the benchmark itself. |
-| `prototype_pollution: detected: false` used to argue the V8 runtime is hostile | Stale. The suite now reports `detected: true`; the argument rested on an outdated run. |
+| ID | Retracted | Why |
+|:---|:---|:---|
+| **R1** | DAB Tier-0 detection results as evidence about Ghost-Ark | The nonce-swap "detection" was computed as `requestA.payload !== requestB.payload && requestA.nonce === requestB.nonce` — true by construction. `replayAttack` consults a local `Set` declared in the benchmark file, not the Rust nonce ledger. |
+| **R2** | "The Rust gateway's Mutex-backed `NonceLedger` cleanly survived a `double_execution_race`" | The cited benchmark is TypeScript and never invokes the Rust gateway. |
+| **R3** | "Unicode spoofing is entirely eradicated at the TCB boundary" | An absolute-security claim whose evidence was a TypeScript *compile error* in a benchmark that did not execute. E1 finds Unicode handling diverges across runtimes. |
+| **R4** | A Wilson confidence interval at n = 2 described as a "robust statistical lower bound" | At 2/2 successes the Wilson lower bound is below 0.4 — consistent with a true rate of one in three. Now structurally prevented. |
+| **R5** | `"ci": "sha256:A"` / `"sha256:B"` in "Raw Benchmark Output" | Not hashes. Hardcoded placeholders emitted by the benchmark itself. |
+| **R9** | `prototype_pollution: detected: false` used to argue the V8 runtime is hostile | Stale. The suite now reports `detected: true`; the argument rested on an outdated run. |
+| **R6** | "Mitigations implemented for Zero-Days 1, 3, 4, 5" | The `ghost_ark_ring0.bpf.c` banner. The file has never been compiled or loaded. Quarantined to `dab/gateway/UNBUILT_PROTOTYPES/` with a correction in place. |
+| **R7** | A pinned `tla2tools.jar` sha256 presented as toolchain integrity | The digest was recorded 2026-07-15 for a release first published 2026-07-31 — the URL returned 404 on the day it was pinned, so it can never have been computed from the file it claims to pin. The proof stage checked zero specifications for sixteen days while a second runner fetched the same jar with no integrity check at all. |
+| **R8** | Nitro Enclave PCR attestation as an implemented path | `dab/gateway/src/v200.rs` never compiled on Linux (a bulk `DescribePCRs` API that does not exist), and off-Linux its mock returned the exact constant the check compares against — so attestation passed unconditionally on the development host. Quarantined. |
+
+Every row above carries an ID matching
+[EXPERIMENTS.md §Retractions](../research/EXPERIMENTS.md#retractions), which is
+the source of record. `tests/unit/repo-hygiene/retractionSync.test.ts` fails if
+the two sets diverge. R6–R8 were absent from this chapter until 2026-08-02, and
+R9 was absent from that table — the drift ran in both directions.
 
 ### 6.1 Reporting contract
 
