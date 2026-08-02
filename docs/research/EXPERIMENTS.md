@@ -905,29 +905,31 @@ questions and quoting one without saying which is the error:
 - **total** additionally puts `NoCoverage` mutants in the denominator — *is this
   code reached at all?*
 
-| file | covered | killed/eval | survived | no coverage | mutants |
-|:---|---:|---:|---:|---:|---:|
-| `receipts/canonical.ts` | **61.0%** | 47/77 | 30 | 58 | 135 |
-| `receipts/keyManifest.ts` | 61.0% | 94/154 | 60 | 33 | 187 |
-| `receipts/signer.ts` | 61.4% | 105/171 | 66 | 46 | 217 |
-| `receipts/kmsSigner.ts` | 68.2% | 15/22 | 7 | 6 | 28 |
-| `receipts/verifier.ts` | 73.6% | 109/148 | 39 | 2 | 150 |
-| `receipt-schema/strictJsonAdmission.ts` | 87.8% | 287/327 | 40 | 7 | 334 |
-| `receipt-schema/hashCanonicalization.ts` | 88.2% | 149/169 | 20 | 8 | 177 |
-| `receipts/kmsVerifier.ts` (remediated) | **93.9%** | 77/82 | 5 | 0 | 82 |
-| `receipts/chain.ts` (remediated) | **95.4%** | 83/87 | 4 | 1 | 88 |
-| `receipts/emission.ts` (remediated) | **98.1%** | 204/208 | 4 | 2 | 210 |
-| **aggregate** | **81.0%** | **1170/1445** | **275** | **163** | **1608** |
+| file | covered | killed/eval | survived | no coverage |
+|:---|---:|---:|---:|---:|
+| `receipts/kmsSigner.ts` | **68.2%** | 15/22 | 7 | 6 |
+| `receipts/signer.ts` | 73.2% | 156/213 | 57 | 4 |
+| `receipts/verifier.ts` | **73.6%** | 109/148 | 39 | 2 |
+| `receipts/keyManifest.ts` | 83.6% | 148/177 | 29 | 10 |
+| `receipts/canonical.ts` | 86.7% | 117/135 | 18 | 0 |
+| `receipt-schema/strictJsonAdmission.ts` | 87.8% | 287/327 | 40 | 7 |
+| `receipt-schema/hashCanonicalization.ts` | 88.2% | 149/169 | 20 | 8 |
+| `receipts/kmsVerifier.ts` | 93.9% | 77/82 | 5 | 0 |
+| `receipts/chain.ts` | 95.4% | 83/87 | 4 | 1 |
+| `receipts/emission.ts` | 98.1% | 204/208 | 4 | 2 |
+| **aggregate** | **85.8%** | **1345/1568** | **223** | **40** |
 
-Stryker's total-denominator score over the whole kernel is **72.8%** (1170/1608).
-**10.1% of all kernel mutants are executed by no test in the declared scope.**
+Stryker's total-denominator score over the whole kernel is **83.6%** (1345/1608).
+**2.5% of all kernel mutants are executed by no test in the declared scope**, down
+from 16.2% at first measurement.
 
 **The threshold has been wrong once and is now set from measurement.** `break: 75`
 was chosen after measuring two files and described as "what the repository can
 hold"; the full sweep then measured 60.6%, so it was lowered to `58` — the defect
 this repository documents elsewhere as a threshold declared rather than met,
 committed here and corrected. After the remediation below the measured total is
-72.8%, and the gate is `break: 70`. It moves only after a sweep says it can.
+83.6%, and the gate is `break: 80`. It has moved 75 -> 58 -> 70 -> 80, each step
+after a sweep rather than before one.
 
 #### First-round measurement, before remediation
 
@@ -945,14 +947,24 @@ survivor lists and re-swept on the same pinned scope. Two rounds each: write
 tests against the report, re-measure, then write tests against what still
 survived.
 
-| file | before | after round 1 | after round 2 | survivors | no coverage |
-|:---|---:|---:|---:|---:|---:|
-| `kmsVerifier.ts` | 48.1% | 91.5% | **93.9%** | 27 → 5 | 30 → **0** |
-| `emission.ts` | 56.3% | 94.2% | **98.1%** | 73 → 4 | 43 → **2** |
-| `chain.ts` | 81.7% | — | **95.4%** | 11 → 4 | 28 → **1** |
+| file | before | after | survivors | no coverage |
+|:---|---:|---:|---:|---:|
+| `kmsVerifier.ts` | 48.1% | **93.9%** | 27 → 5 | 30 → **0** |
+| `emission.ts` | 56.3% | **98.1%** | 73 → 4 | 43 → **2** |
+| `chain.ts` | 81.7% | **95.4%** | 11 → 4 | 28 → **1** |
+| `canonical.ts` | 61.0% | **86.7%** | 30 → 18 | 58 → **0** |
+| `keyManifest.ts` | 61.0% | **83.6%** | 60 → 29 | 33 → 10 |
+| `signer.ts` | 61.4% | **73.2%** | 66 → 57 | 46 → **4** |
 
-Aggregate 72.3% → **81.0%** covered; total 60.6% → **72.8%**; unreached mutants
-261 → **163**.
+Aggregate 72.3% → **85.8%** covered; total 60.6% → **83.6%**; unreached mutants
+261 → **40**.
+
+`signer.ts` is the instructive one. Its unreached mutants fell 46 → 4, so the
+envelope parser is now executed — but its survivors barely moved, 66 → 57. Reach
+and strength are different properties, and the new tests bought reach. The
+remaining survivors are concentrated in the base64 and hex regexes, where many
+mutants are equivalent under a fixed-length alphabet. That distinction is exactly
+why this experiment reports both denominators.
 
 **Three defects in the tests were found by re-measuring rather than by
 reasoning.** A `decision()` fixture omitted `actionTaken` and used a `DENY`

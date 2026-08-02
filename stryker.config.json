@@ -19,7 +19,7 @@
   "reporters": ["html", "json", "clear-text"],
   "htmlReporter": { "fileName": "artifacts/mutation/report.html" },
   "jsonReporter": { "fileName": "artifacts/mutation/report.json" },
-  "thresholds": { "high": 90, "low": 80, "break": 70 },
+  "thresholds": { "high": 90, "low": 80, "break": 80 },
   "concurrency": 4,
   "timeoutMS": 20000,
   "coverageAnalysis": "perTest"
