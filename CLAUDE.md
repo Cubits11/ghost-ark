@@ -104,9 +104,12 @@ on the first thing a reviewer checks.
 
 - npm run lint passes
 
-- npm test passes: 157 test files, 1208 tests (1 file / 9 tests skipped)
+- npm test passes: 158 test files, 1214 tests (1 file / 9 tests skipped)
 
-- npm run scan:claims: 828 files scanned, 0 forbidden-claim violations
+- npm run scan:claims: 830 files scanned, 0 forbidden-claim violations
+
+- npm run claims:verify: 20 claims, 12 distinct local commands, 12 passed / 0 failed
+  (2026-08-02); 5 skipped as AWS-required by declaration
 
 - npm run assumptions: 7 annotated modules, 0 lattice violations
 
@@ -429,7 +432,7 @@ self-reported.
 ## Phase 0 — The record is currently wrong (do first, cheap)
 
 1. Re-measure `npm audit`; CI_COVERAGE claims "8 high-severity advisories" and the actual count is 3 (1 high, 2 moderate). — Acceptance: the row matches `npm audit` output on the day of the commit.
-2. Add a dated "measured on" stamp to every numeric claim in CI_COVERAGE. — Acceptance: no bare number without a date.
+2. Add a dated "measured on" stamp to every numeric claim in CI_COVERAGE. — Acceptance: no bare number without a date. **Partly superseded by 12**: freshness now lives in one executable place rather than scattered across ~130 numeric lines. Remaining work is the CI_COVERAGE rows specifically.
 3. Audit CI_COVERAGE end to end against live commands. — Acceptance: every row reproduced or corrected in one commit.
 4. Do the same for `README-AE.md`. — Acceptance: each claim→command pair executed and exit code recorded.
 5. Do the same for `ARTIFACT_EVALUATION.md`. — Acceptance: as above.
@@ -439,7 +442,7 @@ self-reported.
 9. Reconcile `docs/paper/` against the same retraction list. — Acceptance: no retracted claim survives in the manuscript.
 10. Verify every `docs/research/*.md` marked `core` still earns it. — Acceptance: seven core docs, each with an experiment or proof behind it.
 11. Demote any core doc without evidence to `supporting` or `exploratory`. — Acceptance: `researchIndex.test.ts` green with the new tiers.
-12. Publish a `docs/artifact/CLAIM_LEDGER.md` mapping every public claim → command → last-verified date. — Acceptance: `docs:check` gates it.
+12. ~~Publish a CLAIM_LEDGER mapping claim → command → last-verified date.~~ **DONE 2026-08-02, and this premise was wrong too.** The ledger already existed: `docs/governance/claim-evidence-matrix.md`, 20 claims with commands and statuses. The gap was that **nothing ever ran the commands** — a row could cite a renamed script or deleted test file and still read as evidence. Added `npm run claims:verify` (executes them, reports pass/fail with host and date) and `npm run claims:resolve` (static, wired into `npm run validate`). First execution: 12 distinct commands, 12 passed, covering 15 of 20 claims; the other 5 are `AWS-required` and skipped by declaration. Execution surfaced a defect in the matrix itself — CLAIM-020's command regenerated a committed fixture whose ECDSA signature is non-deterministic, so verifying it always dirtied the working tree. Output redirected to gitignored `artifacts/`, pinned by `claimMatrixResolves.test.ts`.
 
 ## Phase 1 — Third-party independence (the largest open weakness)
 
