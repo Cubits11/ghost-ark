@@ -104,9 +104,9 @@ on the first thing a reviewer checks.
 
 - npm run lint passes
 
-- npm test passes: 156 test files, 1201 tests (1 file / 9 tests skipped)
+- npm test passes: 157 test files, 1208 tests (1 file / 9 tests skipped)
 
-- npm run scan:claims: 827 files scanned, 0 forbidden-claim violations
+- npm run scan:claims: 828 files scanned, 0 forbidden-claim violations
 
 - npm run assumptions: 7 annotated modules, 0 lattice violations
 
@@ -433,9 +433,9 @@ self-reported.
 3. Audit CI_COVERAGE end to end against live commands. — Acceptance: every row reproduced or corrected in one commit.
 4. Do the same for `README-AE.md`. — Acceptance: each claim→command pair executed and exit code recorded.
 5. Do the same for `ARTIFACT_EVALUATION.md`. — Acceptance: as above.
-6. Grep the dissertation for claims retracted in EXPERIMENTS.md. `04_Empirical_Evaluation.md` still carries 2 matches. — Acceptance: zero un-annotated retracted claims.
-7. Add an in-place "SUPERSEDED — see EXPERIMENTS.md §Retractions" banner to each affected dissertation section. — Acceptance: a hygiene test asserts the banner exists wherever a retracted string appears.
-8. Write that hygiene test. — Acceptance: it fails when the banner is removed.
+6. ~~Grep the dissertation for claims retracted in EXPERIMENTS.md.~~ **DONE 2026-08-02, and the premise was wrong.** Every match in `04_Empirical_Evaluation.md` was already inside its own §6.0 Retractions table, and the chapter already deferred to EXPERIMENTS.md on conflict. No live retracted claim existed. The real defect was different and worse: the two retraction lists had **drifted in both directions** — R6/R7/R8 recorded in EXPERIMENTS.md and never propagated to the chapter, R9 retracted in the chapter and never propagated back. A reader consulting either document alone got an incomplete list of what this project has withdrawn, which is a worse failure than the original overclaims because it is the *correction* that was incomplete.
+7. ~~Add a SUPERSEDED banner to each affected section.~~ **Superseded by 6.** No banner was needed; both tables now carry stable IDs R1–R9 and the chapter names EXPERIMENTS.md as the source of record.
+8. ~~Write that hygiene test.~~ **DONE** — `tests/unit/repo-hygiene/retractionSync.test.ts`. Asserts ID-set equality in both directions, contiguous numbering so a deleted retraction leaves a gap, a floor of nine, a named tie-breaker, and that retracted phrases appear nowhere outside a retraction context. Discriminator-checked: removing one row from the chapter fails it.
 9. Reconcile `docs/paper/` against the same retraction list. — Acceptance: no retracted claim survives in the manuscript.
 10. Verify every `docs/research/*.md` marked `core` still earns it. — Acceptance: seven core docs, each with an experiment or proof behind it.
 11. Demote any core doc without evidence to `supporting` or `exploratory`. — Acceptance: `researchIndex.test.ts` green with the new tiers.

@@ -1162,16 +1162,24 @@ per-arm counts are not a quality ranking.
 Prior claims in this repository that these experiments contradict. Listed rather than
 quietly deleted.
 
-| Retracted claim | Where | Why it was wrong |
-|:---|:---|:---|
-| DAB Tier-0 adversarial detection results as evidence about Ghost-Ark | `docs/dissertation/04_Empirical_Evaluation.md`, `dab/bench/attacks/` | Several checks were tautological — they asserted properties of their own fixtures and invoked no Ghost-Ark component. Superseded by E3/E4. |
-| "The Rust gateway's Mutex-backed `NonceLedger` cleanly survived a `double_execution_race`" | ch. 04 | The cited benchmark is TypeScript and consults a local `Set`. The Rust gateway is never invoked by it. |
-| "Unicode spoofing is entirely eradicated at the TCB boundary" | ch. 04 | An absolute-security claim whose evidence was a *TypeScript compile error* in a benchmark that did not run. E1 shows Unicode handling **diverges across runtimes** and that NFC/NFD over-discriminates. |
-| A Wilson interval at n = 2 as a "robust statistical lower bound" | ch. 04 | At 2/2 the lower bound is below 0.4. Now structurally impossible: see reporting rules 3 and 4. |
-| `"ci": "sha256:A"` presented inside "Raw Benchmark Output" | ch. 04 and `dab/bench/attacks/concurrency.ts` | Not a hash. A hardcoded placeholder emitted by the benchmark itself. |
-| "Mitigations implemented for Zero-Days 1, 3, 4, 5" | `ghost_ark_ring0.bpf.c` banner | The file has never been compiled or loaded. Quarantined to `UNBUILT_PROTOTYPES/` with a correction. |
-| A pinned `tla2tools.jar` sha256 presented as toolchain integrity | `scripts/run-proofs.sh`, 2026-07-15 → 2026-08-01 | The digest `58d44845…` was recorded for TLA+ `v1.8.0` on **2026-07-15**. That release was first published **2026-07-31**, sixteen days later; on the day of the pin the latest release was `v1.7.4` (2024-08-05) and the pinned URL returned 404. The digest matches neither the current `v1.8.0` asset (`e22f8ffb…`), nor `v1.7.4` (`936a2620…`), nor the untracked jar at the repository root (`cc4803dc…`). It was a value that looked like verification and performed none — and because it failed closed, **the proof stage of `make reproduce` never checked a single specification between those dates**, while `tools/proofs/run-tlc.sh` fetched the same jar with *no* integrity check at all and reported green. Both runners now check one verified digest read from a single source. |
-| Nitro Enclave PCR attestation as an implemented path | `dab/gateway/src/v200.rs` | Never compiled on Linux (bulk `DescribePCRs` API does not exist); off-Linux the mock returned the exact constant the check compares against, so attestation passed unconditionally. Quarantined to `UNBUILT_PROTOTYPES/rust/`. |
+**This table is the source of record.** Each retraction carries a stable ID. The
+dissertation's §6.0 restates the same set, and
+`tests/unit/repo-hygiene/retractionSync.test.ts` asserts the two ID sets are
+equal — because they had already drifted apart in both directions before that
+test existed: three retractions here were missing from the dissertation, and one
+there was missing from here.
+
+| ID | Retracted claim | Where | Why it was wrong |
+|:---|:---|:---|:---|
+| **R1** | DAB Tier-0 adversarial detection results as evidence about Ghost-Ark | `docs/dissertation/04_Empirical_Evaluation.md`, `dab/bench/attacks/` | Several checks were tautological — they asserted properties of their own fixtures and invoked no Ghost-Ark component. Superseded by E3/E4. |
+| **R2** | "The Rust gateway's Mutex-backed `NonceLedger` cleanly survived a `double_execution_race`" | ch. 04 | The cited benchmark is TypeScript and consults a local `Set`. The Rust gateway is never invoked by it. |
+| **R3** | "Unicode spoofing is entirely eradicated at the TCB boundary" | ch. 04 | An absolute-security claim whose evidence was a *TypeScript compile error* in a benchmark that did not run. E1 shows Unicode handling **diverges across runtimes** and that NFC/NFD over-discriminates. |
+| **R4** | A Wilson interval at n = 2 as a "robust statistical lower bound" | ch. 04 | At 2/2 the lower bound is below 0.4. Now structurally impossible: see reporting rules 3 and 4. |
+| **R5** | `"ci": "sha256:A"` presented inside "Raw Benchmark Output" | ch. 04 and `dab/bench/attacks/concurrency.ts` | Not a hash. A hardcoded placeholder emitted by the benchmark itself. |
+| **R6** | "Mitigations implemented for Zero-Days 1, 3, 4, 5" | `ghost_ark_ring0.bpf.c` banner | The file has never been compiled or loaded. Quarantined to `UNBUILT_PROTOTYPES/` with a correction. |
+| **R7** | A pinned `tla2tools.jar` sha256 presented as toolchain integrity | `scripts/run-proofs.sh`, 2026-07-15 → 2026-08-01 | The digest `58d44845…` was recorded for TLA+ `v1.8.0` on **2026-07-15**. That release was first published **2026-07-31**, sixteen days later; on the day of the pin the latest release was `v1.7.4` (2024-08-05) and the pinned URL returned 404. The digest matches neither the current `v1.8.0` asset (`e22f8ffb…`), nor `v1.7.4` (`936a2620…`), nor the untracked jar at the repository root (`cc4803dc…`). It was a value that looked like verification and performed none — and because it failed closed, **the proof stage of `make reproduce` never checked a single specification between those dates**, while `tools/proofs/run-tlc.sh` fetched the same jar with *no* integrity check at all and reported green. Both runners now check one verified digest read from a single source. |
+| **R8** | Nitro Enclave PCR attestation as an implemented path | `dab/gateway/src/v200.rs` | Never compiled on Linux (bulk `DescribePCRs` API does not exist); off-Linux the mock returned the exact constant the check compares against, so attestation passed unconditionally. Quarantined to `UNBUILT_PROTOTYPES/rust/`. |
+| **R9** | `prototype_pollution: detected: false` used to argue the V8 runtime is hostile | ch. 04 | Stale: the fixture never exercised a prototype-pollution path, so a `false` result argued nothing about the runtime. Recorded here because the dissertation retracted it and this list did not — the two drifted, which is why they are now pinned by `retractionSync.test.ts`. |
 
 ## Open gaps
 
