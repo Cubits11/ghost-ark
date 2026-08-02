@@ -2,6 +2,32 @@
 
 This matrix maps each public Ghost-Ark claim to its allowed wording, forbidden wording, evidence location, and validation status. A claim may only be made in the allowed form, and only while the listed evidence exists and is reproducible.
 
+**The commands in this matrix are executed, not merely published.**
+
+```bash
+npm run claims:resolve   # static: does every cited command still resolve?  (fast, in CI)
+npm run claims:verify    # execution: run them and report pass/fail with host and date
+```
+
+Last full execution: **2026-08-02**, darwin/arm64 Apple M1, node v22.22.3 —
+**12 distinct local commands, 12 passed, 0 failed**, covering 15 of 20 claims.
+The other 5 are skipped because this matrix declares them `AWS-required`; running
+them locally is impossible by construction, and inventing a local substitute
+would convert a declared gap into a false pass.
+
+Until 2026-08-02 nothing executed these commands. A row could have cited a
+renamed script or a deleted test file and still read as evidence — a documented
+command nobody runs is an assertion wearing a command's clothes. Executing them
+also surfaced a defect in this matrix: CLAIM-020's command regenerated a
+*committed* fixture whose ECDSA signature is non-deterministic, so every
+verification dirtied the working tree. Its output now goes to gitignored
+`artifacts/`, and `tests/unit/repo-hygiene/claimMatrixResolves.test.ts` fails if
+any cited command writes outside there.
+
+**A green run is not proof the claims are true.** It means the evidence each row
+points at still exists and still succeeds. Whether a passing command actually
+measures what its row says is a separate question — see experiment E4.
+
 Status vocabulary:
 
 - `Local evidence` — reproducible on a laptop with zero AWS credentials.
@@ -31,7 +57,7 @@ Status vocabulary:
 | CLAIM-017 | Cost-bounded live validation lifecycle | Dedicated runbooks define preflight approval, an authorized time cap, cost-mode review, abort criteria, teardown, and residual-resource confirmation. | "Live validation is routine and safe" | `docs/operations/runbooks/live-aws-evidence-preflight.md`, `docs/operations/runbooks/live-aws-evidence-window.md`, `docs/operations/runbooks/live-aws-evidence-cleanup.md` | `npm run infra:synth` (synthesis only) | Yes | AWS-required | The lifecycle is specified, not executed by these artifacts. No preserved execution record of a complete lifecycle exists (RISK-013). |
 | CLAIM-018 | Evidence-bundle lifecycle contract | A Draft 2020-12 schema and local validator enforce the declared synthetic/live boundary, bounded window, scoped observations, receipt-check consistency, cleanup state, and known leak rules for supplied bundle files. | "A schema-valid fixture proves live AWS behavior" / "The sanitizer detects every secret" | `schemas/live-aws-evidence-bundle.schema.json`, `examples/evidence/`, `tools/evidence/`, `tests/unit/evidence/liveAwsEvidenceBundle.test.ts` | `npm run validate:evidence-bundle` | No (contract); Yes (recorded live events) | Local evidence | Maturity L3 for the locally tested validator around an L2 bundle schema. Validation checks the supplied artifact; it does not independently attest to AWS events or detect every sensitive value. |
 | CLAIM-019 | Key lifecycle and rotation | Ghost-Ark locally enforces key-manifest verification epochs and a separate ACTIVE-only signing authorization decision, with succession and compromise-response procedures. | "KMS rotation is operational" / "compromised keys cannot sign in AWS" | `schemas/key-manifest.json`, `packages/enforcement-runtime/src/receipts/keyManifest.ts`, `docs/architecture/ADR-0002-key-manifest-lifecycle.md`, rotation runbook and tests | `npx vitest run tests/unit/enforcement-runtime/receipts/test_key_manifest.test.ts` | No (local policy); Yes (live KMS behavior) | Local evidence | The local primitive does not prove signer-path wiring, IAM/key-policy denial, manifest publication, or a completed live rotation. |
-| CLAIM-020 | Local witness consistency mechanics | Ghost-Ark locally generates and verifies witness-signed checkpoint consistency artifacts under its research verifier rules. | "Independent witnesses operate" / "decentralized transparency" | `packages/research-frontier/src/witnessCheckpoint.ts`, `schemas/research/witness-*.schema.json`, `examples/research/witness-bundle.local/`, tests and verifier | `npm run research:witness-bundle -- --out examples/research/witness-bundle.local` | No (local mechanics); Yes (independent operation) | Local partial | The witness and fixture are maintainer-controlled. There is no external monitor, independent key operator, publication service, gossip, or Object Lock evidence. |
+| CLAIM-020 | Local witness consistency mechanics | Ghost-Ark locally generates and verifies witness-signed checkpoint consistency artifacts under its research verifier rules. | "Independent witnesses operate" / "decentralized transparency" | `packages/research-frontier/src/witnessCheckpoint.ts`, `schemas/research/witness-*.schema.json`, `examples/research/witness-bundle.local/`, tests and verifier | `npm run research:witness-bundle -- --out artifacts/witness-bundle.verify` | No (local mechanics); Yes (independent operation) | Local partial | The witness and fixture are maintainer-controlled. There is no external monitor, independent key operator, publication service, gossip, or Object Lock evidence. |
 
 ## Interpretation rules
 
