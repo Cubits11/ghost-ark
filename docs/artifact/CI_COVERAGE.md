@@ -2,6 +2,18 @@
 
 Tier: **core**. Last audited 2026-08-02.
 
+> **What "audited" means here, precisely.** On 2026-08-02 the following were
+> *executed* and their numbers taken from live output: `npm test` (161 files /
+> 1244 tests, 1 file & 9 tests skipped), `npm run scan:claims` (833 files, 0
+> violations), `npm audit` (3 advisories: 1 high, 2 moderate), `npm run
+> experiments` (E1, E1-B, E2–E7, E11), `cargo test --locked` on all four Rust
+> crates (13 / 13 / 4 / 0), and the strict-JSON-admission suite (24 tests).
+> **Not re-run that day**, and therefore carried forward from their last recorded
+> run: the TLC gate (`tools/proofs/run-tlc.sh`), the E10 mutation score, and the
+> semgrep finding count. Rows sourced from a carried-forward run say so. A
+> document-level "last audited" date that silently covers unexecuted rows is the
+> exact defect this matrix was written to expose.
+
 A reviewer's fair question is not "do your tests pass?" but "**which of your artifacts are
 guarded, and which can rot silently?**" Before 2026-07-29 the answer was uncomfortable: CI
 ran `npm run validate` and `terraform validate` only. The Rust gateway and verifier (2,877
@@ -17,24 +29,27 @@ project.
 | Artifact | What runs | Workflow | Directionally asserted? |
 |:---|:---|:---|:---|
 | TypeScript workspace (57k lines) | `tsc --noEmit`, full `vitest run` | `ci.yml` → `npm run validate` | — |
-| Claim-language discipline | `scan:claims` over 829 files, 0 violations required | `ci.yml` | yes: forbidden vocabulary fails the build |
+| Claim-language discipline | `scan:claims` over 833 files, 0 violations required (measured 2026-08-02) | `ci.yml` | yes: forbidden vocabulary fails the build |
 | Assumption lattice | `check-assumptions.mjs` | `ci.yml` | yes |
 | Required-docs presence | `docs:check` | `ci.yml` | yes: a missing core doc fails the build |
 | Terraform | `fmt -check`, `init -backend=false`, `validate` | `ci.yml` | — |
 | Python syntax | `py_compile` over all tracked Python | `artifacts-verify.yml` | — |
 | **Rust: dab gateway** | `cargo fmt --check`, `clippy -D warnings`, `cargo test --locked` (13 tests) | `artifacts-verify.yml` | — |
 | **Rust: dab verifier** | same, `--locked` (13 tests) | `artifacts-verify.yml` | — |
-| **Rust: tools/experiments** | same, `--locked` (4 tests) | `artifacts-verify.yml` | — |
+| **Rust: tools/experiments** | same, `--locked` (4 tests, re-run 2026-08-02) | `artifacts-verify.yml` | — |
 | **Python verifier behavior** | verifies a valid fixture **and** must reject `MAL-003` | `artifacts-verify.yml` | yes: negative control fails the job if a tampered receipt is accepted |
-| **TLA+ specs + mutants** | 4 baselines must pass, 4 mutants must violate | `artifacts-verify.yml` → `tools/proofs/run-tlc.sh` | **yes: a mutant that passes fails CI** |
+| **TLA+ specs + mutants** | 4 baselines must pass, 4 mutants must violate. (The `make proof` runner records **5** baselines + 4 mutants; the fifth, `DAB_ExecutionBoundary`, has no mutant, so it is checked but not gated. `TenantIsolation` is a declared stub.) | `artifacts-verify.yml` → `tools/proofs/run-tlc.sh` | **yes: a mutant that passes fails CI** |
 | **Experiments E1–E7, E11** | all nine run; guard tests assert measured findings. `GHOST_ARK_REQUIRE_E11=1` turns a missing third-party runtime into a failure in this job, so E11 cannot silently skip where it is supposed to run | `artifacts-verify.yml` | yes: E4 tautology verdict must be PASS; E1-B intervals must be disjoint; E5 must report 0 peer disagreements; E6 must hold 8/8 invariants including antitonicity; E7 must rediscover the 2^53 class; E11 must find kernel members in every third-party arm AND must NOT find the 2^53 collapse outside the JavaScript number model |
 | **E1-B determinism** | same seed reproduces byte-identical report; different seed does not | `ci.yml` (in `npm test`) | yes: both directions asserted |
 | Repo hygiene | no tracked build output, no tracked private keys or `.env`, unbuilt prototypes stay inert, `dab/bench` stays quarantined | `ci.yml` (in `npm test`) | yes |
+| **Cross-document figure drift** | `measuredFigureConsistency.test.ts`: measured figures must agree in every document that quotes them; the malicious corpus size and the TLC baseline/mutant split are recomputed from the tracked tree, not asserted; no document may claim a mutant for a spec that has none | `ci.yml` (in `npm test`) | **yes: each check was verified to fail on a reintroduced defect** |
+| **Manuscript evidence source** | `paperEvidenceSource.test.ts`: the paper may not cite the quarantined `dab/bench` without disclosure, may not reference it as a reproduction command, must define every macro it invokes, and must resolve every `\ref` | `ci.yml` (in `npm test`) | yes |
+| **Cited commands exist** | `citedCommandsResolve.test.ts`: every `npm run` / `make` target cited in a reviewer-facing document must exist. Existence only — a command can exist and measure nothing, which is E4's department | `ci.yml` (in `npm test`) | yes |
 | Research classification | every `docs/research/*.md` must be classified | `ci.yml` (in `npm test`) | yes: an unclassified doc fails the build |
 | CodeQL / Semgrep / gitleaks | static analysis and secret scanning | `ci.yml` | — (see the semgrep row under NOT verified) |
 | **Lockfile integrity** | `lockfile-lint`: every resolved URL must be an HTTPS npm host | `artifacts-verify.yml` | yes |
 | **Dependency advisories** | `npm audit --audit-level=critical` blocks; full report printed non-blocking | `artifacts-verify.yml` | yes (at critical) |
-| **Strict JSON admission** | 24 tests pinning the fix for E1's three unintended kernel members | `ci.yml` (in `npm test`) | yes: each rule paired with a demonstration that the collapse it prevents is real |
+| **Strict JSON admission** | 24 tests pinning the fix that takes E1's five unintended kernel members to 0 (measured 2026-08-02) | `ci.yml` (in `npm test`) | yes: each rule paired with a demonstration that the collapse it prevents is real |
 
 "Directionally asserted" means CI checks that the guard can *fail*, not merely that it
 passes. A green invariant with no failing mutant is not evidence.
@@ -52,7 +67,7 @@ These are real gaps. None of them is hidden behind a passing badge.
 | **`proofs/cloud/*.tla` unchecked** | 4 cloud specifications have no recorded TLC run and no mutants. | Same. |
 | **E2 timing on CI runners is not a result** | CI runs E2 as a smoke test only. Shared runners are too noisy for reported latency. | Reported E2 numbers come from a recorded single host; see EXPERIMENTS.md §E2. |
 | **No cross-machine reproduction** | All latency figures are one host, one architecture. | Not automated. |
-| **Cross-runtime receipt verification is NOT sound today** | E7 finds four structural divergence classes across V8, CPython, and jq, and no two of the three induce the same equivalence relation. A receipt canonicalized in one runtime can fail re-verification in another on inputs as ordinary as `1` versus `1.0`. | This is a property of the JSON number model, not a bug to patch. Mitigating it requires either a single mandated runtime, a stricter admission profile than `strictJsonAdmission` currently enforces (it does not reject `1.0`), or a non-JSON wire format. All three are design decisions, not fixes. |
+| **Cross-runtime receipt verification is NOT sound today** | E7 finds eight structural divergence classes over four underlying mechanisms across V8, CPython, and jq (measured 2026-08-02 at the 1500-input default; the four extra classes are nesting variants of signed-zero and float-precision), and no two of the three induce the same equivalence relation. A receipt canonicalized in one runtime can fail re-verification in another on inputs as ordinary as `1` versus `1.0`. | This is a property of the JSON number model, not a bug to patch. Mitigating it requires either a single mandated runtime, a stricter admission profile than `strictJsonAdmission` currently enforces (it does not reject `1.0`), or a non-JSON wire format. All three are design decisions, not fixes. |
 | **E11 skips outside `artifacts-verify`** | The `ci` and `artifact-evaluation` jobs do not install Ruby, jq, and Rust, so E11 self-skips there. A green `npm test` on a contributor laptop does not mean E11 ran. | Deliberate: those jobs answer different questions, and installing four runtimes everywhere buys nothing. The risk — a skipped generality test reporting green — is closed by `GHOST_ARK_REQUIRE_E11=1` in the one job that does run it, which fails rather than skips. |
 | **E7's third arm depends on a system `jq`** | Without jq, E7 runs on two arms and the outlier attribution in its class table is not meaningful. | Reported per-arm rather than silently degraded; CI installs jq explicitly. |
 | **E7's outlier attribution is jq-VERSION dependent** | jq 1.7 preserves large integer literals; jq 1.6 converts to double first. On jq ≥ 1.7 V8 is the lone outlier on the 2^53 class; on jq 1.6 CPython is. Debian bookworm ships 1.6, Homebrew ships 1.7.1 — so the same experiment reports opposite attributions on CI and on the development host. | The test now branches on the reported jq version and asserts the correct outlier for each, rather than pinning the host's answer. The version-independent finding — that the class exists and the arms disagree — is asserted unconditionally. **The reported headline "V8 is the outlier" holds for jq ≥ 1.7 and is stated with that qualifier.** |
@@ -68,6 +83,7 @@ These are real gaps. None of them is hidden behind a passing badge.
 | **Compromised-signer coverage is HMAC-only** | E4-B closed the original gap — 5 of 10 verifier checks were unisolatable (E4 finding F4.3) — but only for HMAC. There is still no RSA/KMS compromised-signer fixture (public key only), and no record-receipt (`rct_`) fixture, which leaves the `tenant` check unisolated. | The earlier "no compromised-signer fixtures" entry survived the commit that closed it and is corrected here rather than deleted; see EXPERIMENTS.md §E4-B. |
 | **npm advisories remain, at a lower count than previously recorded** | `npm audit` reports **3** advisories (1 high, 2 moderate) as of 2026-08-02, all devDependencies. Not in the shipped runtime path, but CI and developer machines execute them, so dev-only lowers severity rather than eliminating it. **This row previously read "8 high-severity advisories" and was stale by 5** — a documented number that disagreed with `npm audit` on the day anyone checked. | The chain roots in the SBOM toolchain (`@cyclonedx/cyclonedx-npm` → `libxmljs2` → `node-gyp` → …). The CI gate is set at `critical`, which the repository meets, rather than at `high`, which it would fail — a threshold met is worth more than a threshold declared. Dependabot is configured to move these. Re-measure before quoting: this row has been wrong once. |
 | **GitHub Actions are pinned to mutable tags** | `actions/checkout@v4` and similar can be repointed by whoever controls the action repository, so each is an unpinned dependency with access to CI. | Pinning every action to a commit SHA is the strong fix and is not yet done. Dependabot's `github-actions` ecosystem is configured as the prerequisite. The `supply-chain` job sets `persist-credentials: false` so the job that executes third-party code does not also hold the workflow token. |
+| **`tools/experiments-json` has zero tests** | A fourth Rust crate exists and `cargo test --locked` on it reports `0 passed` (measured 2026-08-02). It compiles in CI and is otherwise unguarded; this row exists because the crate was absent from this matrix entirely, so its emptiness read as coverage. | It is a thin JSON-emitting helper for the experiments harness whose output is consumed by tests that *do* exist. That is an argument for low risk, not for zero tests, and it is stated here rather than left off the table. Dependabot enrolment is step 78 of the plan. |
 | **NFC/NFD over-discrimination is unfixed** | Semantically identical strings in different normalization forms receive different receipt identities, so evidence that crossed a normalizing hop fails re-verification. | A fix requires choosing a normalization policy for signed string values, which changes what gets signed and needs a receipt schema migration. Deliberately not done as a side effect of a hardening pass. |
 
 ## Evidence-tier vocabulary

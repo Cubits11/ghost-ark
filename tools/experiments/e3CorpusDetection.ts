@@ -7,12 +7,12 @@
  * several "attacks" were tautological: they constructed two fixtures and then
  * asserted the fixtures had the properties just assigned to them, without invoking
  * any Ghost-Ark component. E3 invokes the actual standalone verifier
- * (`verifiers/node/ghost_receipt_verify.mjs`) on the actual 26-fixture malicious
- * corpus, and a fixture counts as detected only when that verifier returns FAIL.
+ * (`verifiers/node/ghost_receipt_verify.mjs`) on the actual malicious corpus, and a
+ * fixture counts as detected only when that verifier returns FAIL.
  *
  * Reporting discipline
  * --------------------
- * The corpus is a CENSUS: 26 hand-authored single-field mutations. It is the whole
+ * The corpus is a CENSUS: hand-authored single-field mutations. It is the whole
  * population and its size is an authoring decision. Therefore E3 reports EXACT
  * COUNTS and attaches no confidence interval — `reportProportion` enforces this
  * via `sample_provenance: "census"`. A Wilson interval here would describe

@@ -25,26 +25,36 @@ docker compose -f docker-compose.reviewer.yml run --rm reviewer make reproduce
 
 Native path: Node 22, JDK ≥ 11, `make bootstrap` once. Reference machine for
 the paper's latency numbers: Apple M1, 8 GB, macOS (Darwin 24.5.0, arm64),
-Node v22.22.3 — latency reproduces within machine variance; the
-**exact-match claims** (advantage, detection flags, state counts, test
-counts, gate status) are machine-independent.
+Node v22.22.3. We have **not** measured a second host, so expect the *ordering*
+of the cost arms and their baseline ratios to hold and the absolute microseconds
+not to; the **exact-match claims** (detection counts, state counts, test counts,
+gate status) are machine-independent.
+
+> **Superseded rows.** Until 2026-08-02 rows 2 and 3 pointed a reviewer at
+> `dab/bench/run_all.ts` — a directory whose own README reads "QUARANTINED: not
+> evidence about Ghost-Ark", because several of its suites report `detected: true`
+> without invoking any component under test. Reproducing those rows would have
+> confirmed a number that measured nothing. They are re-sourced below to E2/E3/E4,
+> which invoke the real verifier and carry a control arm. Recorded as **R10** in
+> `docs/research/EXPERIMENTS.md`.
 
 ## The map
 
 | # | Paper claim (section) | Command | Expected signal | Match |
 |---|---|---|---|---|
-| 1 | Five TLC baselines clean; five mutants reproduce violations; distinct-state counts in Table 2 (§5.1) | `make proof` | `artifacts/proofs/proofs_summary.json` → `all_gating_passed: true`; per-module `distinct_states`: ProvenanceLattice 403,949 / SpeculativeCollapse 529 / TransportBoundary 64 / DAB_NonceLedger 1,321 / DAB_ExecutionBoundary 51,106; mutants report `VIOLATION_REPRODUCED` | exact |
-| 2 | Modeled-attacker advantage 0 across 4 games × 10,000 trials; 9-attack corpus all detected (§5.2) | `node --experimental-strip-types dab/bench/run_all.ts --trials 10000` | JSON → `global_advantage: 0`, `all_passed: true`; each `formal_games.games[].advantage == 0`; every `attacks.*[].detected == true` | exact |
-| 3 | End-to-end enforcement ≈5.5 µs p50 / ≈7.1 µs mean; ≈6.6 µs mean added over baseline; ≈141k ops/s (§5.3, Table 3) | same command as #2 (the `performance` block), or `make benchmark` → `artifacts/benchmarks/performance.json` | microsecond-scale `p50_ms`/`average_ms` (e.g. `0.0055` ms p50 on the reference machine); `overhead_percent` ≈ 10³ vs the no-op baseline — the paper explains why the absolute number, not this ratio, is the decision-relevant figure | within machine variance |
-| 4 | 706 tests / 105 files pass at HEAD (§7) | `make unit` | `Test Files 105 passed`, `Tests 706 passed` | exact |
+| 1 | Five TLC baselines clean; **four** mutants reproduce violations; distinct-state counts in Table 2 (§5.1) | `make proof` | `artifacts/proofs/proofs_summary.json` → `all_gating_passed: true`; per-module `distinct_states`: ProvenanceLattice 403,949 / SpeculativeCollapse 529 / TransportBoundary 64 / DAB_NonceLedger 1,321 / DAB_ExecutionBoundary 51,106; the four mutants report `VIOLATION_REPRODUCED` (63 / 396 / 22 / 221). **`DAB_ExecutionBoundary` has no mutant** — its clean result is one-sided, and `TenantIsolation` is a `DECLARED_STUB` excluded from the gate | exact |
+| 2 | Corpus detection: 26/26 verifier-intrinsic, 3/3 control arm, 0 undetected, 2 documented boundaries (§5.2) | `npm run experiment:e3` | `verifier-intrinsic: 26/26`, `control arm: 3/3`, `undetected 0`. Census provenance — exact counts, no interval | exact |
+| 2b | Those detections are load-bearing, not tautological (§5.2) | `npm run experiment:e4` | `TAUTOLOGY VERDICT: PASS`; 7 load-bearing checks; with every check forced to pass only a parse failure still rejects | exact |
+| 3 | Verification cost, p50 with IQR against a parse-only baseline (§5.3, Table 3) | `npm run experiment:e2` | six arms; `verifier-full-hmac` ≈23 µs p50, `verifier-full-rsa-pss` ≈126 µs p50 ≈66× the `json-parse-only` baseline; `monotonicity self-audit: 4/4` | ordering and ratios exact; absolute µs vary by host |
+| 4 | 1,244 tests / 161 files pass at HEAD (§7) | `make unit` | `Test Files 161 passed \| 1 skipped`, `Tests 1244 passed \| 9 skipped` (measured 2026-08-02) | **green, not equal** — see note |
 | 5 | Claim-language gate: 0 violations repo-wide, manuscript included — `.tex`/`.bib` are scannable (§7) | `npm run scan:claims` | `Checked N scannable files. No forbidden assurance overclaims detected.` | exact |
 | 6 | Semantic gate implements the dependence-free Fréchet union upper bound `min(1, Σ pᵢ)` (§4.2) | `npx vitest run tests/unit/receipt-schema/semanticAuditReceipt.test.ts` | suite passes; tests pin the bound to hand-computed values and the PASSED/FAILED_DRIFT_BOUNDS threshold behavior | exact |
 | 7 | Receipts verify under an independent implementation; negative corpus rejects malformed envelopes (§3.5) | `npm run receipt:verify:independent && npm run receipt:verify:corpus && npm run receipt:verify:agreement` | all pass | exact |
-| 8 | **Gateway↔independent-verifier round-trip** (real ed25519): a receipt from the gateway binary's shipped signing path verifies against the independent verifier; tamper/mutation/wrong-key are rejected (§3.5) | `bash dab/roundtrip/run_in_docker.sh` (or `run_roundtrip.sh` with a host toolchain); unit evidence: `cd dab/gateway && cargo test --locked` and `cd dab/verifier && cargo test --locked` | `ROUND-TRIP: OK` (5/5); deterministic pubkey `4cb5abf6…`; gateway 7 + verifier 13 unit tests pass (verifier includes a brutal forgery corpus: protocol downgrade, non-hex/truncated/all-zero/transplanted signatures, missing field, empty key — each rejected with its specific error). Recorded: `dab/roundtrip/RECORDED_ROUNDTRIP.txt` | exact |
+| 8 | **Gateway↔independent-verifier round-trip** (real ed25519): a receipt from the gateway binary's shipped signing path verifies against the independent verifier; tamper/mutation/wrong-key are rejected (§3.5) | `bash dab/roundtrip/run_in_docker.sh` (or `run_roundtrip.sh` with a host toolchain); unit evidence: `cd dab/gateway && cargo test --locked` and `cd dab/verifier && cargo test --locked` | `ROUND-TRIP: OK` (5/5); deterministic pubkey `4cb5abf6…`; gateway 13 + verifier 13 unit tests pass (verifier includes a brutal forgery corpus: protocol downgrade, non-hex/truncated/all-zero/transplanted signatures, missing field, empty key — each rejected with its specific error). Recorded: `dab/roundtrip/RECORDED_ROUNDTRIP.txt` | exact |
 | 8b | Same round-trip **on Kubernetes**: gateway (init container) emits a receipt; a separate verifier container accepts it in-cluster | `bash dab/k8s/run_demo.sh` (needs a cluster; loads the image into the node — no registry) | Job `dab-roundtrip` completes; verifier logs `VERIFIED`. Recorded: `dab/k8s/RECORDED_K8S.txt` | exact (given a cluster) |
 | 8c | **Full socket transport E2E** over the real `/ipc/dab.sock`: a Rust agent client drives the running gateway; the **wired tombstone ledger** rejects replay (§4.3) | `bash dab/roundtrip/run_socket_e2e_in_docker.sh` | `SOCKET-E2E: OK` (3/3): certified-over-socket → `VERIFIED`; same nonce again → `REPLAY_REJECTED` (wired `ReplayLedger.consume`); mutation → `MUTATION_DETECTED_HALT`. Recorded: `dab/roundtrip/RECORDED_SOCKET_E2E.txt` | exact (timestamps vary) |
-| 8d | Rust crates are lint-clean under a hostile bar | `cd dab/gateway && cargo clippy --locked --all-targets -- -D warnings` (and `dab/verifier`) | clean; gateway 7 + verifier 13 tests pass | exact |
-| 8e | **The bounded replay window is measured**, not just stated: window $=\max(0,K-C)$ for $K$ tombstones at capacity $C$ (§6 item 5, Fig 4) | `cd dab/gateway && cargo run --locked --bin dab-replay-stress` | `LAW CONFIRMED`; every row `ok=yes` across $C\in[8,100]$, $K\le1000$. Recorded: `dab/roundtrip/RECORDED_REPLAY_WINDOW.txt` | exact |
+| 8d | Rust crates are lint-clean under a hostile bar | `cd dab/gateway && cargo clippy --locked --all-targets -- -D warnings` (and `dab/verifier`) | clean; gateway 13 + verifier 13 tests pass | exact |
+| 8e | **The bounded replay window is measured**, not just stated: window $=\max(0,K-C)$ for $K$ tombstones at capacity $C$ (§6 item 5, Fig 4) | `cd dab/gateway && cargo run --locked --bin dab-replay-stress` | `LAW CONFIRMED`; all 11 measured rows carry `yes` in the tab-separated `ok` column (capacity 8–100, tombstones 1–1000), 0 rows `no`. Recorded: `dab/roundtrip/RECORDED_REPLAY_WINDOW.txt` | exact |
 | 8f | **Concurrent Rust TCB throughput, measured** (two-phase, fail-closed aware): ≈275k admissions + real ed25519 signatures/s within ledger capacity (64 threads, 96,000 ops); ≈10.1M fail-closed rejections/s at capacity (§5.3) | `cd dab/gateway && cargo run --release --bin stress` | stdout: `Phase A … ops/sec (admission + real ed25519 sign)`, `Phase B … rejections/sec`, `SANITY OK` (two-sided: all in-capacity ops must admit, all at-capacity ops must refuse; non-zero exit otherwise). Recorded: `dab/roundtrip/RECORDED_CONCURRENT_STRESS.txt` | within machine variance |
 | 9 | Full roll-up: build → claims → proofs → unit → attack → benchmark (§7) | `GHOST_SKIP_DISS=1 make reproduce` (native, or hermetically in the reviewer container) | `artifacts/reports/aec_summary.json` → `.status`, `.gating_failures`; exit 0 iff every gating stage passed. Reviewer-container lane verified PASS 2026-07-16 | exact |
 
@@ -63,9 +73,12 @@ counts, gate status) are machine-independent.
   ed25519 key; KMS asymmetric keys by immutable ARN, and any hardware
   attestation, remain unimplemented and unclaimed.
 - **Anything semantic.** No command here measures truthfulness, alignment,
-  or safety of model output; the corpus results are in-suite detection under
-  the modeled attacker (the non-claim header at the top of
-  `dab/bench/run_all.ts` is normative).
+  or safety of model output. The corpus results are rejection counts from the
+  real standalone verifier over a hand-authored census, with the coverage
+  boundary stated in EXPERIMENTS.md §E3 (no compromised-signer, chain-level,
+  omission, timing, or key-rotation fixtures).
+- **Anything from `dab/bench/`.** That directory is quarantined and is not
+  evidence about this system; see the superseded-rows note above.
 
 ## Badge targeting (ACM/USENIX)
 
@@ -74,9 +87,18 @@ counts, gate status) are machine-independent.
   URL alone does not qualify as immutable.*
 - **Artifacts Evaluated — Functional** — target: rows 1–7 and 9 run
   green from the reviewer container with one command each.
-- **Results Reproduced** — target: rows 1, 2, 4, 5, 6 exactly; row 3 within
-  machine variance (the paper claims microsecond *scale* and reports the
-  reference machine, not a universal constant).
+> **On row 4's match column.** A test count is commit-relative: it changes the
+> moment anyone adds a test, including the three hygiene guards added on
+> 2026-08-02. Demanding an exact match would make the row fail for the healthiest
+> possible reason. The reproducible claim is **the suite is green and the count
+> is at least the recorded figure**; a *lower* count means tests were removed and
+> is the case worth investigating. The figure is dated so the direction of any
+> difference is checkable.
+
+- **Results Reproduced** — target: rows 1, 2, 2b, 5, 6 exactly; row 4 green with
+  a count ≥ the recorded figure; row 3 by
+  ordering and ratio only (the paper claims microsecond *scale* on one named
+  host, not a universal constant, and no second host has been measured).
 
 ## Regenerating the paper
 

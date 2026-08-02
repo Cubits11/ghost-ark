@@ -50,9 +50,9 @@ npm run experiments
 
 | | Experiment | What it measures |
 |:--|:---|:---|
-| **E1** | Provenance kernel census | 12 pre-registered pathology classes × 4 independent canonicalizer pipelines. Finds **3 unintended kernel members in Ghost-Ark's own canonicalizer**, and shows the kernel is set by the *parser*, not the canonicalizer. |
+| **E1** | Provenance kernel census | 31 pre-registered pathology classes × 5 independent canonicalizer pipelines. Finds **5 unintended kernel members in Ghost-Ark's own canonicalizer** (0 under strict admission), and shows the kernel is set by the *parser*, not the canonicalizer. |
 | **E2** | Verification cost | p50 with IQR against a declared baseline on a recorded host. Asymmetric verification is 65.89× the parse baseline. |
-| **E3** | Adversarial corpus detection | 26 fixtures through the real verifier, stratified by who rejects. **25/25 verifier-intrinsic**, 3/3 controls pass. |
+| **E3** | Adversarial corpus detection | 30 fixtures through the real verifier, stratified by who rejects. **26/26 verifier-intrinsic**, 3/3 controls pass, 2 documented boundaries excluded from the rate. |
 | **E4** | Metamorphic guard | Forces each verifier check to pass and re-runs the corpus. Proves the detections in E3 are **not tautological**. |
 
 Measured numbers, findings, coverage boundaries, and a written list of **retracted prior
@@ -100,7 +100,7 @@ graph TD
 - **What does CI actually verify, and what can rot?** → [CI_COVERAGE.md](./docs/artifact/CI_COVERAGE.md)
 - New to the terminology (spine, evidence class, governed invoke)? → [Glossary](./docs/GLOSSARY.md)
 - Who are the adversaries and what holds at each boundary? → [Threat Model](./docs/security/THREAT_MODEL.md)
-- Want the formal models and their logs? → `proofs/tla/` (tenant isolation, speculative collapse, transport boundary — each with a mutant showing the property is load-bearing), `proofs/dab/artifacts/` (nonce-ledger TLC logs), `proofs/cloud/`
+- Want the formal models and their logs? → `proofs/tla/` — **provenance lattice, speculative collapse, and transport boundary each ship a mutant** showing the property is load-bearing; `TenantIsolation.tla` is a 38-line **declared stub with no mutant and no TLC run**, excluded from the gate rather than passed vacuously (see [CI_COVERAGE](./docs/artifact/CI_COVERAGE.md)). Also `proofs/dab/artifacts/` (nonce-ledger TLC logs, plus `DAB_ExecutionBoundary` — clean but with no mutant, so one-sided) and `proofs/cloud/` (unchecked).
 - Fastest hands-on path (zero AWS credentials): `./scripts/bootstrap-local.sh` then `./scripts/run-local-demo.sh`
 - Reviewing this as an artifact? → [README-AE.md](./README-AE.md) and [ARTIFACT_EVALUATION.md](./ARTIFACT_EVALUATION.md)
 - **About to contribute?** → [CONTRIBUTING.md](./CONTRIBUTING.md) — the invariants that must not be weakened, the empirical reporting rules, and the maturity tiers every claim must carry. Read it before your first pull request.
@@ -242,6 +242,15 @@ cd dab/gateway && cargo clippy --locked --all-targets -- -D warnings && cargo te
 curl -fsSL -o tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
 bash tools/proofs/run-tlc.sh   # 4 baselines must pass; 4 mutants must violate
 ```
+
+Two runners, two scopes — both numbers below are correct, so read the scope
+before quoting either. `run-tlc.sh` is the **gate** and covers 4 baselines + 4
+mutants. `make proof` writes `artifacts/proofs/proofs_summary.json` and records
+**5** baselines + 4 mutants: it additionally checks `DAB_ExecutionBoundary`,
+which is clean over 51,106 distinct states but ships **no mutant**, so that
+result is one-sided and is excluded from the gate rather than counted as a fifth
+pair. `TenantIsolation` is a `DECLARED_STUB` — excluded rather than passed
+vacuously. Do not write "five mutants": there are four.
 
 Or use the wrappers (same gates, one command each):
 
@@ -440,10 +449,10 @@ A completed item means the repository contains evidence for that narrow claim.
 | Item | Status | Spine | Evidence Status |
 |:---|:---|:---|:---|
 | Thesis, evidence map, falsification conditions | Complete | Research | One page, five stated falsifiers, every claim mapped to a command |
-| E1 provenance kernel census | Complete locally | Research | 12 pre-registered classes × 4 arms; 3 unintended kernel members found in Ghost-Ark's own pipeline; curated alphabet, not real traffic |
+| E1 provenance kernel census | Complete locally | Research | 31 pre-registered classes × 5 arms; 5 unintended kernel members found in Ghost-Ark's own pipeline, 0 under strict admission; curated alphabet, not real traffic |
 | E2 verification cost | Complete locally | Research | p50 + IQR vs declared baseline, host recorded; single machine only |
-| E3 adversarial corpus detection | Complete locally | Research | 25/25 verifier-intrinsic, 3/3 controls; no compromised-signer fixtures |
-| E4 metamorphic guard | Complete locally | Research | Tautology verdict PASS; 5 of 10 checks unisolatable by the corpus (documented gap) |
+| E3 adversarial corpus detection | Complete locally | Research | 26/26 verifier-intrinsic, 3/3 controls; no compromised-signer fixtures |
+| E4 metamorphic guard | Complete locally | Research | Tautology verdict PASS; 7 of 10 checks load-bearing, 1 corpus gap (`tenant`) and 2 unisolatable in principle (documented) |
 | Rust gateway/verifier in CI | Complete | Research | 26 tests, clippy `-D warnings`, `--locked`; previously unguarded |
 | TLA+ specs + mutants in CI | Complete | Research | 4 baselines pass and 4 mutants must violate; `TenantIsolation` and `proofs/cloud/*` remain unchecked stubs |
 | Real-traffic kernel frequency | Not complete | Research | Falsifier F2 and the largest open weakness; requires a corpus this repository does not have |

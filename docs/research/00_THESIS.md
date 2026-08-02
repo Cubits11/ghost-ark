@@ -49,14 +49,14 @@ Every row is a command. Run them; do not take this document's word for anything.
 |:---|:---|:---|
 | C2: Ghost-Ark's own pipeline has unintended kernel members | 5 of 31 pathology classes collapse against pre-registered consumer intent | `npm run experiment:e1` |
 | The rate is substantial, not incidental | Under a declared random generator: **52.5% [49.0%, 56.1%]** of semantics-changing mutations collapse unguarded vs **0.0% [0.0%, 0.5%]** guarded — disjoint 95% Wilson intervals over a shared denominator | `npm run experiment:e1b` |
-| Independent verifiers agree | 25/25 rejects and 2/2 accepts unanimous across Node and Python; 0 peer disagreements, 0 subsumption violations | `npm run experiment:e5` |
+| Independent verifiers agree | 28/28 rejects and 2/2 accepts unanimous across Node and Python; 0 peer disagreements, 0 subsumption violations | `npm run experiment:e5` |
 | Soundness is **antitone in the consumer set** — the thesis measured, not assumed | Over 540 option cells, adding a correct consumer expectation never turns a rejection into an acceptance; 8/8 invariants hold | `npm run experiment:e6` |
-| C1 again, by open-ended search: **no two independent pipelines induce the same equivalence relation** | Fuzzing V8 / CPython / jq finds 4 distinct structural divergence classes, and each arm is the outlier on at least one | `npm run experiment:e7` |
+| C1 again, by open-ended search: **no two independent pipelines induce the same equivalence relation** | Fuzzing V8 / CPython / jq finds 8 structural divergence classes over 4 underlying mechanisms, and every *pair* of arms disagrees somewhere (jq is the outlier 6×, v8 2×, CPython never) | `npm run experiment:e7` |
 | C1: the kernel is set by parse∘canonicalize, not canonicalize | `integer-precision-loss` is unsound in all three V8 arms and **sound** in the CPython arm — same canonicalization rules, different parser | `npm run experiment:e1` |
 | Fail-closed rejection is load-bearing, not decoration | On `non-finite-overflow` Ghost-Ark rejects; the naive control arm issues one digest for two different numbers | `npm run experiment:e1` |
 | The kernel defects are **fixed**, and the fix is measured by the census that found them | Text-level admission control before `JSON.parse` takes unintended kernel members 5 → 0, with zero rejection-asymmetry and `canonicalize()` byte-unchanged | `npm run experiment:e1` |
 | Verification cost, with dispersion and a baseline | p50 + IQR over 5000 iterations per arm, ratio to a `json-parse-only` baseline, host recorded | `npm run experiment:e2` |
-| The adversarial corpus is rejected by the real verifier | 26/26 rejected; 25/25 by verifier rules alone; 3/3 unmutated controls PASS | `npm run experiment:e3` |
+| The adversarial corpus is rejected by the real verifier | 28/28 detectable rejected; 26/26 by verifier rules alone; 3/3 unmutated controls PASS; 2 documented boundaries excluded from the rate | `npm run experiment:e3` |
 | Those rejections are **not tautological** | With every verifier check forced to pass, only the parse failure still rejects | `npm run experiment:e4` |
 | Formal invariants are load-bearing | Each TLA+ spec ships with a mutant that produces a counterexample | `proofs/tla/`, `proofs/dab/artifacts/` |
 | Non-claim vocabulary is enforced, not promised | 801 files scanned, 0 violations | `npm run scan:claims` |

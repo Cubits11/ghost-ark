@@ -54,11 +54,11 @@ const dissertationIds = retractionIds(
 );
 
 describe("retraction lists stay in sync", () => {
-  it("records at least the nine retractions known at 2026-08-02", () => {
+  it("records at least the ten retractions known at 2026-08-02", () => {
     // A floor, not an equality: retracting more is progress. Retracting FEWER
     // means a withdrawal was quietly dropped, which is the failure this file
     // exists to prevent.
-    expect(experimentsIds.length).toBeGreaterThanOrEqual(9);
+    expect(experimentsIds.length).toBeGreaterThanOrEqual(10);
   });
 
   it("assigns every retraction a unique id in the source of record", () => {
@@ -97,6 +97,11 @@ describe("retraction lists stay in sync", () => {
     const allowed = [
       "docs/research/EXPERIMENTS.md",
       "docs/dissertation/04_Empirical_Evaluation.md",
+      // Added 2026-08-02 with R10: the manuscript now carries its own
+      // §Superseded evidence, so these phrases appear there as retractions.
+      // It is an allowed context only because that section exists —
+      // paperEvidenceSource.test.ts asserts it still does.
+      "docs/paper/main.tex",
       "docs/artifact/STATUS_AND_LIMITATIONS.md",
       "CLAUDE.md",
       "CONTRIBUTING.md",

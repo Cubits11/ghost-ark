@@ -104,18 +104,29 @@ on the first thing a reviewer checks.
 
 - npm run lint passes
 
-- npm test passes: 158 test files, 1214 tests (1 file / 9 tests skipped)
+- npm test passes: 161 test files, 1244 tests (1 file / 9 tests skipped), measured 2026-08-02.
+  Commit-relative by construction — re-measure, and treat only a *decrease* as suspicious.
 
-- npm run scan:claims: 830 files scanned, 0 forbidden-claim violations
+- npm run scan:claims: 833 files scanned, 0 forbidden-claim violations (2026-08-02).
+  Commit-relative like the test count: adding any scannable file changes it.
 
 - npm run claims:verify: 20 claims, 12 distinct local commands, 12 passed / 0 failed
   (2026-08-02); 5 skipped as AWS-required by declaration
 
 - npm run assumptions: 7 annotated modules, 0 lattice violations
 
-- cargo test --locked: 26 Rust tests pass (13 dab/gateway + 13 dab/verifier); clippy clean under -D warnings
+- cargo test --locked: 30 Rust tests pass across 4 crates — 13 dab/gateway + 13 dab/verifier
+  + 4 tools/experiments + 0 tools/experiments-json (that crate has **no tests**); clippy clean
+  under -D warnings. Measured 2026-08-02. This line previously read "26 ... (13 + 13)", counting
+  two crates and omitting the other two.
 
-- tools/proofs/run-tlc.sh: 4 TLA+ baselines clean, 4 mutants violate as required
+- tools/proofs/run-tlc.sh: 4 TLA+ baselines clean, 4 mutants violate as required.
+  Note the two runners disagree in scope and both are right: `run-tlc.sh` gates 4+4,
+  while `artifacts/proofs/proofs_summary.json` (via `make proof`) records **5 clean
+  baselines and 4 mutants** — `DAB_ExecutionBoundary` is checked clean over 51,106
+  states but has **no seeded mutant**, so its result is one-sided, and
+  `TenantIsolation` is a `DECLARED_STUB`. The paper claimed "five mutants" until
+  2026-08-02. Do not write "five mutants" until a fifth exists.
 
 - GitHub Actions: ci, artifacts-verify, and artifact-evaluation all green on main
   (2026-08-01). Before this date CI had failed on main for 40+ consecutive runs
@@ -126,6 +137,25 @@ Known flake, fixed: two CDK-synth tests exceeded the 15s global vitest timeout u
 parallel load, making npm test nondeterministically red on a clean clone. The synth is now
 memoized and pre-warmed in beforeAll. Do not reintroduce a per-test synth in
 infra/cdk/test/api-stack-governed-invoke.test.ts or tests/integration/api/template-auth.test.ts.
+
+Anti-drift guards (added 2026-08-02, after Phase 0 found the same defect eleven times).
+Every one was discriminator-checked: a defect was reintroduced and the guard confirmed to
+fail before being accepted.
+
+- `tests/unit/repo-hygiene/retractionSync.test.ts` — the two retraction lists carry the
+  same ID set, both directions.
+- `tests/unit/repo-hygiene/measuredFigureConsistency.test.ts` — a measured figure must
+  read the same in every document that quotes it. Corpus size and the TLC baseline/mutant
+  split are recomputed from the tracked tree rather than asserted.
+- `tests/unit/repo-hygiene/paperEvidenceSource.test.ts` — the manuscript may not source
+  evidence from quarantined directories, and every macro and `\ref` must resolve.
+- `tests/unit/repo-hygiene/citedCommandsResolve.test.ts` — every command cited to a
+  reviewer must exist.
+
+These enforce **agreement, not truth**: all documents could agree on a wrong number and
+they would pass. Truth is the experiment harnesses' job, and E4's. When one of these fires,
+re-derive the figure with the command named in the failure message — do not edit the
+expectation to match the document.
 
 Public-surface rules: `docs/artifact/PUBLIC_INTERFACE.md` states what belongs in this
 repository now that it is published under an institutional account — no career
@@ -432,16 +462,16 @@ self-reported.
 ## Phase 0 — The record is currently wrong (do first, cheap)
 
 1. Re-measure `npm audit`; CI_COVERAGE claims "8 high-severity advisories" and the actual count is 3 (1 high, 2 moderate). — Acceptance: the row matches `npm audit` output on the day of the commit.
-2. Add a dated "measured on" stamp to every numeric claim in CI_COVERAGE. — Acceptance: no bare number without a date. **Partly superseded by 12**: freshness now lives in one executable place rather than scattered across ~130 numeric lines. Remaining work is the CI_COVERAGE rows specifically.
-3. Audit CI_COVERAGE end to end against live commands. — Acceptance: every row reproduced or corrected in one commit.
-4. Do the same for `README-AE.md`. — Acceptance: each claim→command pair executed and exit code recorded.
-5. Do the same for `ARTIFACT_EVALUATION.md`. — Acceptance: as above.
+2. ~~Add a dated "measured on" stamp to every numeric claim in CI_COVERAGE.~~ **DONE 2026-08-02, by a different route than proposed.** Stamping ~130 individual lines would have produced churn and a false uniformity — every row looking equally fresh regardless of whether anyone ran it. Instead the header now states exactly which commands were *executed* on the audit date and which rows are carried forward from an earlier run (TLC, E10 mutation score, semgrep count). A document-level "last audited" date that silently covers unexecuted rows is the defect, not the absence of per-line stamps.
+3. ~~Audit CI_COVERAGE end to end against live commands.~~ **DONE 2026-08-02.** The `npm audit` row was already correct (step 1). Three rows were stale and are corrected: scan:claims 829→831, "E1's three unintended kernel members"→five, and E7's "four structural divergence classes"→eight over four mechanisms.
+4. ~~Do the same for `README-AE.md`.~~ **DONE 2026-08-02, and this was the worst of the three.** Rows 2 and 3 instructed a reviewer to reproduce headline claims by running `dab/bench/run_all.ts` — the quarantined directory — and labelled the match "exact". Row 4 claimed 706 tests / 105 files against an actual 1223 / 159, also labelled "exact". Rows 8 and 8d claimed 7 gateway Rust tests against an actual 13. Every row 1–9 has now been executed: rows 5, 6, 7 pass as written; row 1 was corrected from "five mutants" to four.
+5. ~~Do the same for `ARTIFACT_EVALUATION.md`.~~ **DONE 2026-08-02.** It listed "Attack — DAB bench ✅ pass" as a verification row and named it under "what a reviewer can verify today". Both now state the quarantine; an E3/E4 row replaces it.
 6. ~~Grep the dissertation for claims retracted in EXPERIMENTS.md.~~ **DONE 2026-08-02, and the premise was wrong.** Every match in `04_Empirical_Evaluation.md` was already inside its own §6.0 Retractions table, and the chapter already deferred to EXPERIMENTS.md on conflict. No live retracted claim existed. The real defect was different and worse: the two retraction lists had **drifted in both directions** — R6/R7/R8 recorded in EXPERIMENTS.md and never propagated to the chapter, R9 retracted in the chapter and never propagated back. A reader consulting either document alone got an incomplete list of what this project has withdrawn, which is a worse failure than the original overclaims because it is the *correction* that was incomplete.
 7. ~~Add a SUPERSEDED banner to each affected section.~~ **Superseded by 6.** No banner was needed; both tables now carry stable IDs R1–R9 and the chapter names EXPERIMENTS.md as the source of record.
 8. ~~Write that hygiene test.~~ **DONE** — `tests/unit/repo-hygiene/retractionSync.test.ts`. Asserts ID-set equality in both directions, contiguous numbering so a deleted retraction leaves a gap, a floor of nine, a named tie-breaker, and that retracted phrases appear nowhere outside a retraction context. Discriminator-checked: removing one row from the chapter fails it.
-9. Reconcile `docs/paper/` against the same retraction list. — Acceptance: no retracted claim survives in the manuscript.
-10. Verify every `docs/research/*.md` marked `core` still earns it. — Acceptance: seven core docs, each with an experiment or proof behind it.
-11. Demote any core doc without evidence to `supporting` or `exploratory`. — Acceptance: `researchIndex.test.ts` green with the new tiers.
+9. ~~Reconcile `docs/paper/` against the same retraction list.~~ **DONE 2026-08-02, and it was the largest single defect found in Phase 0.** The manuscript had **no retraction section at all**, and drew its headline detection and latency numbers — in the abstract, the contributions list, §Evaluation, and the artifact appendix — from `dab/bench/`, whose own README opens "QUARANTINED: not evidence about Ghost-Ark". That is R1's defect: R1 was recorded against the *dissertation* and never propagated to the *paper*, a document neither retraction list was ever checked against. Recorded as **R10**. Re-sourced to E2 (p50 with IQR, parse-only baseline) and E3/E4 (real verifier, control arm, metamorphic guard). Withdrawn *without replacement*: the 140,941 ops/s throughput figure and the stage decomposition, because no superseding experiment measures them. Also found in the same pass: the paper claimed "five seeded mutants" when only four exist, and its four inline mutant state counts had drifted from the recorded run (61/240/232 vs 63/396/221) because the evidence-macro discipline covered baselines and skipped mutants. Pinned by `tests/unit/repo-hygiene/paperEvidenceSource.test.ts`.
+10. ~~Verify every `docs/research/*.md` marked `core` still earns it.~~ **DONE 2026-08-02.** Seven core docs, and all seven earn the tier — verified by *running* the backing artifact, not by checking it exists: `00_THESIS.md` and `EXPERIMENTS.md` (12 and 14 command references, full suite run green), `EVIDENCE_PROVENANCE_LATTICE.md` (`ProvenanceLattice.tla` at 403,949 states + `provenanceLattice.test.ts`), `KERNEL_PROBE.md` (`npm run kernel-probe --command "jq -S -c ."` reproduces E11's `jq-sorted` row exactly: 4 kernel members, 5 over-discrimination), `PROVENANCE_KERNEL_PROBLEM.md` (`provenanceKernel.test.ts`), `NON_CLAIM_ENGINEERING.md` (`scan:claims`), `RECEIPT_TRUTH_LADDER.md` (`ghost_receipt_verify.mjs` + the malicious-receipt examples). The two test files ran 30/30 green.
+11. ~~Demote any core doc without evidence.~~ **Not required** — no core doc failed step 10. Recorded rather than deleted so the check is visibly *done* rather than skipped.
 12. ~~Publish a CLAIM_LEDGER mapping claim → command → last-verified date.~~ **DONE 2026-08-02, and this premise was wrong too.** The ledger already existed: `docs/governance/claim-evidence-matrix.md`, 20 claims with commands and statuses. The gap was that **nothing ever ran the commands** — a row could cite a renamed script or deleted test file and still read as evidence. Added `npm run claims:verify` (executes them, reports pass/fail with host and date) and `npm run claims:resolve` (static, wired into `npm run validate`). First execution: 12 distinct commands, 12 passed, covering 15 of 20 claims; the other 5 are `AWS-required` and skipped by declaration. Execution surfaced a defect in the matrix itself — CLAIM-020's command regenerated a committed fixture whose ECDSA signature is non-deterministic, so verifying it always dirtied the working tree. Output redirected to gitignored `artifacts/`, pinned by `claimMatrixResolves.test.ts`.
 
 ## Phase 1 — Third-party independence (the largest open weakness)
