@@ -110,6 +110,7 @@ const TEST_FILES = [
   "tests/unit/enforcement-runtime/receipts/test_checkpoint.test.ts",
   "tests/unit/enforcement-runtime/receipts/test_decisionReceiptEmission.test.ts",
   "tests/unit/enforcement-runtime/receipts/test_hash_chain.test.ts",
+  "tests/unit/enforcement-runtime/receipts/test_hash_chain_negative.test.ts",
   "tests/unit/enforcement-runtime/receipts/test_key_manifest.test.ts",
   "tests/unit/enforcement-runtime/receipts/test_kmsDecisionReceiptVerification.test.ts",
   "tests/unit/enforcement-runtime/receipts/test_ledgerAnchoredRevocation.test.ts",

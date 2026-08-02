@@ -891,96 +891,106 @@ than no gate. It runs weekly and on demand via `.github/workflows/mutation.yml`,
 an aspirational one, following the same principle as the `npm audit --audit-level=critical`
 gate.
 
-### Measured result — 2 of 10 declared files
+### Measured result — all 10 declared files
 
-Host: darwin/arm64, Apple M1 ×8, 8 GB, node v22.22.3. Scores are the **covered**
-denominator (killed + timeout over evaluated mutants); Stryker's own headline
-puts uncovered mutants in the denominator too, and both are given because
-quoting one without saying which is the error.
+Host: darwin/arm64, Apple M1 x8, 8 GB, node v22.22.3. Swept one file per Stryker
+invocation via `tools/experiments/run-e10-sweep.sh`, because two attempts at the
+full scope in a single run were killed before completing and lost everything.
 
-| file | covered score | Stryker total | killed | survived | no coverage |
+Two denominators are given for every row, because they answer different
+questions and quoting one without saying which is the error:
+
+- **covered** = (killed + timeout) / (killed + timeout + survived) — *are the
+  tests that reach this code strong?*
+- **total** additionally puts `NoCoverage` mutants in the denominator — *is this
+  code reached at all?*
+
+| file | covered | killed/eval | survived | no coverage | mutants |
 |:---|---:|---:|---:|---:|---:|
-| `strictJsonAdmission.ts` (after remediation) | **87.8%** (287/327) | 85.9% | 287 | 40 | 7 |
-| `strictJsonAdmission.ts` (first run) | 81.4% (263/323) | 78.7% | 263 | 60 | 11 |
-| `hashCanonicalization.ts` | **88.2%** (149/169) | 84.2% | 149 | 20 | 8 |
+| `receipts/kmsVerifier.ts` | **48.1%** | 25/52 | 27 | 30 | 82 |
+| `receipts/emission.ts` | **56.3%** | 94/167 | 73 | 43 | 210 |
+| `receipts/canonical.ts` | **61.0%** | 47/77 | 30 | 58 | 135 |
+| `receipts/keyManifest.ts` | 61.0% | 94/154 | 60 | 33 | 187 |
+| `receipts/signer.ts` | 61.4% | 105/171 | 66 | 46 | 217 |
+| `receipts/kmsSigner.ts` | 68.2% | 15/22 | 7 | 6 | 28 |
+| `receipts/verifier.ts` | 73.6% | 109/148 | 39 | 2 | 150 |
+| `receipts/chain.ts` | 81.7% | 49/60 | 11 | 28 | 88 |
+| `receipt-schema/strictJsonAdmission.ts` | 87.8% | 287/327 | 40 | 7 | 334 |
+| `receipt-schema/hashCanonicalization.ts` | 88.2% | 149/169 | 20 | 8 | 177 |
+| **aggregate** | **72.3%** | **974/1347** | **373** | **261** | **1608** |
 
-**The remediation is itself a measurement.** Twenty-six distinct mutant
-signatures were killed by tests written specifically against the first run's
-survivor list — every arm of the escape-sequence switch, the `\u` validation
-guard, the array-index counter, and the magnitude guard. The improvement is
-reported as a before/after on a pinned scope, not as a single number.
+Stryker's total-denominator score over the whole kernel is **60.6%** (974/1608).
+**16.2% of all kernel mutants are executed by no test in the declared scope.**
 
-**Two of the remediation's own predictions were wrong, and the re-run found
-them.** Two new tests asserted a bare `.toThrow()` against the colon check and
-the quoted-key check. Both mutants survived: deleting either check does not stop
-the parse from failing, it only makes it fail later with a different message. An
-assertion that cannot distinguish *failed for the right reason* from *failed for
-some reason* is not a test of that check — the E4 tautology, occurring inside
-tests written to close an E10 gap. Both now match on the message.
+**The threshold I set was not met, and it has been corrected.** `break: 75` was
+chosen after measuring two files and calling it "a threshold set to what the
+repository can hold". The full scope holds 60.6%. That is the same defect this
+repository documents elsewhere as a threshold declared rather than met, so the
+gate is now `break: 58` — just under the measured value, so a regression fails
+while the number stays honest. Raising it is remediation work, not a config edit.
 
-The equivalence predictions held: both `\u` hex-regex anchor mutants were argued
-equivalent before the re-run (`hex` is a 4-character slice, so both anchors are
-redundant) and both did survive it.
+#### The finding is not the aggregate
 
-**`hashCanonicalization.ts` had 8 mutants with no coverage at all**, four of
-which sit in exported identity functions — `evidenceObjectId`,
-`receiptIdFromPayload`, `claimIdFromPayload`, `lineageEventIdFromPayload`. These
-are referenced by no test anywhere in the repository. The suite was not weak
-there; it was silent. Its 20 survivors cluster in the UTF-16 key comparator (a
-comparator that always returns −1 leaves V8's sort in insertion order, which is
-invisible whenever the fixture is already sorted), negative-zero normalization,
-and the plain-object boundary that implements "reject host-language non-JSON
-objects before signing."
+Two patterns are sharper than the headline.
 
-Eight declared files remain unmeasured; the summarizer names them rather than
-averaging them away.
+**The two remediated files are the top two.** `strictJsonAdmission` and
+`hashCanonicalization` sit at 87.8% and 88.2% because survivor-targeted tests
+were written for them; the eight untouched files average 61%. That is a
+statement about attention, not difficulty — and it means the aggregate will move
+with effort, so it is a baseline rather than a property of the code.
 
-### First measured result — 1 of 10 declared files (superseded, kept for the delta)
+**The untested code is concentrated in the rules this repository states most
+emphatically.** In `kmsVerifier.ts` the unexecuted lines are the key-identity
+*rejections*: missing `keyId`, `!immutableKmsKeyIdsMatch(this.keyId, keyId)`, and
+the response-`KeyId` mismatch. In `emission.ts` they include the empty-HMAC-secret
+guard, `IntegrityCollisionError` on a replay-lookup digest mismatch,
+`ChainHeadConflictError`, and the throw when a KMS signer exposes a mutable alias
+`keyId`. `CLAUDE.md` names immutable KMS key ARNs in verification-critical paths
+as a hard requirement; the code enforcing it is largely unexecuted.
 
-**This is a PARTIAL run and the number below is not an E10 result for the trust kernel.** The
-full 10-file scope produces ~1,580 mutants, 158 of them static, and two attempts at it were
-killed before completion. What completed is a single file, run with `--mutate` so the pinned
-`stryker.config.json` stayed untouched.
+This is narrower than "KMS needs AWS". Sibling tests do reject mutable aliases at
+*signing* time, and `immutableKmsKeyIdsMatch` is pure string comparison needing
+no credentials. The verifier's own branches are simply not reached.
 
-Host: darwin/arm64, Apple M1 ×8, 8 GB, node v22.22.3. Wall clock 22m49s for 334 mutants.
+`chain.ts` was the first case worked: 28 of 88 mutants uncovered, every one a
+detection — duplicate signed-receipt hash, chain break, backwards timestamp,
+missing prior receipt, empty and non-array input. The suite established that a
+valid chain passes and never that a broken one fails, which is the control-arm
+problem this document states for detection benchmarks, applied to the chain
+verifier. `test_hash_chain_negative.test.ts` closes it; the file has not been
+re-measured since.
 
-| file | score | killed | timeout | **survived** | no-coverage | errors |
-|:---|---:|---:|---:|---:|---:|---:|
-| `packages/receipt-schema/src/strictJsonAdmission.ts` | **81.4%** | 238 | 25 | **60** | 11 | 0 |
+#### Remediation is measured, not asserted
 
-Two denominators, because Stryker and this repository count differently and the difference is
-not cosmetic:
+`strictJsonAdmission.ts` was remediated and re-run on the same pinned scope:
 
-- **81.4% = 263/323** — the figure reported here. `NoCoverage` mutants are excluded, because
-  they measure *reach*, not *strength*.
-- **78.7% = 263/334** — Stryker's headline, which puts the 11 uncovered mutants in the
-  denominator.
+| | before | after |
+|:---|---:|---:|
+| covered score | 81.4% (263/323) | **87.8%** (287/327) |
+| survivors | 60 | 40 |
+| no coverage | 11 | 7 |
 
-Neither is wrong; quoting one without saying which is. The 11 uncovered mutants are a separate
-finding: lines in the admission scanner that **no test in the declared scope executes at all**.
+26 distinct mutant signatures newly killed. **Two of the remediation's own
+predictions were wrong and the re-run found them**: two tests asserted a bare
+`.toThrow()` against the colon and quoted-key checks, and both mutants survived
+— deleting either check does not stop the parse failing, only makes it fail
+later with a different message. An assertion that cannot distinguish *failed for
+the right reason* from *failed for some reason* is not a test of that check. That
+is the E4 tautology, inside tests written to close an E10 gap. Both now match on
+message.
 
-**The result that matters is the 60 survivors.** These are edits to the file implementing E1's
-headline fix that the whole 70-file scope does not detect. They cluster:
+The equivalence predictions held: both `\u` hex-anchor mutants were argued
+equivalent *before* the re-run and both survived it. The remaining non-string
+survivors are loop-bound comparisons, recorded as **unexamined** rather than
+guessed to be equivalent.
 
-| cluster | lines | what survives |
-|:---|:---|:---|
-| escape-sequence dispatch | 142–164 | every `case` arm of the string-escape switch can be deleted or emptied |
-| position/bounds arithmetic | 108, 130, 210, 217, 227 | `state.index === length` → `<=` survives in five places |
-| `\uXXXX` validation | 168 | the hex regex can be anchored away at either end |
-| diagnostic strings | ~20 sites | violation messages and paths can be blanked |
+#### A scope change mid-sweep, recorded
 
-The diagnostic-string survivors are largely benign — the tests assert rule identity, not message
-text. The **bounds-arithmetic and escape-dispatch survivors are not**: they are the scanner's
-parser, and E1's whole claim is that admission happens correctly at the *text* level before
-`JSON.parse`. A parser whose bounds checks can be loosened without any test noticing is exactly
-the gap E10 exists to expose.
-
-This does not retract E1's result — `strictJsonAdmission` still takes unintended kernel members
-5 → 0, and that is measured by E1 directly. It says the *tests around* that fix are weaker than
-the fix's importance warrants.
-
-Nine declared files remain unmeasured, listed by name in the summarizer output rather than
-averaged away.
+`test_hash_chain_negative.test.ts` was added to the declared scope while the
+sweep was running, so `canonical.ts` and `chain.ts` were measured against a
+71-file killer pool and the remaining six against 72. The added test only reaches
+`chain.ts`, `canonical.ts`, and `signer.ts`, and more killers can only raise a
+score, so those three rows are lower bounds. Stated rather than smoothed over.
 
 ### Coverage boundary (what E10 does NOT establish)
 

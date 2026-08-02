@@ -132,7 +132,9 @@ What would move this to 8:
    single source. The remaining limitation is honest and stated: it is
    trust-on-first-use against upstream, because no independent publication of
    this artifact exists to cross-check.
-2. Complete E10 over all ten declared files and work the survivor list down.
+2. ~~Complete E10 over all ten declared files~~ **Done (2026-08-02): 72.3% covered
+   aggregate, 60.6% total, 261 mutants unreached.** Working the 373-survivor list
+   down is the remaining half, and it is the larger half.
 3. A real-traffic corpus — falsifier F2, still the largest open weakness.
 4. A third-party reimplementation of the verifier. All three current verifiers
    share one author and can share one misreading.
