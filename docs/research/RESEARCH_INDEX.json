@@ -71,11 +71,6 @@
       "note": "Drafted rebuttal to a hypothetical program committee. Not an actual received review."
     },
     {
-      "file": "CYBER_INSURANCE_UNDERWRITING_MODEL.md",
-      "tier": "non-research",
-      "note": "Commercial underwriting framing. Carries no research weight."
-    },
-    {
       "file": "EVIDENCE_PROVENANCE_LATTICE.md",
       "tier": "core",
       "note": "Provenance lattice P1-P4 and impossibility I2; formalized in proofs/tla/ProvenanceLattice.tla."
@@ -94,11 +89,6 @@
       "file": "GEOMETRIC_JURISPRUDENCE_DRAFT.md",
       "tier": "exploratory",
       "note": "Speculative draft applying convex-polyhedron framing to policy. Explicitly a draft."
-    },
-    {
-      "file": "GHOST_ARK_GTM_STRATEGY.md",
-      "tier": "non-research",
-      "note": "Go-to-market and capitalization strategy. Carries no research weight and states no verified claim."
     },
     {
       "file": "GUARDRAIL_OBSERVATION_MODEL.md",

@@ -1,9 +1,9 @@
 # Ghost-Ark Agent Research Audit And Execution Plan
 
 Date: 2026-07-08  
-Local repo: `/Users/pranavbhave/Documents/GitHub/ghost-ark`  
+Local repo: `<REPO_ROOT>`  
 Remote: `https://github.com/Cubits11/ghost-ark.git`  
-Sibling inspected locally: `/Users/pranavbhave/Documents/GitHub/cc-framework`  
+Sibling inspected locally: `<HOME>/Documents/GitHub/cc-framework`  
 Remote: `https://github.com/Cubits11/cc-framework.git`
 
 ## Scope And Verification Boundary

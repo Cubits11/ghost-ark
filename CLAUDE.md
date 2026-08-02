@@ -104,9 +104,9 @@ on the first thing a reviewer checks.
 
 - npm run lint passes
 
-- npm test passes: 155 test files, 1193 tests (1 file / 9 tests skipped)
+- npm test passes: 156 test files, 1201 tests (1 file / 9 tests skipped)
 
-- npm run scan:claims: 832 files scanned, 0 forbidden-claim violations
+- npm run scan:claims: 827 files scanned, 0 forbidden-claim violations
 
 - npm run assumptions: 7 annotated modules, 0 lattice violations
 
@@ -123,6 +123,11 @@ Known flake, fixed: two CDK-synth tests exceeded the 15s global vitest timeout u
 parallel load, making npm test nondeterministically red on a clean clone. The synth is now
 memoized and pre-warmed in beforeAll. Do not reintroduce a per-test synth in
 infra/cdk/test/api-stack-governed-invoke.test.ts or tests/integration/api/template-auth.test.ts.
+
+Public-surface rules: `docs/artifact/PUBLIC_INTERFACE.md` states what belongs in this
+repository now that it is published under an institutional account — no career
+correspondence, no commercial planning, no developer machine paths, no self-assigned
+grades. Enforced by `tests/unit/repo-hygiene/publicInterface.test.ts`.
 
 Human-facing twin: `CONTRIBUTING.md` states these same operating rules for human
 contributors. The duplication is deliberate. Where the two disagree, this file governs for

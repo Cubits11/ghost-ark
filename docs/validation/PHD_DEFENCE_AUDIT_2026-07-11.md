@@ -5,7 +5,7 @@ hostile publication referee. **Executable evidence is preferred over author inte
 property. Where evidence is insufficient the verdict is `UNVERIFIABLE`, `MISLABELED`, or `NOT IMPLEMENTED`.
 
 Scope: `ghost-ark` (TS/AWS evidence + receipt control plane) and its sibling `cc-framework`
-(`/Users/pranavbhave/Documents/GitHub/cc-framework`, Python measurement science). This supersedes and deepens
+(`<HOME>/Documents/GitHub/cc-framework`, Python measurement science). This supersedes and deepens
 `docs/validation/ADVERSARIAL_CHECKLIST_AUDIT_2026-07-11.md` with proof obligations, severity, and **run**
 exploits.
 

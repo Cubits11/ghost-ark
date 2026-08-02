@@ -1,13 +1,13 @@
 TLC2 Version 2026.07.15.134331 (rev: 227f61b)
 Running breadth-first search Model-Checking with fp 120 and seed 7155052745879800438 with 8 workers on 8 cores with 1820MB heap and 64MB offheap memory [pid: 14414] (Mac OS X 15.5 aarch64, Oracle Corporation 23.0.1 64bit, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/pranavbhave/Documents/GitHub/ghost-ark/proofs/dab/DAB_NonceLedger_Mutant.tla
-Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/Naturals.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
-Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/FiniteSets.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
-Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/_TLCTrace.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
-Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/Sequences.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
-Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/TLC.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
-Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/TLCExt.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
-Parsing file /private/var/folders/nj/2c1_c61j3hn7h5fgv1gk0q2m0000gn/T/tlc-7961037704908695583/Integers.tla (jar:file:/Users/pranavbhave/Documents/GitHub/ghost-ark/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Parsing file <REPO_ROOT>/proofs/dab/DAB_NonceLedger_Mutant.tla
+Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets

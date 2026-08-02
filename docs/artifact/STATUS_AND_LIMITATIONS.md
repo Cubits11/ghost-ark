@@ -1,16 +1,20 @@
-# Self-Assessment — 2026-08-02
+# Status and Limitations — 2026-08-02
 
-Tier: **core**. This document is written to be used against the project.
+Tier: **core**. This document exists to be used against the project.
 
 Every number below was produced by a command in this repository and can be
-regenerated. Where something is broken, it is named as broken.
+regenerated. Where something is broken, it is named as broken. There is no
+summary grade: a self-assigned score has no rubric, no denominator, and no
+external validation, and this repository's own reporting rules forbid exactly
+that shape of claim. What replaces it is §5 — the specific things that are not
+established, stated plainly enough to be checked.
 
 Scale: ~945 tracked files, ~67k lines of TypeScript, ~3k of Rust, 14 TLA+
 specifications, 155 test files / 1,193 tests.
 
 ---
 
-## 1. The headline finding, and it is not flattering
+## 1. The most serious defect found in audit
 
 **Continuous integration failed on `main` for 40+ consecutive runs, from
 2026-07-17 to 2026-08-01, while `docs/artifact/CI_COVERAGE.md` described those
@@ -123,7 +127,7 @@ retry loop — is **unreachable**: every path returns, continues, or throws, and
 The same analysis makes the `attempt < 3` bound and `kmsVerifier`'s `!keyId`
 guard equivalent-mutant territory. Recorded with the argument, not chased.
 
-## 3b. E11 — the generality claim now has third-party evidence, and it cut both ways
+## 3b. E11 — third-party evidence for the generality claim
 
 §6 of the previous assessment argued the highest-value move was pointing the
 kernel harness at a canonicalizer this project did not write. That is now done.
@@ -162,7 +166,7 @@ availability boundary that differs per ecosystem.
 verification*. The verifier-independence gap in §5 is untouched: all three
 Ghost-Ark verifiers still share one author.
 
-## 4. What is genuinely strong
+## 4. What the evidence supports
 
 - **The doctrine works, and it is not decoration.** Every defect above was found
   by applying rules this repository wrote down first — the E4 discriminator,
@@ -181,39 +185,40 @@ Ghost-Ark verifiers still share one author.
   a before/after on a pinned scope, and the pinning is enforced by a test that
   recomputes the scope from the import graph.
 
-## 5. Rating
+## 5. What is not established
 
-**8 / 10 as a research artifact. 6 / 10 as a maintained system.**
+Three limitations bound everything above. They are listed first because they are
+the reasons a reader should discount the rest, not footnotes to it.
 
-Previously 6.5 and 4 (2026-08-01), then 7.5 and 6 earlier today. What moved:
+**1. No third party has independently run or reviewed this.** Every verifier,
+every experiment, and this document were produced by one author working with an
+AI assistant under that author's rules. E5 reports zero disagreements across
+three verifiers — written by the same person from the same specification, so they
+can share a single misreading, and agreement between them does not detect it.
+E11 narrows this for canonicalization by measuring four implementations written
+elsewhere, but it does not touch receipt verification. **This is the largest
+unaddressed weakness and no amount of internal rigour substitutes for it.**
 
-*Artifact* (+1.5 total): the central claim now has measured test strength behind
-the code implementing it — gated, pre-registered, reproducible — and its
-generality corollary has been tested against four implementations outside this
-repository, which both confirmed part of it and refuted part of it. A claim that
-has survived an experiment designed to break it is worth more than one that has
-only been asserted more loudly.
+**2. Falsifier F2 remains open.** E1 establishes that unintended kernel members
+exist; it does not establish how often they occur. Every rate reported here comes
+from a declared synthetic generator over a hand-curated alphabet. E11 removes the
+"artifact of this implementation" form of the objection but not the "artifact of
+the author's chosen pathologies" form. Only a corpus this project did not author
+closes it.
 
-*System* (+2): CI is green across all three workflows for the first time in the
-repository's recorded history; the toolchain pin actually verifies; the injection
-is closed; unreached kernel code fell from 16.2% to 2.5%.
+**3. The cloud path is synthesis-only.** No live AWS evidence bundle exists.
+Every AWS-path statement is local-only or CDK-synth-only, and the KMS signing
+path has never executed against KMS. The `kms-style-rsa` fixture is a local
+simulation of the algorithm, not KMS evidence.
 
-**Why not higher.** Three things, in order:
+Beyond those three: E10 covers the receipt trust kernel and nothing else — policy
+evaluation, runtime, vault, retrieval, and the gateway have no measured test
+strength. Two TLA+ specification families are unchecked. The `dab/roundtrip` and
+k8s round-trips exist as recorded runs rather than reproduced ones. Semgrep runs
+without gating on its 96 findings. The full matrix, including what CI does *not*
+verify, is in [CI_COVERAGE.md](./CI_COVERAGE.md).
 
-1. **No third-party has ever run this.** Every verifier, every experiment, every
-   review in this document was produced by one author and an AI assistant working
-   under that author's rules. E5 reports zero disagreements across three
-   verifiers — written by the same person from the same specification, so they
-   can share one misreading. This is the single largest unaddressed weakness and
-   no amount of internal rigor substitutes for it.
-2. **F2 is still open.** E1 establishes that unintended kernel members exist, not
-   how often. Every rate this repository reports comes from a declared synthetic
-   generator. Only real traffic closes it.
-3. **The cloud story remains synth-only.** No live AWS evidence bundle exists.
-   Every AWS-path claim is local-only or CDK-synth-only, and the KMS signing path
-   has never executed against KMS.
-
-## 6. Where this goes — the honest version
+## 6. Direction
 
 The temptation is to describe a product. The repository is not one and should not
 pretend to be. What it actually has is a **result** and an **instrument**, and
@@ -275,8 +280,8 @@ directories exist because that lesson was learned expensively, twice.
 
 ## 7. Not claimed
 
-This document rates engineering and epistemic hygiene. It is not evidence of
-security, correctness, compliance, or production readiness, and a self-assigned
-number is not an external review. **The repository has never been audited by
-anyone other than its author and an AI assistant operating under its rules** —
-which is precisely why item 1 of §6 is item 1.
+This document reports engineering status and known limitations. It is not
+evidence of security, correctness, compliance, or production readiness, and it is
+not an external review. **The repository has never been audited by anyone other
+than its author and an AI assistant operating under its rules** — which is
+precisely why item 1 of §6 is item 1.
