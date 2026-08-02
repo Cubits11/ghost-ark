@@ -115,7 +115,7 @@ const NON_CLAIM =
   "A 'sound' verdict does not prove model safety, semantic truth, compliance, production readiness, or resistance to " +
   "attacks outside this alphabet. Absence of a pathology class here is not evidence of its absence in practice.";
 
-function classify(intent: ConsumerIntent, outcomeA: ArmOutcome, outcomeB: ArmOutcome): { observed: CellResult["observed"]; verdict: CensusVerdict } {
+export function classify(intent: ConsumerIntent, outcomeA: ArmOutcome, outcomeB: ArmOutcome): { observed: CellResult["observed"]; verdict: CensusVerdict } {
   const aRejected = outcomeA.status === "rejected";
   const bRejected = outcomeB.status === "rejected";
 

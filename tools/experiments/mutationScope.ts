@@ -135,6 +135,7 @@ const TEST_FILES = [
   "tests/unit/experiments/kernelCensus.test.ts",
   "tests/unit/experiments/optionConfusionAndFuzz.test.ts",
   "tests/unit/experiments/randomizedKernel.test.ts",
+  "tests/unit/experiments/thirdPartyKernel.test.ts",
   "tests/unit/policy-compiler/policyCounterexampleEngine.test.ts",
   "tests/unit/policy-compiler/tenantNamespace.test.ts",
   "tests/unit/proofs/receiptProof.test.ts",

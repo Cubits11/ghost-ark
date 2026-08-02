@@ -5,8 +5,8 @@ Tier: **core**. This document is written to be used against the project.
 Every number below was produced by a command in this repository and can be
 regenerated. Where something is broken, it is named as broken.
 
-Scale: 934 tracked files, 66,560 lines of TypeScript, 2,868 of Rust, 14 TLA+
-specifications, 153 test files / 1,171 tests.
+Scale: 940 tracked files, ~67k lines of TypeScript, ~3k of Rust, 14 TLA+
+specifications, 154 test files / 1,182 tests.
 
 ---
 
@@ -123,6 +123,45 @@ retry loop — is **unreachable**: every path returns, continues, or throws, and
 The same analysis makes the `attempt < 3` bound and `kmsVerifier`'s `!keyId`
 guard equivalent-mutant territory. Recorded with the argument, not chased.
 
+## 3b. E11 — the generality claim now has third-party evidence, and it cut both ways
+
+§6 of the previous assessment argued the highest-value move was pointing the
+kernel harness at a canonicalizer this project did not write. That is now done.
+E11 runs the same pre-registered alphabet and the same verdict function against
+four pipelines written entirely outside this repository — Rust `serde_json`,
+Ruby, CPython, jq — in four language ecosystems, by four groups who never saw
+this alphabet.
+
+| arm | unintended kernel members |
+|:---|---:|
+| `rust-serde-json` | 4 |
+| `ruby-json` | 4 |
+| `cpython-json` | 4 |
+| `jq-sorted` | 4 |
+
+**What it confirmed.** Every third-party arm exhibits kernel members, and three
+duplicate-key classes collapse in *all four*. NFC/NFD over-discrimination is also
+universal. Corollary C2 — the kernel is a property of the problem, not of
+Ghost-Ark's implementation — now rests on evidence from outside this repository
+for those classes.
+
+**What it refuted, and this is the more valuable half.** E1 lists
+`integer-precision-loss` among its universal kernel members. All four third-party
+arms score **sound** on it. Four of E1's five arms parse with V8, whose only
+number type is a double; `serde_json`, Ruby, CPython, and jq 1.7 all preserve
+integer precision. **The 2^53 collapse is a property of double-backed number
+models, not of JSON.** E1's claim was broader than its arm mix could support, and
+the experiment built to generalize it instead narrowed it. That is the outcome an
+honest generality test is supposed to be able to produce, and it did.
+
+E11 also found a divergence class E7 could not see: Rust and Ruby fail closed on
+deep nesting where CPython and jq accept it, so recursion-depth limits are an
+availability boundary that differs per ecosystem.
+
+**What it does not fix.** E11 tests *canonicalization*, not *receipt
+verification*. The verifier-independence gap in §5 is untouched: all three
+Ghost-Ark verifiers still share one author.
+
 ## 4. What is genuinely strong
 
 - **The doctrine works, and it is not decoration.** Every defect above was found
@@ -144,13 +183,16 @@ guard equivalent-mutant territory. Recorded with the argument, not chased.
 
 ## 5. Rating
 
-**7.5 / 10 as a research artifact. 6 / 10 as a maintained system.**
+**8 / 10 as a research artifact. 6 / 10 as a maintained system.**
 
-Previously 6.5 and 4. What moved:
+Previously 6.5 and 4 (2026-08-01), then 7.5 and 6 earlier today. What moved:
 
-*Artifact* (+1): the central claim now has measured test strength behind the code
-that implements it, and the measurement is gated, pre-registered, and reproducible.
-E10 is no longer a promise.
+*Artifact* (+1.5 total): the central claim now has measured test strength behind
+the code implementing it — gated, pre-registered, reproducible — and its
+generality corollary has been tested against four implementations outside this
+repository, which both confirmed part of it and refuted part of it. A claim that
+has survived an experiment designed to break it is worth more than one that has
+only been asserted more loudly.
 
 *System* (+2): CI is green across all three workflows for the first time in the
 repository's recorded history; the toolchain pin actually verifies; the injection
@@ -205,14 +247,21 @@ leverage per unit effort:
    available and it costs nothing but asking. It converts §5's largest weakness
    from open to addressed, and it is the only item here that no amount of solo
    work can substitute for.
-2. **Point E1/E7 at a canonicalizer this project did not write.** Closes F2's
-   "artifact of the author's alphabet" objection by construction, and produces a
-   result about the ecosystem rather than about Ghost-Ark.
+2. ~~Point E1/E7 at a canonicalizer this project did not write.~~ **Done — E11.**
+   Four third-party arms, and the result cut both ways (§3b). What remains of
+   this line is the *alphabet* objection: E11 removes "artifact of Ghost-Ark's
+   implementation" but not "artifact of the author's chosen pathologies". Only a
+   corpus this project did not author closes that.
 3. **One bounded live-AWS window.** Not a deployment — a single recorded
    evidence bundle that moves the KMS path from `AWS-synth-only` to `AWS-live`.
    The runbooks already exist.
 4. **Extend E10 past the receipt kernel.** Policy evaluation, runtime, vault,
    retrieval, gateway have no measured test strength at all.
+5. **Publish E11 as a standalone probe.** It needs no Ghost-Ark receipt, no AWS,
+   and no trust in this project — it takes a canonicalizer and reports which
+   distinctions it destroys. That is the piece of this work most useful to
+   somebody else, and the piece most likely to attract the outside scrutiny item
+   1 asks for.
 
 **What to resist.** Building more surface. The repository's credibility comes
 from the ratio of *claims made* to *evidence attached*, and every new subsystem

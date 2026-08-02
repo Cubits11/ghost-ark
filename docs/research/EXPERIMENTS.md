@@ -1070,6 +1070,93 @@ gap.
 
 ---
 
+## E11 — Does the kernel result survive canonicalizers this project did not write?
+
+**Hypothesis.** Unintended kernel members are a property of the
+`parse → canonicalize → digest` problem (corollary C2), not of Ghost-Ark's
+implementation of it.
+
+**Why E1 cannot answer this.** Four of E1's five arms are Ghost-Ark code and the
+fifth is a Ghost-Ark script driving CPython. E5 already records that verifiers
+written by one author from one specification can share one misreading, and no
+amount of internal agreement detects that. C2 is exactly the claim that arms
+under this project's control cannot establish.
+
+**Design.** The same pre-registered alphabet, the same verdict function
+(imported from E1 rather than reimplemented, so E11 cannot grade on a different
+curve), run against four pipelines written entirely outside this repository:
+
+| arm | language | canonicalization |
+|:---|:---|:---|
+| `rust-serde-json` | Rust | `serde_json` + explicit recursive key sort + `sha2` |
+| `ruby-json` | Ruby | stdlib `JSON` + recursive key sort + `Digest::SHA256` |
+| `cpython-json` | CPython | `json.dumps(sort_keys=True, allow_nan=False)` |
+| `jq-sorted` | jq | `jq -S -c` |
+
+Each is the canonicalization a competent engineer reaches for in that language.
+None is Ghost-Ark's, and none was written with this alphabet in view. An arm that
+cannot run excludes the census rather than degrading it silently — same guard as
+E1, for the same reason.
+
+**Provenance: census.** Exact counts, no intervals.
+
+**Command:** `npm run build:e11-arm && npm run experiment:e11`
+
+### Measured result — 31 classes × 4 third-party arms
+
+| arm | sound | **unintended-kernel** | over-discrim | fail-closed | sound-by-rej |
+|:---|---:|---:|---:|---:|---:|
+| `rust-serde-json` | 19 | **4** | 4 | 2 | 2 |
+| `ruby-json` | 20 | **4** | 3 | 2 | 2 |
+| `cpython-json` | 21 | **4** | 3 | 1 | 2 |
+| `jq-sorted` | 21 | **4** | 5 | 0 | 1 |
+
+**F11.1 — C2 holds for duplicate keys, across four ecosystems.** Every third-party
+arm exhibits unintended kernel members, and three classes are collapsed by *all
+four*: `duplicate-key-last-wins`, `nested-duplicate-key-in-array`, and
+`duplicate-empty-key`. Rust, Ruby, CPython, and jq were written by four different
+groups, none of whom saw this alphabet, and all four identify a document that
+asserted a key twice with one that asserted it once. This is the strongest
+evidence in the repository that the kernel is a property of JSON identity rather
+than of Ghost-Ark.
+
+**F11.2 — C2 does NOT extend to the 2^53 collapse, and this narrows E1.** E1
+reports `integer-precision-loss` among its universal kernel members — but four of
+E1's five arms parse with V8, whose only number type is a double. All four
+third-party arms score **sound** on that class: `serde_json`, Ruby, CPython, and
+jq 1.7 preserve integer precision. **The 2^53 collapse is a property of
+double-backed number models, not of JSON.** E1's finding is real and narrower
+than its arm mix suggests, and recording that is the difference between a result
+and an overclaim.
+
+**F11.3 — over-discrimination is universal too.** All four arms split
+`unicode-nfc-vs-nfd`, a name every consumer treats as one string. Ghost-Ark's
+NFC/NFD over-discrimination is therefore not an implementation choice it could
+simply fix; it is what canonical JSON does everywhere.
+
+**F11.4 — recursion-depth limits are a divergence class E7 could not see.** Rust
+and Ruby fail closed on `deep-nesting-depth` where CPython and jq accept it. A
+depth limit is an availability boundary that differs per ecosystem: a receipt
+that re-verifies in one runtime can be unparseable in another for reasons
+unrelated to its content.
+
+**F11.5 — the third-party arms disagree with each other**, on six classes. E7
+found no two of three pipelines induce the same equivalence relation; E11
+reproduces that at wider scope, so cross-runtime non-portability is not an
+artifact of including Ghost-Ark in the comparison. `leading-zero-integer` is the
+sharpest: jq admits `01` and collapses it onto `1`, while Rust, Ruby, and CPython
+all reject the input outright.
+
+### Coverage boundary
+
+Four libraries, not a sample of the ecosystem. One hand-curated alphabet. **No
+arm here is defective** — each behaves exactly as its documentation says, and a
+collapse means only that its canonical form identifies two documents a Ghost-Ark
+consumer would distinguish. E11 is not a security review of any library, and the
+per-arm counts are not a quality ranking.
+
+---
+
 ## Retractions
 
 Prior claims in this repository that these experiments contradict. Listed rather than

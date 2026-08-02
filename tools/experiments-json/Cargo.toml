@@ -1,0 +1,20 @@
+[package]
+name = "ghost-ark-experiments-json"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# A SEPARATE crate from tools/experiments on purpose.
+#
+# tools/experiments is declared dependency-free, and E7 chose system `jq` over
+# Rust serde_json specifically to preserve that property rather than silently
+# breaking it. Adding serde_json there would contradict a recorded decision, so
+# the third-party-canonicalizer arm lives here instead.
+
+[dependencies]
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sha2 = "0.10"
+
+[[bin]]
+name = "serde-json-arm"
+path = "src/main.rs"
