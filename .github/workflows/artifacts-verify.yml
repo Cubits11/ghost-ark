@@ -153,7 +153,23 @@ jobs:
       # so, rather than silently reporting zero divergence for lack of anything to disagree with.
       - name: install jq for the E7 third arm
         run: sudo apt-get update -qq && sudo apt-get install -y -qq jq
-      - name: run all experiments (E1, E1-B, E2, E3, E4, E5, E6, E7)
+      # E11's arms are third-party runtimes on purpose: the experiment asks
+      # whether the kernel result survives canonicalizers this project did not
+      # write, and that is unanswerable if the only arms available are ours.
+      # Ruby ships on ubuntu-latest; the Rust arm is built from its own crate.
+      - uses: dtolnay/rust-toolchain@stable
+      - name: build the E11 serde_json arm
+        run: npm run build:e11-arm
+      - name: report third-party runtime versions used by E11
+        run: |
+          {
+            echo "### E11 third-party arm versions"
+            echo ''
+            echo '```'
+            ruby -v; python3 --version; jq --version; rustc --version
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: run all experiments (E1, E1-B, E2, E3, E4, E5, E6, E7, E11)
         run: npm run experiments
 
   supply-chain:

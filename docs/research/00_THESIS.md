@@ -77,8 +77,15 @@ Stated before the fact so the thesis is refutable rather than merely defended.
 | F4 | **A parser-independent kernel.** Show the pipeline kernel is fixed by canonicalization alone. | C1 is false, and auditing canonicalizers alone would suffice. |
 | F5 | **The corpus results are tautological.** Show E3's detections survive when the mechanisms they depend on are broken. | E4 exists precisely to test this, and currently reports PASS. A failure here would void E3. |
 
-F2 is the live weakness and this document will not pretend otherwise. Two moves narrow it and
-neither closes it:
+F2 is the live weakness and this document will not pretend otherwise. Three moves narrow it and
+none closes it:
+
+- **Independence.** E11 runs the same alphabet against four canonicalizers written entirely
+  outside this repository — Rust `serde_json`, Ruby, CPython, jq. All four exhibit unintended
+  kernel members, and three duplicate-key classes are collapsed by every one of them. That
+  answers the "artifact of Ghost-Ark's implementation" form of the objection, though not the
+  "artifact of the author's alphabet" form. E11 also NARROWS the result: the 2^53 collapse is
+  absent from all four, so it is a property of double-backed number models rather than of JSON.
 
 - **Breadth.** E1's alphabet went from 12 to 31 classes, and widening it found two MORE
   defects rather than diluting the finding. A curated corpus that keeps yielding defects as it

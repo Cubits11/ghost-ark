@@ -104,9 +104,9 @@ on the first thing a reviewer checks.
 
 - npm run lint passes
 
-- npm test passes: 153 test files, 1171 tests (1 file / 9 tests skipped)
+- npm test passes: 154 test files, 1182 tests (1 file / 9 tests skipped)
 
-- npm run scan:claims: 827 files scanned, 0 forbidden-claim violations
+- npm run scan:claims: 829 files scanned, 0 forbidden-claim violations
 
 - npm run assumptions: 7 annotated modules, 0 lattice violations
 
