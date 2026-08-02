@@ -60,10 +60,20 @@ describe("docs/research classification is complete and honest", () => {
     expect(core.length).toBeLessThanOrEqual(8);
   });
 
-  it("classifies commercial material as non-research so it cannot be read as a finding", () => {
-    const byFile = new Map(index.documents.map((document) => [document.file, document.tier]));
-    expect(byFile.get("GHOST_ARK_GTM_STRATEGY.md")).toBe("non-research");
-    expect(byFile.get("CYBER_INSURANCE_UNDERWRITING_MODEL.md")).toBe("non-research");
+  it("carries no commercial material at all, classified or otherwise", () => {
+    // This used to assert that a go-to-market strategy and a cyber-insurance
+    // underwriting model were classified `non-research`. Classification was the
+    // wrong control.
+    //
+    // The repository is published under a university security lab. A document
+    // titled "Go-To-Market & Series-A Capitalization Strategy" sitting in a
+    // lab-affiliated repository raises a question about whether institutional
+    // affiliation is being used to support a commercial venture — and that
+    // question is not answered by a tier label. Commercial planning belongs
+    // somewhere else entirely; a tier field cannot make it appropriate here.
+    const commercial = /go[- ]?to[- ]?market|series[- ][A-C]\b|capitalization|underwriting|revenue|pricing tier|term sheet/iu;
+    const offenders = index.documents.filter((document) => commercial.test(document.file));
+    expect(offenders.map((document) => document.file)).toEqual([]);
   });
 
   it("classifies documents whose own titles declare them drafts as exploratory", () => {

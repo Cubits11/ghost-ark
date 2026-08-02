@@ -197,6 +197,19 @@ repository still says only what it can support. Concretely, ask:
 3. Would the new test still pass if the mechanism it tests were broken?
 4. Is anything newly quarantined, dropped, or unmeasured — and is it stated?
 
+## What belongs in a public, institutionally-affiliated repository
+
+This repository is published under an institutional account, so three categories
+of content do not belong in it regardless of how useful they are elsewhere:
+career correspondence, commercial planning, and developer machine state
+(absolute home paths). Self-assigned grades do not belong either — a summary
+score has no denominator, which the empirical rules above already forbid.
+
+The full statement, including what deliberately *stays* (unflattering findings,
+retractions, tiered academic drafts) and the register documentation is written
+in, is [docs/artifact/PUBLIC_INTERFACE.md](./docs/artifact/PUBLIC_INTERFACE.md).
+It is enforced by `tests/unit/repo-hygiene/publicInterface.test.ts`.
+
 ## Relationship to `CLAUDE.md`
 
 `CLAUDE.md` states the same operating rules for AI coding assistants working in
