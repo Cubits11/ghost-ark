@@ -145,6 +145,18 @@ describeIfAvailable("E11 third-party kernel census", () => {
     expect(() => runE11(undefined, { arms: unavailable })).toThrow(/the whole point of this[\s\S]*independence/u);
   });
 
+  // Unlike the test above, this one CANNOT be made cheap by injection: passing
+  // `allowDegradedArms` is precisely the branch that does not throw early, so it
+  // runs a real census over the three surviving arms — 31 classes x 3 runtimes,
+  // ~93 subprocess spawns. That is ~9s alone and over 24s under full-suite
+  // parallel load, against a 15s global timeout, so `npm test` went
+  // nondeterministically red while the file passed in isolation.
+  //
+  // The timeout is raised rather than the work removed: the assertion below is
+  // about what a degraded report CONTAINS, and a stubbed run would test the stub.
+  // Note the sibling test at "refuses to emit a census" was already fixed for
+  // this exact timeout in a previous pass and this one was left behind — the same
+  // defect, one test lower.
   it("stamps an explicitly-requested degraded run and drops the arm rather than scoring it", () => {
     const unavailable = arms.map((arm, index) =>
       index === 0 ? { ...arm, available: false, detail: "simulated missing runtime" } : arm
@@ -158,7 +170,7 @@ describeIfAvailable("E11 third-party kernel census", () => {
     // the exact defect E1 carried before its arm-availability fix.
     expect(degraded.arms.map((arm) => arm.armId)).not.toContain(arms[0]?.id);
     expect(degraded.arms).toHaveLength(3);
-  });
+  }, 120_000);
 
   it("carries a non-claim that does not accuse any library of a defect", () => {
     // Every arm here behaves exactly as documented. The finding is about what

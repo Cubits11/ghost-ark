@@ -458,7 +458,7 @@ must imply verification failure. The converse is not required.
 peer verifiers:      node-independent, python-independent
 subsumed verifier:   ts-receipt-identity
 
-peers unanimous on fixtures that must FAIL: 25/25
+peers unanimous on fixtures that must FAIL: 28/28
 peers unanimous on fixtures that must PASS:   2/2
 
 PEER DISAGREEMENTS:      0
@@ -547,8 +547,14 @@ across machines. These are not throughput numbers and not a performance guarante
 
 ## E3 — Adversarial corpus detection against the real verifier
 
-**Hypothesis.** The 26-fixture malicious corpus is rejected by
+**Hypothesis.** The malicious corpus is rejected by
 `verifiers/node/ghost_receipt_verify.mjs`, and the unmutated fixtures still pass.
+
+> **Re-measured 2026-08-02.** The block below previously recorded `26/26`
+> aggregate and `25/25` verifier-intrinsic against a 26-fixture corpus. The
+> corpus has since grown and gained a `documented-boundary` stratum, and this
+> section was not updated with it — a stale record of exactly the kind Phase 0
+> exists to find. Re-run `npm run experiment:e3` before quoting any figure here.
 
 **Design.** Every fixture is run through the real standalone verifier with options
 sourced from the reproducibility manifest. Detection is stratified by *who* rejected:
@@ -562,22 +568,36 @@ score 100%.
 
 ### Measured result
 
+Measured 2026-08-02, Apple M1 / darwin arm64 / Node v22.22.3.
+
 ```
-aggregate detection:        26/26 mutations rejected somewhere in the pipeline
-verifier-intrinsic:         25/25 rejected by verifier rules alone
+aggregate detection:        28/28 DETECTABLE mutations rejected somewhere in the pipeline
+documented boundaries:      2 fixtures the corpus declares should be ACCEPTED (excluded from the rate)
+verifier-intrinsic:         26/26 rejected by verifier rules alone (quote THIS for verifier claims)
 control arm:                3/3 unmutated base fixtures PASS
 
 rejection strata:
-  verifier-intrinsic     24
+  verifier-intrinsic     25
   load                    1   (MAL-024, malformed JSON)
-  consumer-expectation    1   (MAL-014)
+  consumer-expectation    2
+  documented-boundary     2
   undetected              0
+
+UNDETECTED and NOT declared acceptable: 0
 ```
 
 ### Findings
 
-**F3.1 — Quote the stratified number, not the aggregate.** "26/26" folds in a fixture no
-verifier rule can reject. The defensible claim is **25/25 verifier-intrinsic**.
+**F3.1 — Quote the stratified number, not the aggregate.** The aggregate folds in a
+fixture no verifier rule can reject (a JSON load failure) and two rejected only by a
+declared consumer expectation. The defensible claim is **26/26 verifier-intrinsic**, which
+is what the harness itself labels "quote THIS for verifier claims".
+
+**F3.1b — Documented boundaries are excluded from the rate, not scored as wins.** Two
+fixtures are ones the corpus *declares should be accepted*. Counting them as successes
+would inflate the number by rewarding the verifier for correct acceptance in a
+*detection* metric; dropping them silently would hide two fixtures from the denominator.
+They are reported as their own stratum.
 
 **F3.2 — MAL-014 is the thesis in miniature.** A byte-identical, cryptographically valid
 receipt from tenant A presented to a tenant-B consumer. No verifier rule can reject it —
@@ -595,7 +615,7 @@ fixtures for: a **compromised signer** (an attacker able to produce valid signat
 mutated payloads — this is why E4 finds `receipt_id` unisolatable), multi-field coordinated
 mutations, chain/checkpoint-level attacks across many receipts, ledger completeness or
 omission attacks, timing or side-channel attacks, key-rotation-boundary attacks, or any
-live AWS/KMS custody attack. A 25/25 result says nothing about these.
+live AWS/KMS custody attack. A 26/26 result says nothing about these.
 
 ---
 
@@ -756,24 +776,28 @@ dismissed that way. An unavailable arm is reported as unavailable, never as agre
 
 **Command:** `npm run experiment:e7` (`--seed`, `--trials`)
 
-### Measured result — seed 15200258, 600 inputs
+### Measured result — seed 15200258, 1500 inputs
+
+Re-measured 2026-08-02 at the current default trial count. The block previously recorded
+here was a 600-input run; the default has since risen to 1500, so anyone running the
+documented command got numbers that did not match the documented output.
 
 ```
-unanimously accepted: 331
-unanimously rejected: 167
+unanimously accepted: 749
+unanimously rejected: 484
 
-VALIDITY   102/600 inputs  = 17.00%  95% Wilson [14.21%, 20.21%]
-STRUCTURE  199/47278 pairs =  0.42%  95% Wilson [ 0.37%,  0.48%]
+VALIDITY   267/1500 inputs   = 17.80%  95% Wilson [15.95%, 19.82%]
+STRUCTURE  901/280126 pairs  =  0.32%  95% Wilson [ 0.30%,  0.34%]
 ```
 
 The two are reported over **their own denominators** and are not addable — one is per input, the
 other per pair. An earlier version summed them into a single rate over `trials`, which silently
 combined a per-input count with a per-pair count and was meaningless.
 
-### The four distinct structural divergence classes
+### The eight distinct structural divergence classes
 
 The rate counts every rediscovery; a random generator finds the same handful of classes hundreds
-of times. **199 divergent pairs is not 199 phenomena.** These are the phenomena:
+of times. **901 divergent pairs is not 901 phenomena.** These are the phenomena:
 
 | pair | outlier | behavior |
 |:---|:---|:---|
@@ -781,6 +805,18 @@ of times. **199 divergent pairs is not 199 phenomena.** These are the phenomena:
 | `1` vs `1.0` | **v8** | identifies both as same |
 | `-0` vs `0` | **jq** | distinguishes |
 | `0.1` vs `0.1000000000000000055511151231257827` | **jq** | distinguishes |
+| `[0.1000000000000000055511151231257827]` vs `[0.1]` | **jq** | distinguishes |
+| `{"é":-0}` vs `{"é":0}` | **jq** | distinguishes |
+| `[ 0 ]` vs `[-0]` | **jq** | distinguishes |
+| `[-0]` vs `[0]` | **jq** | distinguishes |
+
+**Do not read this as eight independent phenomena.** The count rose from four to eight when
+the default trial budget rose, and the four new rows are *nesting variants* of rows already
+present: signed-zero distinction observed inside an array, inside an object value, and with
+whitespace, plus float-precision distinction inside an array. The underlying mechanisms
+remain four — the 2^53 integer collapse, `1` vs `1.0`, signed zero, and float-literal
+precision. What the larger budget bought is evidence that the signed-zero divergence is not
+confined to scalars at the top level, which matters because receipts nest.
 
 ### Findings
 
@@ -788,11 +824,18 @@ of times. **199 divergent pairs is not 199 phenomena.** These are the phenomena:
 E1 found the 2^53 collapse with a hand-picked pair. E7 finds it by fuzzing, and names V8 as the
 outlier against **two** independent implementations rather than one.
 
-**F7.2 — No two of these three pipelines induce the same equivalence relation.** Each arm is the
-outlier on at least one class. If one arm were the outlier on all of them the story would be
-"that arm is broken"; instead there is no pair that agrees about which inputs are the same. This
-is the sharper form of corollary C1 and it is exactly what makes cross-runtime re-verification
-unsound today.
+**F7.2 — No two of these three pipelines induce the same equivalence relation.** Every pair
+disagrees somewhere: v8 differs from CPython on the two integer/float-identity classes, and jq
+differs from both on the six signed-zero and float-precision classes. There is no pair that
+agrees about which inputs are the same. This is the sharper form of corollary C1 and it is
+exactly what makes cross-runtime re-verification unsound today.
+
+**Correction (2026-08-02).** This finding previously read "each arm is the outlier on at least
+one class." That is **false** and was false when written: across all eight classes the outlier
+is `jq` six times and `v8` twice. **CPython is the outlier on none** — over this corpus it is
+the median implementation. The pairwise-disagreement claim above survives and is what the
+corollary actually needs; the per-arm claim was a stronger statement that the data never
+supported. Recorded rather than silently edited, per the retraction policy.
 
 **F7.3 — `1` vs `1.0` is a portability hazard E1 could not see.** E1 declares
 `float-vs-integer-same-value` consumer-EQUIVALENT and scores Ghost-Ark *sound* for collapsing
@@ -1180,6 +1223,7 @@ there was missing from here.
 | **R7** | A pinned `tla2tools.jar` sha256 presented as toolchain integrity | `scripts/run-proofs.sh`, 2026-07-15 → 2026-08-01 | The digest `58d44845…` was recorded for TLA+ `v1.8.0` on **2026-07-15**. That release was first published **2026-07-31**, sixteen days later; on the day of the pin the latest release was `v1.7.4` (2024-08-05) and the pinned URL returned 404. The digest matches neither the current `v1.8.0` asset (`e22f8ffb…`), nor `v1.7.4` (`936a2620…`), nor the untracked jar at the repository root (`cc4803dc…`). It was a value that looked like verification and performed none — and because it failed closed, **the proof stage of `make reproduce` never checked a single specification between those dates**, while `tools/proofs/run-tlc.sh` fetched the same jar with *no* integrity check at all and reported green. Both runners now check one verified digest read from a single source. |
 | **R8** | Nitro Enclave PCR attestation as an implemented path | `dab/gateway/src/v200.rs` | Never compiled on Linux (bulk `DescribePCRs` API does not exist); off-Linux the mock returned the exact constant the check compares against, so attestation passed unconditionally. Quarantined to `UNBUILT_PROTOTYPES/rust/`. |
 | **R9** | `prototype_pollution: detected: false` used to argue the V8 runtime is hostile | ch. 04 | Stale: the fixture never exercised a prototype-pollution path, so a `false` result argued nothing about the runtime. Recorded here because the dissertation retracted it and this list did not — the two drifted, which is why they are now pinned by `retractionSync.test.ts`. |
+| **R10** | Every headline latency and detection number in the conference manuscript, sourced from `dab/bench/` | `docs/paper/main.tex` — abstract, contributions list, §Evaluation, artifact appendix | The paper headlined `global_advantage: 0` across four games and an end-to-end `p50 = 5.5 µs` drawn from the directory whose own README reads "QUARANTINED: not evidence about Ghost-Ark". This is R1's defect, still load-bearing in the manuscript: R1 was recorded against the *dissertation* and never propagated to the *paper*, which carried no retraction section at all — the same both-directions drift that R6–R9 exhibited, one document further out. Superseded by **E2** (p50 with IQR against a parse-only baseline, real verifier) and **E3/E4** (real standalone verifier, control arm, metamorphic guard). Two things were withdrawn without replacement rather than re-sourced: the throughput figure (`140,941 ops/s`), because E2 explicitly does not measure throughput, and the stage decomposition (baseline dispatch / DANF commit / gateway verify), because no superseding experiment measures it. The four-game advantage figure survives only as an explicitly-labelled model-internal calculation. Pinned by `tests/unit/repo-hygiene/paperEvidenceSource.test.ts`. |
 
 ## Open gaps
 

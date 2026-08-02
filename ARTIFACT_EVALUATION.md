@@ -36,7 +36,8 @@ unchanged either way: it reports whatever is true at the commit you run it on.
 | Proofs — `proofs/dab` | ✅ pass (bounded) | baseline `NoReplays`+`EventualGC` verified and mutant TOCTOU counterexample reproduced (real logs in `proofs/dab/artifacts/`); model↔implementation divergence **closed** — `nonce.rs` now implements the verified tombstone semantics, with a bounded capacity caveat (inventory §7.2) |
 | Unit/integration | ✅ pass (load-tolerant timeout) | 6 CDK-synth tests time out only under default 15s + full-suite load |
 | Attack — root security | ✅ pass | policy fuzzer, negative corpus, tenant boundary |
-| Attack — DAB bench | ✅ pass | scoring inversion fixed (`cd66782`); Tier-0 in-suite detection green at HEAD (`global_advantage = 0` over 10,000 trials, modeled attacker only — see `dab/bench/run_all.ts` non-claim header) |
+| Attack — DAB bench | ⛔ **quarantined, not evidence** | `dab/bench/` is not a measurement of this system: several suites report `detected: true` while invoking no component under test, and the directory imports only `node:crypto` and `node:perf_hooks`. Its own README says so. Superseded by E3/E4 below. Retracted as **R10**; a green result here means nothing |
+| Attack — corpus vs. the real verifier | ✅ pass | `npm run experiment:e3` → 26/26 verifier-intrinsic, 3/3 control arm, 0 undetected; `npm run experiment:e4` → `TAUTOLOGY VERDICT: PASS`, 7 load-bearing checks |
 | Benchmark | ▶ runs | real latency/throughput/overhead numbers exported |
 | Dissertation PDF | ⏸ toolchain-gated | claim gate is green at HEAD; needs pandoc+latexmk (present in the reviewer container); a claim-clean PDF build has not yet been exercised on this host |
 
@@ -46,9 +47,11 @@ Full evidence for each item, with the exact commands, is in
 
 **What a reviewer can verify today:** the `proofs/tla` AND `proofs/dab` families
 check cleanly and reproducibly (baselines clean, mutants violating, recorded
-logs committed), the root security suite passes, the Tier-0 DAB bench reports
-zero in-suite attacker advantage, the receipt verifier/differential tests pass,
-and the reporting pipeline produces a faithful machine-readable summary.
+logs committed), the root security suite passes, the malicious corpus is
+rejected by the *real* standalone verifier with a control arm and a metamorphic
+guard proving the detections are load-bearing (E3/E4), the receipt
+verifier/differential tests pass, and the reporting pipeline produces a faithful
+machine-readable summary.
 **What is not yet reproducible or remains open:** DAB empirical claims beyond
 the Tier-0 modeled attacker (no live gateway/TCB evidence; the Rust
 receipt-shape items of inventory §7.5 are "unverified", not "closed"), any
@@ -131,9 +134,14 @@ the PDF), `VITEST_TIMEOUT_MS=60000` (unit-test timeout).
   (fraction of trials the modeled attacker "wins") and per-game latency.
 - `benchmarks_summary.json` — a digest.
 
-**Caveat (do not skip):** read the attacker-advantage figures as **in-suite
-detection under the modeled attacker only** — the non-claim header at the top
-of `dab/bench/run_all.ts` is normative. Historical note: an earlier revision
+**Caveat (do not skip):** these files are outputs of `dab/bench/`, which is
+**quarantined and is not evidence about this system** — several of its suites
+report `detected: true` without invoking any component under test, so a green
+attacker-advantage figure there is a restatement of how its own fixtures were
+built. Read `formal_games.json` as a calculation over the file's own declared
+attacker model, and `performance.json` as superseded by `npm run experiment:e2`
+(which reports p50 with IQR against a declared baseline). Retracted as **R10**
+in `docs/research/EXPERIMENTS.md`. Historical note: an earlier revision
 of the benchmark scored two suites backwards (a detected replay counted as an
 attacker win), and this artifact published that red result until the
 accounting fix landed (`cd66782`); the episode is preserved in inventory §7.6
@@ -170,8 +178,10 @@ and the full AWS cloud path (no live-AWS evidence bundled here).
 2. ~~Claim-language gate RED (dissertation prose)~~ — **RESOLVED** (inventory
    §7.3): 0 violations at HEAD; scanner coverage extended to `.tex`/`.bib`.
 3. ~~DAB benchmark scores two suites backwards~~ — **RESOLVED** (`cd66782`,
-   inventory §7.6): `global_advantage = 0` over 10,000 trials at HEAD
-   (recorded 2026-07-16), modeled attacker only.
+   inventory §7.6), then **superseded entirely**: the harness was retired from
+   the evidence base for a deeper defect than mis-scoring — several suites
+   invoked no component under test at all (R10). Correct accounting over a
+   tautological check still measures nothing. Detection evidence is now E3/E4.
 4. Full `npm test` needs a raised per-test timeout to avoid load-induced
    CDK-synth flakiness (the harness sets `--test-timeout=60000`). **Open.**
 5. ~~The DAB container path and `cargo --locked` are broken; the gateway↔verifier

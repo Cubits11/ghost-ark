@@ -67,7 +67,7 @@ E2: n = 5000 per arm after 500 discarded warmup iterations, p50 with IQR.
 For proportions the honest answer is that **most of this repository's corpora do not warrant
 inferential statistics at all**, and the code now enforces that:
 
-- The 26-fixture corpus and the 31-class alphabet are **censuses** — hand-curated, the whole
+- The 30-fixture corpus and the 31-class alphabet are **censuses** — hand-curated, the whole
   population, size chosen by an author. `reportProportion` refuses to attach a confidence
   interval when provenance is `census`, and `assertCensusReporting` throws.
 - Intervals are additionally refused below n = 30.
@@ -215,7 +215,7 @@ What E5 does establish, over the full corpus rather than selected fixtures:
 npm run experiment:e5
 ```
 
-> 25/25 rejects and 2/2 accepts unanimous across Node and Python; 0 peer disagreements;
+> 28/28 rejects and 2/2 accepts unanimous across Node and Python; 0 peer disagreements;
 > 0 subsumption violations
 
 Both arms are reported because agreement on rejects alone is worthless — a verifier that
@@ -264,7 +264,9 @@ npm run experiment:e7
 ```
 
 Fuzzing the same byte streams through three independent pipelines — Node's `JSON.parse`, CPython's
-`json`, and `jq` — finds four distinct structural divergence classes:
+`json`, and `jq` — finds eight structural divergence classes over four underlying mechanisms
+(the other four are nesting variants — signed zero inside an array, inside an object value, and
+with whitespace):
 
 | pair | outlier |
 |:---|:---|
@@ -273,9 +275,12 @@ Fuzzing the same byte streams through three independent pipelines — Node's `JS
 | `-0` vs `0` | **jq** distinguishes |
 | `0.1` vs `0.1000000000000000055511151231257827` | **jq** distinguishes |
 
-**No two of the three induce the same equivalence relation.** Each arm is the outlier on at least
-one class, so this is not "one implementation is broken" — it is that the JSON number model does
-not pin down identity. `1` versus `1.0` is the one that should worry a reviewer: E1 classifies it
+**No two of the three induce the same equivalence relation** — every *pair* disagrees somewhere,
+so this is not "one implementation is broken"; it is that the JSON number model does not pin down
+identity. Note what this does *not* say: the outlier is `jq` six times and `v8` twice, and
+**CPython is the outlier on none**. An earlier version of this sheet claimed each arm was the
+outlier on at least one class; that was false, and the pairwise statement is the one the argument
+needs. `1` versus `1.0` is the one that should worry a reviewer: E1 classifies it
 as consumer-*equivalent* and scores Ghost-Ark *sound* for collapsing it, while CPython and jq both
 distinguish it. **Being sound for a declared consumer set does not imply being portable.**
 
@@ -342,10 +347,11 @@ policy for string values, which changes what gets signed and does need a migrati
 
 ---
 
-### Q11. "Your corpus scores 26/26. That smells like a test written to pass."
+### Q11. "Your corpus scores 28/28. That smells like a test written to pass."
 
-It partly is, and E4 says so. Quote **25/25 verifier-intrinsic**, not 26/26 — the aggregate
-folds in MAL-014, which no verifier rule can reject.
+It partly is, and E4 says so. Quote **26/26 verifier-intrinsic**, not the aggregate — which
+folds in a JSON load failure no verifier *rule* can claim, plus two rejections that come
+only from a declared consumer expectation.
 
 E4 originally showed **5 of 10 verifier checks had no dependent fixture**, because every
 fixture that mutated `receipt_id` also broke the digest and signature, so the verifier

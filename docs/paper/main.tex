@@ -35,17 +35,54 @@
 % Evidence macros — single source for every number cited in the paper.
 % Each macro names its evidence artifact. Reproduce via README-AE.md.
 % ---------------------------------------------------------------------------
-% DAB Tier-0 bench, 2026-07-16, Apple M1 (8 GB), macOS (Darwin 24.5.0 arm64),
-% Node v22.22.3, `node --experimental-strip-types dab/bench/run_all.ts --trials 10000`
+% RETRACTED SOURCE (R10, docs/research/EXPERIMENTS.md). Every latency and
+% detection number in this paper was previously sourced from `dab/bench/`
+% (`run_all.ts --trials 10000`). That directory is QUARANTINED: its own README
+% states "not evidence about Ghost-Ark" because several suites report
+% `detected: true` without invoking any Ghost-Ark component. Its files import
+% only `node:crypto` and `node:perf_hooks`. Do not re-source anything here from
+% it. Superseded by E2 (cost) and E3/E4 (detection).
+%
+% E2 — verification cost with a baseline. `npm run experiment:e2`.
+% Host: Apple M1, darwin/arm64, 8 CPU, Node v22.22.3. 5000 measured iterations
+% after 500 discarded warmup iterations; canonical payload 1552 bytes.
+% Reported as p50 with IQR: a bare p50 is not a result.
+\newcommand{\evtwoiters}{5{,}000}
+\newcommand{\evtwohost}{Apple M1, darwin/arm64, 8 CPU, Node v22.22.3}
+\newcommand{\evtwobasepfifty}{1.92}   % json-parse-only p50, microseconds
+\newcommand{\evtwobaseiqr}{0.13}      % json-parse-only IQR, microseconds
+\newcommand{\evtwocanonpfifty}{6.46}  % canonicalize-only p50
+\newcommand{\evtwocanoniqr}{2.17}     % canonicalize-only IQR
+\newcommand{\evtwocanonratio}{3.37}   % canonicalize-only x baseline
+\newcommand{\evtwodigestpfifty}{7.63} % canonicalize-and-digest p50
+\newcommand{\evtwodigestiqr}{0.38}    % canonicalize-and-digest IQR
+\newcommand{\evtwodigestratio}{3.98}  % canonicalize-and-digest x baseline
+\newcommand{\evtwohmaconlypfifty}{9.63} % hmac-verify p50
+\newcommand{\evtwohmaconlyiqr}{1.92}    % hmac-verify IQR
+\newcommand{\evtwohmaconlyratio}{5.02}  % hmac-verify x baseline
+\newcommand{\evtwohmacpfifty}{23.21}  % verifier-full-hmac p50
+\newcommand{\evtwohmaciqr}{5.29}      % verifier-full-hmac IQR
+\newcommand{\evtwohmacratio}{12.11}   % verifier-full-hmac x baseline
+\newcommand{\evtworsapfifty}{126.25}  % verifier-full-rsa-pss p50
+\newcommand{\evtworsaiqr}{8.46}       % verifier-full-rsa-pss IQR
+\newcommand{\evtworsaratio}{65.89}    % verifier-full-rsa-pss x baseline
+%
+% E3 — adversarial corpus against the REAL standalone verifier
+% (`verifiers/node/ghost_receipt_verify.mjs`), with a control arm.
+% Provenance: census. Exact counts, no interval. `npm run experiment:e3`.
+% Quote the stratified number, not the aggregate (finding F3.1).
+\newcommand{\evthreeintrinsic}{26/26}   % rejected by verifier rules alone
+\newcommand{\evthreeaggregate}{28/28}   % detectable, rejected somewhere in pipeline
+\newcommand{\evthreecontrol}{3/3}       % unmutated base fixtures PASS
+\newcommand{\evthreeundetected}{0}
+\newcommand{\evthreeboundary}{2}        % fixtures the corpus declares should be ACCEPTED
+\newcommand{\evfourloadbearing}{7}      % checks proven load-bearing by E4
+%
+% Model-internal only. `dab/bench/formal_games.ts` computes advantage bounds
+% over its own declared attacker model. It is a calculation, not a measurement
+% of the implementation, and is labelled as such wherever it appears.
 \newcommand{\benchtrials}{10{,}000}
 \newcommand{\globaladvantage}{0}
-\newcommand{\eepfifty}{5.5}      % end-to-end p50, microseconds
-\newcommand{\eepninefive}{6.3}   % end-to-end p95, microseconds
-\newcommand{\eepninenine}{24.6}  % end-to-end p99, microseconds
-\newcommand{\eemean}{7.1}        % end-to-end mean, microseconds
-\newcommand{\eethroughput}{140{,}941}
-\newcommand{\addedmean}{6.6}     % mean e2e minus mean baseline, microseconds
-\newcommand{\overheadpct}{1{,}333\%}
 % Concurrent Rust TCB stress (two-phase), 2026-07-17, same M1, rustc 1.97.1,
 % `cargo run --release --bin stress` (dab/gateway); recorded run committed at
 % dab/roundtrip/RECORDED_CONCURRENT_STRESS.txt
@@ -57,14 +94,30 @@
 \newcommand{\tbstates}{64}
 \newcommand{\nlstates}{1{,}321}
 \newcommand{\ebstates}{51{,}106}
-% Test suite at HEAD (make unit, 2026-07-17): 706 tests / 105 files, all passing
-\newcommand{\testcount}{706}
-\newcommand{\testfiles}{105}
-% Claim-language gate at HEAD (npm run scan:claims, 2026-07-17): 600 scannable
-% files on a fresh clone, 0 hits — coverage includes .tex/.bib (this manuscript).
-% Count is the tracked tree; the scanner also walks gitignored generated
-% artifacts, so a post-reproduce working tree reports a few more.
-\newcommand{\claimfiles}{618}
+% Mutant distinct-state counts, from the SAME artifacts/proofs/proofs_summary.json
+% as the baselines above. These were inline literals until 2026-08-02 and had
+% drifted from the recorded run (61/240/232 against an actual 63/396/221) — the
+% macro discipline covered baselines and skipped mutants, so only the mutants rotted.
+\newcommand{\plmutstates}{63}
+\newcommand{\scmutstates}{396}
+\newcommand{\tbmutstates}{22}
+\newcommand{\nlmutstates}{221}
+% Test suite at HEAD (npm test, 2026-08-02): 1244 passed / 161 files;
+% 9 tests in 1 file skipped. Previously recorded as 706/105 and stale by 538 tests
+% while the artifact appendix labelled the row "Exact".
+%
+% This figure is COMMIT-RELATIVE by construction: adding a test changes it. It is
+% cited as "at HEAD" for that reason, and the reviewer-facing row in README-AE
+% says to read the current output rather than match a constant. Do not treat a
+% differing count as a failed reproduction; treat a differing count with a RED
+% suite as one.
+\newcommand{\testcount}{1{,}244}
+\newcommand{\testfiles}{161}
+% Claim-language gate (npm run scan:claims, 2026-08-02): 833 scannable files, 0 hits.
+% Coverage includes .tex/.bib (this manuscript). Count is the tracked tree; the
+% scanner also walks gitignored generated artifacts, so a post-reproduce working
+% tree reports a few more.
+\newcommand{\claimfiles}{833}
 
 \newcommand{\dab}{\textsc{dab}}
 \newcommand{\ghostark}{Ghost-Ark}
@@ -116,10 +169,14 @@ on cumulative trajectory failure).
 We report what is implemented and measured, and label what is only specified.
 TLC model checking of five bounded models (up to \plstates{} distinct states) caught
 a subtle garbage-collection replay flaw in our own design, which we repaired spec-first.
-Against a nine-attack adversarial corpus and four security games (\benchtrials{} trials each),
-modeled attacker advantage is \globaladvantage{}. The in-process enforcement path adds
-$\approx\addedmean{}\,\mu$s mean latency ($p50=\eepfifty{}\,\mu$s end to end) on commodity
-hardware. Every admitted or aborted transaction yields a signed, canonically serialized,
+Against a malicious-fixture corpus run through the standalone verifier,
+\evthreeintrinsic{} mutations are rejected by verifier rules alone, with a
+\evthreecontrol{} control arm of unmutated fixtures passing and a metamorphic guard
+confirming those rejections cease when the mechanism they depend on is neutered.
+Full receipt verification costs $p50=\evtwohmacpfifty{}\,\mu$s (IQR \evtwohmaciqr{})
+symmetric and $\evtworsapfifty{}\,\mu$s (IQR \evtworsaiqr{}) asymmetric, against a
+$\evtwobasepfifty{}\,\mu$s parse-only baseline on a single named host.
+Every admitted or aborted transaction yields a signed, canonically serialized,
 independently replayable receipt. \ghostark{} verifies what was recorded, bounded, and
 replayable; it does not certify that any agent output is inherently aligned or semantically safe.
 \end{abstract}
@@ -188,15 +245,19 @@ enumerates non-claims):
   \emph{starvation trap}); the read-set projection $\piR$ recovers liveness
   at a precisely stated cost in conflict-detection strength.
 \item \textbf{Model checking with teeth} (\S\ref{sec:tla},
-  \S\ref{sec:eval-tla}): five TLC-checked bounded models plus five seeded
-  mutants that must fail --- including the case study where TLC refuted our
+  \S\ref{sec:eval-tla}): five TLC-checked bounded models plus four seeded
+  mutants that must fail (the fifth model has none, and we say so) ---
+  including the case study where TLC refuted our
   own baseline design (garbage collection re-enabled replay) and the repair
   was propagated spec-first into the implementation.
-\item \textbf{An honest evaluation} (\S\ref{sec:eval}): \globaladvantage{}
-  modeled-attacker advantage across four games $\times$ \benchtrials{}
-  trials; microsecond-scale absolute enforcement cost, reported alongside ---
-  and explicitly instead of --- a misleading relative-overhead figure; and a
-  disclosed accounting bug in our own earlier harness.
+\item \textbf{An honest evaluation} (\S\ref{sec:eval}): \evthreeintrinsic{}
+  verifier-intrinsic rejection of a malicious corpus, with a
+  \evthreecontrol{} control arm and a metamorphic guard establishing that the
+  detections are load-bearing rather than tautological; verification cost as
+  p50 with IQR against a parse-only baseline, reported alongside --- and
+  explicitly instead of --- a misleading relative-overhead figure; and a
+  disclosed retraction of this paper's own former evidence source
+  (\S\ref{sec:superseded}).
 \end{itemize}
 
 \ghostark{} is one subsystem of a larger research program (\emph{verifiable
@@ -621,14 +682,67 @@ The flaw was a true positive in the shipped design, not an artifact of the model
 \section{Evaluation}
 \label{sec:eval}
 
-\noindent\textbf{Setup disclosure.} All measurements in this section are
-from recorded runs at repository HEAD on 2026-07-16: Apple M1 (8\,GB RAM),
+\noindent\textbf{Setup disclosure.} Measurements in this section come from
+recorded runs at repository HEAD on a single host: Apple M1 (8\,GB RAM),
 macOS (Darwin 24.5.0, arm64), Node v22.22.3, single process, no network, no
-KMS --- the in-process TypeScript enforcement path under the modeled
-attacker. TLC runs use tla2tools v1.8.0 with logs committed to the
+KMS. TLC runs use tla2tools v1.8.0 with logs committed to the
 repository. Nothing here is a cloud measurement, and no live-AWS evidence is
 claimed. Every number maps to a re-runnable command in the artifact
-(\S\ref{sec:artifact}).
+(\S\ref{sec:artifact}). One host is one host: no cross-machine claim is
+available here, and reported dispersion describes this machine's scheduling
+noise only.
+
+\subsection{Superseded evidence}
+\label{sec:superseded}
+
+An earlier revision of this paper drew its headline detection and latency
+numbers from \texttt{dab/bench/}. We retract those numbers and record why,
+because the failure is instructive and because a correction a reader cannot
+locate is not a correction.
+
+Several suites in that directory reported \texttt{detected: true} while
+invoking no component of the system under test. A nonce-swap check built two
+requests with differing payloads and a shared nonce, then asserted that the
+payloads differed and the nonces matched --- both true by construction, with
+no ledger, gateway, or verifier consulted. A replay check consulted a
+\texttt{Set} declared in the benchmark file, measuring that
+\texttt{Set.prototype.has} works, while the Rust tombstone ledger it was
+cited as exercising was never called. Unicode checks asserted properties of
+\texttt{String.prototype.normalize}. The mutation suite computed real digests
+over real inputs but thereby demonstrated SHA-256's avalanche property --- a
+property of SHA-256, expected of any correct hash. The directory imports only
+\texttt{node:crypto} and \texttt{node:perf\_hooks}. It is now quarantined,
+with a README stating it is not evidence about this system and a test
+asserting no workflow treats it as such.
+
+The consequent retractions are tracked as R1--R5 and R10 in the repository's
+retraction ledger (\texttt{docs/research/EXPERIMENTS.md}):
+
+\begin{itemize}
+\item \textbf{Detection rates from that corpus} are withdrawn. Superseded by
+  \S\ref{sec:eval-corpus}, which runs the malicious corpus through the real
+  standalone verifier, stratifies by which check rejected, and carries a
+  control arm.
+\item \textbf{``Unicode spoofing is entirely eradicated at the TCB
+  boundary''} is withdrawn --- an absolute-security claim whose evidence was
+  a TypeScript compile error in a benchmark that never ran. Measurement since
+  shows the canonicalizer \emph{over}-discriminates NFC/NFD, and that Unicode
+  handling diverges across runtimes.
+\item \textbf{A Wilson interval computed at $n=2$} and presented as a robust
+  statistical lower bound is withdrawn; at $2/2$ that bound falls below
+  $0.4$. Intervals are no longer computed below $n=30$, nor over a census.
+\item \textbf{The latency figures and the $1{,}333\%$ relative overhead} are
+  withdrawn: that harness reported no dispersion and used a $0.5\,\mu$s no-op
+  denominator. Superseded by \S\ref{sec:eval-perf} --- p50 with IQR against a
+  parse-only baseline. The accompanying throughput figure has \emph{no}
+  replacement and is withdrawn outright; the superseding experiment does not
+  measure throughput, and we do not substitute a number we did not take.
+\end{itemize}
+
+The general rule this cost us: a detection benchmark is evidence only if
+breaking the mechanism it depends on stops the detection. That discriminator
+is now applied to the corpus of \S\ref{sec:eval-corpus}, and is why its
+result is reported at all.
 
 \subsection{Model checking}
 \label{sec:eval-tla}
@@ -639,70 +753,103 @@ claimed. Every number maps to a re-runnable command in the artifact
 \toprule
 \textbf{Model} & \textbf{Distinct states} & \textbf{Result}\\
 \midrule
-ProvenanceLattice          & \plstates{} & clean \\
-\quad\emph{mutant}         & 61          & violation reproduced \\
-SpeculativeCollapse        & \scstates{} & clean \\
-\quad\emph{mutant}         & 240         & violation reproduced \\
-TransportBoundary          & \tbstates{} & clean \\
-\quad\emph{mutant}         & 22          & violation reproduced \\
-DAB\_NonceLedger           & \nlstates{} & clean (incl.\ temporal) \\
-\quad\emph{mutant}         & 232         & \texttt{NoReplays} violated \\
-DAB\_ExecutionBoundary     & \ebstates{} & clean \\
+ProvenanceLattice          & \plstates{}    & clean \\
+\quad\emph{mutant}         & \plmutstates{} & violation reproduced \\
+SpeculativeCollapse        & \scstates{}    & clean \\
+\quad\emph{mutant}         & \scmutstates{} & violation reproduced \\
+TransportBoundary          & \tbstates{}    & clean \\
+\quad\emph{mutant}         & \tbmutstates{} & violation reproduced \\
+DAB\_NonceLedger           & \nlstates{}    & clean (incl.\ temporal) \\
+\quad\emph{mutant}         & \nlmutstates{} & \texttt{NoReplays} violated \\
+DAB\_ExecutionBoundary     & \ebstates{}    & clean --- \emph{no mutant} \\
 \bottomrule
 \end{tabular}
 \caption{TLC results at HEAD (tla2tools v1.8.0; recorded logs committed).
 Baselines must verify clean; mutants must reproduce their seeded violations.
-These are bounded models of the design, not proofs of the implementation.}
+Five baselines, \emph{four} mutants: \texttt{DAB\_ExecutionBoundary} has no
+seeded mutant, so its clean result is one-sided. These are bounded models of
+the design, not proofs of the implementation.}
 \label{tab:tlc}
 \end{table}
 
-Table~\ref{tab:tlc} summarizes the five baselines and their mutants. The
+Table~\ref{tab:tlc} summarizes five baselines and four mutants. The
 two-sided oracle matters: a harness that can only report success cannot
 distinguish a verified invariant from a vacuous one. The mutant rows are the
 evidence that the invariants have teeth; the \texttt{NoReplays} mutant in
 particular reproduces the historical design flaw of \S\ref{sec:tla} as a
 permanent regression witness.
 
+By that same standard we must mark our own gap: \texttt{DAB\_ExecutionBoundary}
+is checked clean over \ebstates{} distinct states but ships \emph{no} mutant, so
+nothing demonstrates its invariants can fail. Its row is exactly the one-sided
+result the rest of this table exists to rule out, and we count it as unverified
+teeth rather than as a fifth mutant. A sixth model,
+\texttt{TenantIsolation}, is a declared stub: excluded from the gate rather than
+passed vacuously.
+
 \subsection{Adversarial corpus}
 \label{sec:eval-corpus}
 
-At HEAD, the nine-attack corpus (\S\ref{sec:modeled}) reports every attack
-\emph{detected} in-suite, and the four security games report attacker
-advantage \globaladvantage{} over \benchtrials{} trials each
-(Table~\ref{tab:games}) ($\Pr[\text{win}] = 0$ across
-$4\times\benchtrials{}$ trials; a zero observed rate over $10^4$ trials is
-consistent, at 95\% confidence, with a true per-trial success probability
-below $\approx 3\times10^{-4}$~\cite{hanley1983rule}, and says nothing about
-attacks outside the modeled family). The aggregate
-\texttt{global\_advantage} $=$ \globaladvantage{} with all suites passing.
+At HEAD, the malicious-fixture corpus is run through the \emph{real}
+standalone verifier (\texttt{verifiers/node/ghost\_receipt\_verify.mjs}) with
+options sourced from the reproducibility manifest, and every detection is
+stratified by \emph{which} check rejected. \evthreeintrinsic{} mutations are
+rejected by verifier rules alone; \evthreeaggregate{} detectable mutations are
+rejected somewhere in the pipeline; \evthreeundetected{} go undetected. A
+further \evthreeboundary{} fixtures are ones the corpus \emph{declares should
+be accepted} --- documented boundaries, excluded from the rate rather than
+silently counted as successes. The control arm --- the unmutated base
+fixtures --- passes \evthreecontrol{}. That arm is what makes the number mean
+anything: a verifier that rejected every input would also score 100\%
+detection.
 
-\begin{table}[t]
-\centering\small
-\begin{tabular}{@{}lrr@{}}
-\toprule
-\textbf{Security game} & \textbf{Trials} & \textbf{Adversary advantage}\\
-\midrule
-Mutation resistance        & \benchtrials{} & 0 \\
-Replay resistance          & \benchtrials{} & 0 \\
-Cross-transaction binding  & \benchtrials{} & 0 \\
-Serialization ambiguity    & \benchtrials{} & 0 \\
-\bottomrule
-\end{tabular}
-\caption{Formal security games at HEAD (recorded run, 2026-07-16). Advantage
-is the fraction of trials the modeled attacker wins. In-suite results under
-the modeled attacker; the non-claim header of \texttt{run\_all.ts} is
-normative.}
-\label{tab:games}
-\end{table}
+We quote the stratified figure rather than the aggregate. Of the rejections,
+one is a JSON load failure on malformed input, which no verifier \emph{rule}
+can take credit for, and two come only from a declared consumer expectation.
+That last stratum is the thesis in miniature: a byte-identical,
+cryptographically valid receipt issued to tenant A and presented to a tenant-B
+consumer. No verifier rule can reject it --- the receipt is \emph{correct}.
+Only the consumer's declared expectation distinguishes it, which is precisely
+$\mathrm{Sound}(C,\Sigma,P)$ depending on $P$ with $C$ unchanged.
 
-The scope qualifier is not fine print; it is the result's semantics. These
-are \emph{in-suite detection rates under the modeled attacker} --- an
-adversary limited to the mutation/replay/encoding/interleaving family of
-\S\ref{sec:modeled}, implemented in-process against the TypeScript
-enforcement path. The result is evidence that the commitment discipline
-closes the modeled channels; it is not a statement about unmodeled
-attackers, the Rust TCB under deployment conditions, or semantic-layer
-deception.
+Provenance is \textbf{census}, not sample: these are exact counts over a
+hand-authored corpus whose size is an authoring decision, so no confidence
+interval is attached. A curated corpus has no sampling variability to
+describe (\S\ref{sec:superseded} records this paper's own earlier violation
+of that rule).
+
+Crucially, these detections are \emph{load-bearing}. A metamorphic guard
+forces each verifier check to pass in turn and confirms the dependent
+detections then stop: \evfourloadbearing{} checks are load-bearing for named
+fixtures, and with \emph{every} check forced to pass, the only surviving
+rejection is a parse failure. A check that still reports success once its
+mechanism is broken measures nothing --- and this discriminator exists
+because an earlier corpus in this project failed it
+(\S\ref{sec:superseded}). Two checks are not isolable by any fixture by
+construction, and one has no dependent fixture at all; we report that as a
+\emph{corpus} gap rather than a useless check.
+
+\paragraph{Coverage boundary.} The corpus contains \emph{no} fixtures for: a
+compromised signer able to produce valid signatures over mutated payloads,
+multi-field coordinated mutations, chain- or checkpoint-level attacks across
+many receipts, ledger completeness or omission attacks, timing and
+side-channel attacks, key-rotation-boundary attacks, or any live AWS/KMS
+custody attack. A \evthreeintrinsic{} result says nothing about these, and it
+is not a statement about unmodeled attackers, the Rust TCB under deployment
+conditions, or semantic-layer deception.
+
+\paragraph{A model-internal calculation, reported as such.}
+Separately from the measurements above, \texttt{dab/bench/formal\_games.ts}
+computes an attacker advantage of \globaladvantage{} across four security
+games at \benchtrials{} trials each (mutation resistance, replay resistance,
+cross-transaction binding, serialization ambiguity). We report this as what
+it is: a calculation over the file's own declared attacker model, invoking no
+Ghost-Ark component. It is not evidence about the implementation, and we do
+not count it among the results above. Under a rule-of-three
+reading~\cite{hanley1983rule} a zero rate over $10^4$ trials bounds the true
+per-trial win probability below $\approx 3\times10^{-4}$ \emph{within that
+model} --- which says nothing about the deployed system, and nothing about
+attacks outside the modeled family.
 
 On indirect prompt injection: the published InjecAgent
 benchmark~\cite{zhan2024injecagent} reports attack success rates up to 47\%
@@ -724,48 +871,65 @@ the modeled floor semantics, evidenced by unit and scenario tests.
 
 \begin{table}[t]
 \centering\small
-\begin{tabular}{@{}lrrrrr@{}}
+\begin{tabular}{@{}llrrr@{}}
 \toprule
-\textbf{Stage} & \textbf{p50} & \textbf{p95} & \textbf{p99} &
-\textbf{mean} & \textbf{ops/s}\\
+\textbf{Operation} & \textbf{Crypto} & \textbf{p50} & \textbf{IQR} &
+\textbf{$\times$base}\\
 \midrule
-Baseline dispatch   & 0.46 & 0.50 & 0.58  & 0.50 & 2{,}019{,}173 \\
-DANF commit ($C_I$) & 3.38 & 3.75 & 13.13 & 4.03 & 248{,}275 \\
-Gateway verify ($C_E$) & 0.92 & 1.08 & 5.17 & 1.15 & 870{,}902 \\
-End-to-end          & \eepfifty{} & \eepninefive{} & \eepninenine{} &
-\eemean{} & \eethroughput{} \\
+\texttt{json-parse-only}          & none       & \evtwobasepfifty{}   & \evtwobaseiqr{}    & ---\\
+\texttt{canonicalize-only}        & none       & \evtwocanonpfifty{}  & \evtwocanoniqr{}   & \evtwocanonratio{}$\times$\\
+\texttt{canonicalize-and-digest}  & hash       & \evtwodigestpfifty{} & \evtwodigestiqr{}  & \evtwodigestratio{}$\times$\\
+\texttt{hmac-verify}              & symmetric  & \evtwohmaconlypfifty{} & \evtwohmaconlyiqr{} & \evtwohmaconlyratio{}$\times$\\
+\texttt{verifier-full-hmac}       & symmetric  & \evtwohmacpfifty{}   & \evtwohmaciqr{}    & \evtwohmacratio{}$\times$\\
+\texttt{verifier-full-rsa-pss}    & asymmetric & \textbf{\evtworsapfifty{}} & \evtworsaiqr{} & \textbf{\evtworsaratio{}$\times$}\\
 \bottomrule
 \end{tabular}
-\caption{Enforcement-path latency in \emph{microseconds}
-(\benchtrials{} iterations, 1{,}024-byte payloads, in-process, Apple M1).}
+\caption{Receipt verification cost in \emph{microseconds}, p50 with IQR.
+\evtwoiters{} measured iterations after 500 discarded warmup iterations;
+canonical payload 1552 bytes; host \evtwohost{}. Every result feeds an $O(1)$
+sink so the JIT cannot eliminate the work. Baseline is
+\texttt{json-parse-only}: what any consumer pays merely to read the document.}
 \label{tab:perf}
 \end{table}
 
-Table~\ref{tab:perf} reports the enforcement path's cost. The end-to-end
-commitment--verification cycle costs $\eepfifty{}\,\mu$s at the median
-($\eemean{}\,\mu$s mean, $\eepninenine{}\,\mu$s p99) and sustains
-$\approx$\eethroughput{} ops/s single-threaded --- an absolute added cost of
-$\approx\addedmean{}\,\mu$s mean over baseline dispatch.
+Table~\ref{tab:perf} reports verification cost with a baseline, as p50 with
+IQR --- a bare p50 is not a result. Asymmetric verification dominates: the
+full RSA-PSS path is $\approx$5.4$\times$ the full HMAC path and
+\evtworsaratio{}$\times$ the parse baseline. Canonicalization is
+\emph{not} the bottleneck, at \evtwocanonratio{}$\times$ baseline --- an order
+of magnitude below the asymmetric signature. The harness also declares subset
+orderings (a superset arm cannot be cheaper than its subset) and audits them;
+all four hold at \evtwoiters{} iterations. At $n=2000$ an inversion appeared
+intermittently between two arms $\approx$1\,$\mu$s apart with IQRs of
+$2+\,\mu$s, unresolvable at that sample size; the harness reported the
+inversion rather than publishing an impossible number, and the default was
+raised.
 
-We decline to headline the harness's own relative metric, and the reason is
-instructive. Computed as $(\mathrm{DAB}-\mathrm{baseline})/\mathrm{baseline}$,
-the run reports an overhead of $\approx\overheadpct{}$ --- which sounds
-disqualifying until one notices the denominator is a $0.5\,\mu$s no-op
-dispatch. Relative overhead against a near-zero baseline is a
-number without decision content: against any realistic tool call (a
-network round-trip at $10^4$--$10^6\,\mu$s, a KMS signing call at
-$10^3$--$10^4\,\mu$s), an added $\addedmean{}\,\mu$s of in-process
-computation is far below measurement noise. The deployment-relevant
-statement is the absolute one, and the honest caveat is its converse: these
-numbers exclude KMS signing latency and all network costs, which will
-dominate in the intended cloud mode and which we have not measured
-(\S\ref{sec:nonclaims}). ``Fast'' is not a property we claim; ``microseconds
-of in-process arithmetic, unmeasured I/O excluded'' is.
+The choice of denominator is the point. A relative-overhead figure is only
+as meaningful as its baseline: measured against a no-op dispatch, any real
+work looks catastrophic, and a four-digit percentage carries no decision
+content. \texttt{json-parse-only} is chosen instead because it is what a
+consumer unavoidably pays to read the document at all, which makes
+\evtworsaratio{}$\times$ an actionable ratio rather than a rhetorical one.
+An earlier version of this paper headlined a $1{,}333\%$ overhead against a
+$0.5\,\mu$s no-op baseline, drawn from a harness with no dispersion reporting
+and no baseline discipline; that figure and its source are retracted in
+\S\ref{sec:superseded}.
 
-\textbf{Concurrent TCB throughput, measured.} Table~\ref{tab:perf} times the
-\emph{TypeScript} commitment cycle --- canonical serialization plus SHA-256
-digest and comparison; it performs no signature, and its ops/s column is
-single-thread inverse latency, not a load test. We therefore also measure the
+\paragraph{Coverage boundary.} Single host, single process, no concurrency,
+no adversarial input sizing, and no AWS or KMS network path. The IQR
+describes \emph{this machine's} scheduling noise, not variation across
+machines --- we have not measured a second host, so no cross-machine claim is
+available. These are not throughput numbers and not a performance guarantee.
+Signing latency under KMS and all network costs are excluded and will
+dominate in the intended cloud mode (\S\ref{sec:nonclaims}). ``Fast'' is not
+a property we claim; ``microseconds of in-process verification on one named
+host, unmeasured I/O excluded'' is.
+
+\textbf{Concurrent TCB throughput, measured.} Table~\ref{tab:perf} times
+\emph{TypeScript} receipt verification, single-threaded on one host; it
+reports latency, not throughput, and is not a load test. We therefore also
+measure the
 Rust TCB directly under concurrency: 64 threads driving the lock-free sharded
 replay ledger, each admitted transaction paying for a real ed25519 signature,
 sustain \stressops{} admissions{+}signatures/s within ledger capacity
@@ -791,6 +955,11 @@ red result rather than patching around it, and the fix landed as an ordinary
 reviewed commit. We disclose this for the same reason we ship mutant models:
 an evaluation pipeline that cannot be caught being wrong cannot be trusted
 when it says it is right.
+
+That harness has since been retired from the evidence base entirely, for a
+deeper defect than mis-scoring: several of its suites reported detection
+without invoking any component under test (\S\ref{sec:superseded}). Correct
+accounting over a tautological check still measures nothing.
 
 \subsection{The replay window, measured}
 \label{sec:replaywindow}
@@ -866,8 +1035,8 @@ writes (the posture already recommended for the capacity caveat of
 would validate $\piR$ digests against the same store. Receipt signing in the
 intended cloud mode uses KMS asymmetric keys referenced by immutable key
 ARNs, per the repository's signing boundary. Cloud I/O (network round-trips,
-KMS calls) would dominate the $\approx\addedmean{}\,\mu$s in-process
-arithmetic of \S\ref{sec:eval-perf} by orders of magnitude; the validation
+KMS calls) would dominate the microsecond-scale in-process
+verification of \S\ref{sec:eval-perf} by orders of magnitude; the validation
 \emph{structure} --- the same three-gate conjunction, the same receipt
 semantics --- is what carries over, while cloud-mode latency, availability,
 and failure behavior remain unmeasured claims we do not make.
@@ -891,9 +1060,12 @@ the Rust/TypeScript implementations is tested, not proved.
 specification and tested receipt schema; no runtime enforces it yet.
 Serializability claims are therefore design-level, and conditional on
 read-set faithfulness even then.
-\item \textbf{Modeled attacker only.} The \globaladvantage{}-advantage
-result covers the nine-attack/four-game family, in-process. No claim covers
-unmodeled attacks, the deployed TCB, or availability.
+\item \textbf{Modeled attacker only.} The corpus result
+(\S\ref{sec:eval-corpus}) is a census over hand-authored mutation, replay,
+encoding, and cross-tenant fixtures run against the verifier; its coverage
+boundary is stated there. No claim covers unmodeled attacks, the deployed
+TCB, or availability. The four-game \globaladvantage{}-advantage figure is a
+model-internal calculation, not a measurement of this system.
 \item \textbf{Bounded tombstone capacity.} The in-process spent set prunes
 at 500{,}000 entries (env-tunable); a nonce older than both TTL and tombstone
 capacity has a replay window --- \emph{measured} to be exactly $\max(0,K-C)$
@@ -1000,9 +1172,9 @@ The author utilized an AI assistant to help format, refine, and draft the prose 
 
 \subsection{Abstract}
 The artifact is the complete repository: the TypeScript enforcement runtime
-and receipt schema, the Rust gateway sources, five TLA+ models with five
-mutants and their recorded TLC logs, the nine-attack adversarial corpus and
-four security games, the performance harness, the claim-language scanner
+and receipt schema, the Rust gateway sources, five TLA+ models with four
+mutants and their recorded TLC logs, the malicious-fixture corpus and its
+metamorphic guard, the verification-cost harness, the claim-language scanner
 that gates the repository's own documentation (including this manuscript's
 \texttt{.tex} source), and a one-command reproduction pipeline that writes a
 machine-readable pass/fail roll-up. It reproduces every number in
@@ -1015,12 +1187,15 @@ Tables~\ref{tab:tlc}--\ref{tab:perf}.
   stable for the gateway tests.
 \item \textbf{Run-time environment:} Linux x86\_64 or macOS arm64; or the
   provided Ubuntu 22.04 reviewer container (zero host setup beyond Docker).
-\item \textbf{Hardware:} any commodity machine; the paper's latency numbers
-  are from an Apple M1 (8\,GB) and reproduce within machine variance.
-\item \textbf{Metrics:} attacker advantage, detection flags, TLC
-  distinct-state counts, latency percentiles, test counts, claim-gate status.
-\item \textbf{Expected wall-clock:} proofs $\sim$15--25\,s; corpus + games
-  $\sim$30--60\,s; full unit suite $\sim$2.5--3.5\,min;
+\item \textbf{Hardware:} any commodity machine. The paper's latency numbers
+  are from an Apple M1 (8\,GB). We have not measured a second host, so we
+  claim no cross-machine reproduction: expect the \emph{ordering} of arms and
+  the baseline ratios to hold, and absolute microseconds not to.
+\item \textbf{Metrics:} stratified detection counts with a control arm, TLC
+  distinct-state counts, verification-cost p50 with IQR, test counts,
+  claim-gate status.
+\item \textbf{Expected wall-clock:} proofs $\sim$15--25\,s; experiments E2--E4
+  $\sim$5\,s combined; full unit suite $\sim$2.5--3.5\,min;
   \texttt{make reproduce} end-to-end $\sim$4--5\,min (46\,s on the reference
   machine with a warm dependency cache).
 \item \textbf{Public availability:} the repository is public; an immutable
@@ -1034,13 +1209,14 @@ digest:
 \item Table~\ref{tab:tlc} (models clean, mutants violate, state counts):
   \texttt{make proof} $\rightarrow$
   \texttt{artifacts/proofs/proofs\_summary.json}. Exact match.
-\item Table~\ref{tab:games} and the nine-attack corpus:
-  \texttt{node -{}-experimental-strip-types dab/bench/run\_all.ts
-  -{}-trials 10000} $\rightarrow$ \texttt{global\_advantage: 0},
-  \texttt{all\_passed: true}. Exact match.
-\item Table~\ref{tab:perf}: same command (the \texttt{performance} block) or
-  \texttt{make benchmark}. Microsecond scale reproduces; exact values are
-  machine-dependent.
+\item Corpus detection (\evthreeintrinsic{} verifier-intrinsic,
+  \evthreecontrol{} control arm, \evthreeundetected{} undetected):
+  \texttt{npm run experiment:e3}. Exact counts --- census provenance.
+\item That those detections are load-bearing rather than tautological:
+  \texttt{npm run experiment:e4}.
+\item Table~\ref{tab:perf}: \texttt{npm run experiment:e2}. The arm ordering
+  and baseline ratios reproduce; absolute microsecond values are
+  machine-dependent, and the IQR is this host's scheduling noise.
 \item Test counts (\testcount{}/\testfiles{}): \texttt{make unit}. Exact.
 \item Claim gate (\claimfiles{} files, 0 violations):
   \texttt{npm run scan:claims}. Exact.
