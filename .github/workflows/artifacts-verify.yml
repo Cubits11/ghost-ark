@@ -145,21 +145,32 @@ jobs:
           # arm reports itself unavailable rather than silently inflating agreement.
           python-version: "3.12"
       - run: npm ci
+      # jq and the Rust arm must exist BEFORE the guard tests, not after. E11
+      # skips itself when a runtime is missing, and a skipped generality test is
+      # worse than no test: it reports green while measuring nothing. The
+      # ordering here is the difference between running the experiment and
+      # merely owning it.
+      - name: install jq (E7 third arm, E11 fourth arm)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq
+      - uses: dtolnay/rust-toolchain@stable
+      - name: build the E11 serde_json arm
+        run: npm run build:e11-arm
+      - name: confirm every E11 third-party runtime is present
+        run: |
+          set -euo pipefail
+          ruby -v && python3 --version && jq --version && rustc --version
+          test -x tools/experiments-json/target/debug/serde-json-arm
       - name: experiment guards and repo hygiene
+        # GHOST_ARK_REQUIRE_E11 turns a missing third-party runtime from a skip
+        # into a failure. This is the job that runs E11 for real; everywhere else
+        # it may legitimately skip.
+        env:
+          GHOST_ARK_REQUIRE_E11: "1"
         run: npm run test:experiments
       # E2 is a timing experiment; a shared CI runner is noisy, so it runs with reduced
       # iterations purely as a smoke test. CI numbers are NOT the reported numbers.
       # jq is E7's third independent parser arm. Without it E7 still runs on two arms and says
       # so, rather than silently reporting zero divergence for lack of anything to disagree with.
-      - name: install jq for the E7 third arm
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq
-      # E11's arms are third-party runtimes on purpose: the experiment asks
-      # whether the kernel result survives canonicalizers this project did not
-      # write, and that is unanswerable if the only arms available are ours.
-      # Ruby ships on ubuntu-latest; the Rust arm is built from its own crate.
-      - uses: dtolnay/rust-toolchain@stable
-      - name: build the E11 serde_json arm
-        run: npm run build:e11-arm
       - name: report third-party runtime versions used by E11
         run: |
           {

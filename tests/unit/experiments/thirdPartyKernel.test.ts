@@ -21,10 +21,32 @@ const allAvailable = arms.every((arm) => arm.available);
 // Skipped rather than degraded when a runtime is missing: a three-arm run
 // answers a different question than a four-arm run, and reporting it under the
 // same name is the defect E1's arm-availability guard exists to prevent.
+//
+// The census is computed CONDITIONALLY, not inside the describe body, because
+// `describe.skip` still executes its callback during collection — so a bare
+// `runE11()` there throws on any machine missing a runtime, which is exactly
+// what happened on CI: the guards job runs before jq and the Rust arm are
+// installed, and the file failed to collect rather than skipping.
+//
+// A SKIPPED generality test reports green while measuring nothing, so skipping
+// is allowed only where the runtimes genuinely may be absent (a contributor
+// laptop without Ruby). In the CI job that installs all four, GHOST_ARK_REQUIRE_E11
+// makes absence a failure instead — otherwise the one job that exists to run this
+// experiment could stop running it and nothing would say so.
+const requireAllArms = process.env.GHOST_ARK_REQUIRE_E11 === "1";
+
+if (requireAllArms && !allAvailable) {
+  const missing = arms.filter((arm) => !arm.available).map((arm) => `${arm.id} (${arm.detail})`);
+  throw new Error(
+    `ghost_ark.e11: GHOST_ARK_REQUIRE_E11=1 but ${missing.length} arm(s) are unavailable: ${missing.join("; ")}. ` +
+      "This job is the one that runs E11 for real; skipping here would report green while measuring nothing."
+  );
+}
+
 const describeIfAvailable = allAvailable ? describe : describe.skip;
+const report = allAvailable ? runE11() : (null as unknown as ReturnType<typeof runE11>);
 
 describeIfAvailable("E11 third-party kernel census", () => {
-  const report = runE11();
 
   it("runs four independent implementations across four language ecosystems", () => {
     expect(report.arms).toHaveLength(4);
