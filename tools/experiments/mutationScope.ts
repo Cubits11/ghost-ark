@@ -133,6 +133,7 @@ const TEST_FILES = [
   "tests/unit/enforcement-runtime/vault/test_ttl_filtering.test.ts",
   "tests/unit/experiments/compromisedSigner.test.ts",
   "tests/unit/experiments/kernelCensus.test.ts",
+  "tests/unit/experiments/kernelProbe.test.ts",
   "tests/unit/experiments/optionConfusionAndFuzz.test.ts",
   "tests/unit/experiments/randomizedKernel.test.ts",
   "tests/unit/experiments/thirdPartyKernel.test.ts",

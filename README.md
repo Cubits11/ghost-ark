@@ -93,8 +93,9 @@ graph TD
 ## Start Here — Reading Map
 
 - **What is the contribution, and what would refute it?** → [docs/research/00_THESIS.md](./docs/research/00_THESIS.md) (one page)
+- **Want the part that is useful without Ghost-Ark?** → [kernel-probe](./docs/research/KERNEL_PROBE.md). Point it at *your* canonicalizer and it reports which real distinctions that canonicalizer destroys: `npm run kernel-probe -- --command "jq -S -c ."`. No receipt, no AWS, no trust in this project required.
 - **Reviewing this adversarially?** → [Reviewer Attack Sheet](./docs/artifact/REVIEWER_ATTACK_SHEET.md) — the ten sharpest questions against this work, answered with commands, including the unflattering ones
-- **Which of the 41 research documents matter?** → [RESEARCH_INDEX.json](./docs/research/RESEARCH_INDEX.json) classifies every one as core / supporting / exploratory / process / non-research. Six are core; 23 supporting, 5 exploratory, 5 process, 2 non-research.
+- **Which of the 42 research documents matter?** → [RESEARCH_INDEX.json](./docs/research/RESEARCH_INDEX.json) classifies every one as core / supporting / exploratory / process / non-research. Seven are core; 23 supporting, 5 exploratory, 5 process, 2 non-research.
 - **What does CI actually verify, and what can rot?** → [CI_COVERAGE.md](./docs/artifact/CI_COVERAGE.md)
 - New to the terminology (spine, evidence class, governed invoke)? → [Glossary](./docs/GLOSSARY.md)
 - Who are the adversaries and what holds at each boundary? → [Threat Model](./docs/security/THREAT_MODEL.md)

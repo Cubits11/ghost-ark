@@ -5,8 +5,8 @@ Tier: **core**. This document is written to be used against the project.
 Every number below was produced by a command in this repository and can be
 regenerated. Where something is broken, it is named as broken.
 
-Scale: 940 tracked files, ~67k lines of TypeScript, ~3k of Rust, 14 TLA+
-specifications, 154 test files / 1,182 tests.
+Scale: ~945 tracked files, ~67k lines of TypeScript, ~3k of Rust, 14 TLA+
+specifications, 155 test files / 1,193 tests.
 
 ---
 
@@ -257,11 +257,16 @@ leverage per unit effort:
    The runbooks already exist.
 4. **Extend E10 past the receipt kernel.** Policy evaluation, runtime, vault,
    retrieval, gateway have no measured test strength at all.
-5. **Publish E11 as a standalone probe.** It needs no Ghost-Ark receipt, no AWS,
-   and no trust in this project — it takes a canonicalizer and reports which
-   distinctions it destroys. That is the piece of this work most useful to
-   somebody else, and the piece most likely to attract the outside scrutiny item
-   1 asks for.
+5. ~~Publish E11 as a standalone probe.~~ **Done — `kernel-probe`.** Point it at
+   any command reading JSON on stdin and writing a canonical form on stdout, and
+   it reports which distinctions that canonicalizer destroys:
+   `npm run kernel-probe -- --command "jq -S -c ."`. `--emit-alphabet` writes the
+   corpus as JSON so it runs in any language without this repository.
+   Documented for outside readers in `docs/research/KERNEL_PROBE.md`, and
+   calibrated against canonicalizers whose kernels are known by construction —
+   a constant emitter (17 unintended-kernel, 0 over-discrimination), a byte
+   echo (0 and 14), and a refuse-all (31 fail-closed, 0 sound). 17 + 14 = 31
+   exactly, disjoint, and the refusing case is never scored sound.
 
 **What to resist.** Building more surface. The repository's credibility comes
 from the ratio of *claims made* to *evidence attached*, and every new subsystem
