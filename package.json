@@ -121,7 +121,7 @@
     "esbuild": "^0.28.1",
     "lockfile-lint": "5.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
 }
