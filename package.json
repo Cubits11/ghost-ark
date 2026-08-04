@@ -117,7 +117,7 @@
     "@types/react-dom": "^19.0.4",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "aws-cdk": "^2.1129.0",
+    "aws-cdk": "^2.1134.0",
     "esbuild": "^0.28.1",
     "lockfile-lint": "5.0.0",
     "ts-node": "^10.9.2",
