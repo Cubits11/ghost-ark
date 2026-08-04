@@ -8,12 +8,24 @@ If your system decides "is this the same artifact?" by hashing a canonical form,
 it has a **kernel**: the set of genuinely different documents it maps to one
 identity. This tool reports yours.
 
+**It ships as a single file with no dependencies and no install step**, so you do
+not need this repository, a clone, or `npm` to run it:
+
+```bash
+curl -O https://raw.githubusercontent.com/Cubits11/ghost-ark/main/tools/kernel-probe/kernel-probe.mjs
+node kernel-probe.mjs --command "jq -S -c ."
+```
+
+From inside a clone, the same thing:
+
 ```bash
 npm run kernel-probe -- --command "jq -S -c ."
 ```
 
 It needs no receipt, no AWS, no Ghost-Ark data structure, and no agreement with
-anything else in this repository.
+anything else in this repository. Operational detail — flags, output vocabulary,
+and how the standalone is kept in sync with the source — is in
+[`tools/kernel-probe/README.md`](../../tools/kernel-probe/README.md).
 
 ## The contract
 

@@ -143,6 +143,12 @@ const TEST_FILES = [
   "tests/unit/receipt-schema/hashCanonicalization.test.ts",
   "tests/unit/receipt-schema/hashCanonicalizationMutants.test.ts",
   "tests/unit/receipt-schema/strictJsonAdmissionMutants.test.ts",
+  // Reaches the kernel through e1KernelCensus -> canonicalizerArms ->
+  // hashCanonicalization + strictJsonAdmission. Declared because the rule is
+  // import-closure equality, not because it is a strong killer: it exercises
+  // the verdict classifier and the pathology alphabet, and touches the
+  // canonicalizer only transitively. Added 2026-08-04 with the standalone probe.
+  "tests/unit/repo-hygiene/kernelProbeStandalone.test.ts",
   "tests/unit/research-frontier/stateForker.test.ts",
   "tests/unit/research-frontier/transparencyArtifacts.test.ts",
   "tests/unit/signing/signer.test.ts",

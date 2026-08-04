@@ -93,7 +93,12 @@ graph TD
 ## Start Here — Reading Map
 
 - **What is the contribution, and what would refute it?** → [docs/research/00_THESIS.md](./docs/research/00_THESIS.md) (one page)
-- **Want the part that is useful without Ghost-Ark?** → [kernel-probe](./docs/research/KERNEL_PROBE.md). Point it at *your* canonicalizer and it reports which real distinctions that canonicalizer destroys: `npm run kernel-probe -- --command "jq -S -c ."`. No receipt, no AWS, no trust in this project required.
+- **Want the part that is useful without Ghost-Ark?** → [kernel-probe](./tools/kernel-probe/README.md). **One file, no install, nothing from this repository.** Point it at *your* canonicalizer and it reports which real distinctions that canonicalizer destroys. No receipt, no AWS, no account, and no trust in this project required:
+  ```bash
+  curl -O https://raw.githubusercontent.com/Cubits11/ghost-ark/main/tools/kernel-probe/kernel-probe.mjs
+  node kernel-probe.mjs --command "jq -S -c ."
+  ```
+  Background and findings: [docs/research/KERNEL_PROBE.md](./docs/research/KERNEL_PROBE.md).
 - **Reviewing this adversarially?** → [Reviewer Attack Sheet](./docs/artifact/REVIEWER_ATTACK_SHEET.md) — the ten sharpest questions against this work, answered with commands, including the unflattering ones
 - **Which of the 40 research documents matter?** → [RESEARCH_INDEX.json](./docs/research/RESEARCH_INDEX.json) classifies every one as core / supporting / exploratory / process / non-research. Seven are core; 23 supporting, 5 exploratory, 5 process.
 - **What is NOT established?** → [Status and Limitations](./docs/artifact/STATUS_AND_LIMITATIONS.md) — the three limitations that bound every result here, stated before the results.

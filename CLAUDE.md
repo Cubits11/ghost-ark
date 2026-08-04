@@ -104,10 +104,10 @@ on the first thing a reviewer checks.
 
 - npm run lint passes
 
-- npm test passes: 161 test files, 1244 tests (1 file / 9 tests skipped), measured 2026-08-02.
+- npm test passes: 162 test files, 1253 tests (1 file / 9 tests skipped), measured 2026-08-04.
   Commit-relative by construction — re-measure, and treat only a *decrease* as suspicious.
 
-- npm run scan:claims: 833 files scanned, 0 forbidden-claim violations (2026-08-02).
+- npm run scan:claims: 838 files scanned, 0 forbidden-claim violations (2026-08-04).
   Commit-relative like the test count: adding any scannable file changes it.
 
 - npm run claims:verify: 20 claims, 12 distinct local commands, 12 passed / 0 failed
@@ -132,6 +132,13 @@ on the first thing a reviewer checks.
   (2026-08-01). Before this date CI had failed on main for 40+ consecutive runs
   while CI_COVERAGE.md described the same artifacts as verified. Check the badge
   state, not the document, before believing either.
+
+Load sensitivity, observed 2026-08-04 and not fully diagnosed: running two full suites
+concurrently produced one run with 3 failures that four sequential runs before and after
+could not reproduce (162 files / 1253 tests green each time). The failing run took 100s
+against a typical 35–50s. Failure names were not captured, so this is recorded as an
+observation rather than an attributed defect — do not read the four green runs as proof
+the suite is deterministic under load. If it recurs, capture the test names first.
 
 Known flake, fixed: two CDK-synth tests exceeded the 15s global vitest timeout under
 parallel load, making npm test nondeterministically red on a clean clone. The synth is now
@@ -596,7 +603,8 @@ self-reported.
 
 ## Phase 9 — Publication and external utility
 
-109. Package `kernel-probe` so it runs without this repository — a single file or a published package. — Acceptance: it runs from a clean directory.
+109. ~~Package `kernel-probe` so it runs without this repository.~~ **DONE 2026-08-04.** `tools/kernel-probe/kernel-probe.mjs`: one file, zero dependencies, four `node:` builtins, no install step. Acceptance executed rather than asserted — `kernelProbeStandalone.test.ts` copies it to a temp directory outside the repository and runs it there against a canonicalizer written into that same directory, so the test cannot pass by finding something in the clone and cannot *skip* for a missing `jq`/`python3` (a skipped parity test reports green while measuring nothing — the `dab/bench` defect). Verified from a clean room against jq (4 kernel members / 5 over-discrimination, matching E11's `jq-sorted` row exactly) and CPython. **It is generated, not copied**: the alphabet is emitted through the existing `--emit-alphabet` path, and the ~40 lines of ported verdict logic are held to `e1KernelCensus.classify` by an exhaustive branch-parity test. Both guards discriminator-checked — flipping a pre-registered intent and inverting a classifier branch each fail the suite. Not published to npm; that is an external release and the author's call.
+    **Finding, from the tool doing its job:** stock CPython `json.dumps(sort_keys=True)` carries 5 unintended kernel members; adding `allow_nan=False` and nothing else takes it to 4, moving `non-finite-overflow` to `fail-closed`. Same library, same version, one keyword argument deciding whether the system can distinguish `NaN` from a number it was never given. Recorded in `tools/kernel-probe/README.md` as the worked example.
 110. Write the standalone result: four ecosystems, three universal duplicate-key collapses, and the 2^53 finding that narrowed the claim. — Acceptance: a draft that stands without Ghost-Ark.
 111. Decide the venue and the authorship, including the lab's role. — Acceptance: written. **Requires a human decision.**
 112. Re-run every number in the draft from a clean clone on the day of submission. — Acceptance: each figure reproduced, with the command and host recorded.

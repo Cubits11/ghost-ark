@@ -1,15 +1,18 @@
 # CI Coverage Matrix — what is verified on every commit, and what is not
 
-Tier: **core**. Last audited 2026-08-02.
+Tier: **core**. Last audited 2026-08-04.
 
-> **What "audited" means here, precisely.** On 2026-08-02 the following were
-> *executed* and their numbers taken from live output: `npm test` (161 files /
-> 1244 tests, 1 file & 9 tests skipped), `npm run scan:claims` (833 files, 0
-> violations), `npm audit` (3 advisories: 1 high, 2 moderate), `npm run
-> experiments` (E1, E1-B, E2–E7, E11), `cargo test --locked` on all four Rust
-> crates (13 / 13 / 4 / 0), and the strict-JSON-admission suite (24 tests).
-> **Not re-run that day**, and therefore carried forward from their last recorded
-> run: the TLC gate (`tools/proofs/run-tlc.sh`), the E10 mutation score, and the
+> **What "audited" means here, precisely.** Re-executed **2026-08-04**, numbers
+> taken from live output: `npm test` (162 files / 1253 tests, 1 file & 9 tests
+> skipped) and `npm run scan:claims` (838 files, 0 violations).
+>
+> Executed **2026-08-02** and carried forward unchanged since: `npm audit`
+> (3 advisories: 1 high, 2 moderate), `npm run experiments` (E1, E1-B, E2–E7,
+> E11), `cargo test --locked` on all four Rust crates (13 / 13 / 4 / 0), and the
+> strict-JSON-admission suite (24 tests).
+>
+> **Never re-run on either date**, carried forward from their last recorded run:
+> the TLC gate (`tools/proofs/run-tlc.sh`), the E10 mutation score, and the
 > semgrep finding count. Rows sourced from a carried-forward run say so. A
 > document-level "last audited" date that silently covers unexecuted rows is the
 > exact defect this matrix was written to expose.
@@ -29,7 +32,7 @@ project.
 | Artifact | What runs | Workflow | Directionally asserted? |
 |:---|:---|:---|:---|
 | TypeScript workspace (57k lines) | `tsc --noEmit`, full `vitest run` | `ci.yml` → `npm run validate` | — |
-| Claim-language discipline | `scan:claims` over 833 files, 0 violations required (measured 2026-08-02) | `ci.yml` | yes: forbidden vocabulary fails the build |
+| Claim-language discipline | `scan:claims` over 838 files, 0 violations required (measured 2026-08-04) | `ci.yml` | yes: forbidden vocabulary fails the build |
 | Assumption lattice | `check-assumptions.mjs` | `ci.yml` | yes |
 | Required-docs presence | `docs:check` | `ci.yml` | yes: a missing core doc fails the build |
 | Terraform | `fmt -check`, `init -backend=false`, `validate` | `ci.yml` | — |
