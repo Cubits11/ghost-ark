@@ -343,8 +343,8 @@ describe("measured figures agree across every document that quotes them", () => 
       // here would make the guard fail every time someone writes a test — which
       // is how a guard earns a blanket skip.
       const source = read("CLAUDE.md");
-      expect(digits(/([\d,]+) tests \(1 file/u.exec(source)?.[1] ?? "0")).toBeGreaterThanOrEqual(1244);
-      expect(digits(/npm test passes: ([\d,]+) test files/u.exec(source)?.[1] ?? "0")).toBeGreaterThanOrEqual(161);
+      expect(digits(/([\d,]+) tests \(1 file/u.exec(source)?.[1] ?? "0")).toBeGreaterThanOrEqual(1253);
+      expect(digits(/npm test passes: ([\d,]+) test files/u.exec(source)?.[1] ?? "0")).toBeGreaterThanOrEqual(162);
     });
   });
 
