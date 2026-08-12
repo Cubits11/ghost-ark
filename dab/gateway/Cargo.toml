@@ -15,7 +15,7 @@ tokio = { version = "1", features = ["rt", "time", "macros", "net", "rt-multi-th
 
 # Native Rust HTTP Proxy (Zero-Day 2, 5 Mitigation)
 axum = "0.7"
-tower = { version = "0.4", features = ["limit", "buffer", "load-shed"] }
+tower = { version = "0.5", features = ["limit", "buffer", "load-shed"] }
 
 # Memory Allocation (For AWS Linux Deployments)
 mimalloc = "0.1"
