@@ -51,6 +51,56 @@ describe("dab/bench quarantine holds", () => {
     }
   });
 
+  it("is not GATED ON by anything a workflow can reach, not just by workflow text", () => {
+    /**
+     * The check above reads workflow files. That is one indirection too high, and
+     * the gap was live: `artifact.yml` says `make reproduce`, which calls
+     * `scripts/reproduce.sh`, which calls `scripts/run-attacks.sh`, which ran
+     * dab/bench and printed "ATTACK: all adversarial evidence green" over its
+     * result — while every workflow file stayed clean of the string and this
+     * suite stayed green. The manuscript then cited "a test asserting no workflow
+     * treats it as such", which was true of the text and false in effect.
+     *
+     * So: any script reachable from a workflow may MENTION dab/bench (running it
+     * for the record is fine, and deleting the record would hide that it ever
+     * ran), but must not let it decide an exit status.
+     */
+    const reachable = [
+      "scripts/reproduce.sh",
+      "scripts/run-attacks.sh",
+      "scripts/run-proofs.sh",
+      "scripts/run-benchmarks.sh",
+      "Makefile"
+    ];
+
+    const offenders: string[] = [];
+    for (const relative of reachable) {
+      const path = resolve(REPO_ROOT, relative);
+      if (!existsSync(path)) {
+        continue;
+      }
+      const contents = readFileSync(path, "utf8");
+      if (!/dab\/bench/u.test(contents)) {
+        continue;
+      }
+
+      // A shell variable holding the bench's exit status must never appear in a
+      // conditional that decides this script's own exit code.
+      for (const line of contents.split("\n")) {
+        const isConditional = /^\s*(if|elif|\[\[|\[)\s/u.test(line) || /&&|\|\|/u.test(line);
+        if (isConditional && /\bdab_rc\b/u.test(line)) {
+          offenders.push(`${relative}: dab/bench exit status gates the run — ${line.trim()}`);
+        }
+      }
+      // And it must not be described as evidence in the file that runs it.
+      if (/dab[_ ]bench[\s\S]{0,80}adversarial evidence/u.test(contents)) {
+        offenders.push(`${relative}: describes dab/bench output as adversarial evidence`);
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it("is excluded from the experiment scripts, which must reference tools/experiments only", () => {
     const packageJson = JSON.parse(readFileSync(resolve(REPO_ROOT, "package.json"), "utf8")) as {
       scripts: Record<string, string>;

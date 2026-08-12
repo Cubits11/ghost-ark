@@ -156,11 +156,15 @@ Evidence for Non-Deterministic Compute\vspace{-0.5em}}
 % ============================================================================
 \author{
   Pranav Bhave \\
-  \normalsize\href{https://github.com/PSUCyberSecurityLab/ghost-ark/}{\color{blue}github.com/PSUCyberSecurityLab/ghost-ark} \vspace{0.2em} \\
-  \normalsize Correspondence via the repository's issue tracker until an
-  institutional address is set.
+  \normalsize S2 Lab, College of Information Sciences and Technology \\
+  \normalsize The Pennsylvania State University \vspace{0.2em} \\
+  \normalsize\href{https://github.com/PSUCyberSecurityLab/ghost-ark/}{\color{blue}github.com/PSUCyberSecurityLab/ghost-ark}
 }
-\date{Draft of 2026-07-16 --- evidence-bound; see \S\ref{sec:nonclaims} for explicit non-claims}
+% The date tracks the EVIDENCE, not the prose. Every figure in this manuscript is
+% bound to a macro re-derived from a recorded run, so a date older than the most
+% recent re-derivation would misdate the evidence it presents. Bump this whenever
+% a measured figure moves.
+\date{Draft of 2026-08-11 --- evidence-bound; see \S\ref{sec:nonclaims} for explicit non-claims}
 
 % ============================================================================
 % DOUBLE-BLIND AUTHOR BLOCK 
@@ -732,8 +736,21 @@ cited as exercising was never called. Unicode checks asserted properties of
 over real inputs but thereby demonstrated SHA-256's avalanche property --- a
 property of SHA-256, expected of any correct hash. The directory imports only
 \texttt{node:crypto} and \texttt{node:perf\_hooks}. It is now quarantined,
-with a README stating it is not evidence about this system and a test
-asserting no workflow treats it as such.
+with a README stating it is not evidence about this system.
+
+That quarantine was, until 2026-08-11, enforced one indirection too high, and
+we record the gap rather than quietly closing it. The guard asserted that no
+\emph{workflow file} names the directory. That held --- the artifact workflow
+says \texttt{make reproduce} --- while the chain beneath it
+(\texttt{reproduce.sh} $\to$ \texttt{run-attacks.sh}) ran the quarantined bench
+and let its exit status gate the reproduction, printing ``all adversarial
+evidence green'' over the result. An earlier revision of this subsection cited
+that guard as ``a test asserting no workflow treats it as such'', which was true
+of the file text and false in effect. The bench now runs non-gating under a
+\texttt{quarantined\_smoke} key, and the guard follows the call graph rather than
+the spelling of the call site. The general form is worth stating: \emph{a
+containment check that matches on the name of a caller does not contain
+anything a caller can reach}.
 
 The consequent retractions are tracked as R1--R5 and R10 in the repository's
 retraction ledger (\texttt{docs/research/EXPERIMENTS.md}):
