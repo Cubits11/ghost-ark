@@ -84,7 +84,7 @@
     "kernel-probe:standalone": "node tools/kernel-probe/kernel-probe.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-athena": "^3.1080.0",
+    "@aws-sdk/client-athena": "^3.1106.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1081.0",
     "@aws-sdk/client-dynamodb": "^3.1080.0",
     "@aws-sdk/client-glue": "^3.1080.0",
