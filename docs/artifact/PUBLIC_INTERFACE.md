@@ -102,23 +102,52 @@ without a denominator is not reportable here, and neither is a grade.
 Findings from the 2026-08-06 pre-migration audit. Each was verified by running
 something, and each is stated with what was actually checked.
 
-**Push `main` explicitly. Never `--all`, never `--mirror`.** Five local branches
+**Push `main` explicitly. Never `--all`, never `--mirror`.** Six local branches
 are not on `origin`, and one of them — `backup/pre-empirical-audit-d61062a` —
 contains commit `47d3c55`, which adds a `.env.example` holding a real-format
 Google `GEMINI_API_KEY` (53 characters, `AQ.`-prefixed). It is **not** reachable
-from `main` and **not** on `origin`, so it is not public today. A mirror push
-publishes it in one step, under an institutional name, with the author's
-attribution on the commit.
+from `main` and **not** on `origin`, so it is not public. A mirror push publishes
+it in one step, under an institutional name, with the author's attribution on the
+commit.
 
 ```
 git push <psu-remote> main          # transfers only the verified history
 git push <psu-remote> --all         # DO NOT: carries the branch above
 ```
 
-Measured with gitleaks 8.30.1 on 2026-08-06: `main`'s 229-commit history returns
-**0 findings**; all refs together return **1**, and that one is the branch above.
-The `gitleaks` CI job now scans full history on every push, so this is guarded
-going forward rather than remembered.
+Measured with gitleaks 8.30.1 on 2026-08-06: `main` returns **0 findings** over
+its full history; all refs together return **1**, and that one is the branch
+above. The `gitleaks` CI job now scans full history on every push, so this is
+guarded going forward rather than remembered.
+
+**The 19 dependabot branches on `origin` must be deleted before the repository
+moves, not after.** They fork from the pre-rewrite history, so each one carries
+**1,547 build-artifact blobs — the full 633 MB** that was purged from `main` on
+2026-08-06 (see below). A transfer moves every server-side ref, so leaving them
+in place re-imports the bloat into the lab organisation and makes the purge
+cosmetic. They are also already broken: their base commits no longer exist after
+the history rewrite, and Dependabot regenerates them against the new `main`
+within a day.
+
+**History rewritten 2026-08-06, before the move rather than after.** All 230
+commits are preserved and the working tree is byte-identical — `main`'s tree hash
+was `1d0aad7…` before and after both passes. What changed is metadata and dead
+weight:
+
+| | Before | After |
+|:--|:--|:--|
+| Author identities | 2 (one a personal free-mail address) | 1, the maintainer's GitHub no-reply |
+| Commit messages naming an assistant tool | 12 | 0 |
+| Build-artifact blobs in history | 1,300 (**633.8 MB of 648.9 MB — 97.7%**) | 0 |
+| Push payload | 141 MB, and it failed on a broken pipe | 2.5 MB |
+
+The build artifacts were `dab/gateway/target/` and `dab/verifier/target/`,
+committed once and untracked later; `**/target/` has been in `.gitignore` since,
+and nothing under it is tracked today. Untracking a directory does not remove its
+blobs from history, which is why a repository whose largest tracked file is a
+0.28 MB lockfile was still shipping a 51 MB compiled binary to every cloner.
+`tests/unit/repo-hygiene` already forbids tracked build output in the working
+tree; it cannot see history, so this was invisible to it.
 
 **Rotate that key regardless of what is pushed.** It sat in a working tree and in
 local history; treat it as disclosed. Rotation is not something this repository
