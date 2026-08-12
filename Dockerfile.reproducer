@@ -4,8 +4,8 @@ COPY package.json package-lock.json .npmrc ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY . .
 RUN mkdir -p .cache/tla && apt-get update && apt-get install -y curl && \
-    curl -fsSL -o .cache/tla/tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar && \
-    echo "58d44845a37a8d776deaf8cf3a623213b59d311bc0ec287bcdfbe148dd11bb3d  .cache/tla/tla2tools.jar" | sha256sum -c -
+    curl -fsSL -o .cache/tla/tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar && \
+    echo "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88  .cache/tla/tla2tools.jar" | sha256sum -c -
 
 FROM node:22-bookworm-slim AS run
 WORKDIR /app

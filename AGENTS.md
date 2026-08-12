@@ -57,7 +57,7 @@ false green in this repository more than once; use `set -o pipefail` or redirect
 
 ## Operating Rules
 
-Before modifying files, Claude must state:
+Before modifying files, state:
 
 1. files to inspect
 
@@ -182,14 +182,14 @@ on the first thing a reviewer checks.
 
 - npm run lint passes
 
-- npm test passes: 164 test files, 1270 tests (1 file / 9 tests skipped), measured 2026-08-06.
+- npm test passes: 165 test files, 1274 tests (1 file / 9 tests skipped), measured 2026-08-11.
   Commit-relative by construction — re-measure, and treat only a *decrease* as suspicious.
   **This line read "162 files, 1253 tests, passes" on 2026-08-04 while `npm test` was
   actually RED**: `publicInterface.test.ts` exceeded the 15s timeout and failed
   deterministically, in isolation, on a clean tree. See the ReDoS entry below. The suite
   was not re-run after the commit that broke it.
 
-- npm run scan:claims: 840 files scanned, 0 forbidden-claim violations (2026-08-06).
+- npm run scan:claims: 840 files scanned, 0 forbidden-claim violations (2026-08-11).
   Commit-relative like the test count: adding any scannable file changes it.
 
 - npm audit: 5 advisories (3 high, 2 moderate), all dev-only, measured 2026-08-06. This
@@ -213,6 +213,32 @@ on the first thing a reviewer checks.
   states but has **no seeded mutant**, so its result is one-sided, and
   `TenantIsolation` is a `DECLARED_STUB`. The paper claimed "five mutants" until
   2026-08-02. Do not write "five mutants" until a fifth exists.
+
+  **Toolchain pinned to tla2tools v1.7.4 (2026-08-11), and only baseline counts are
+  evidence.** Two findings, both from CI going red:
+
+  1. `v1.8.0` is a **prerelease whose asset is re-uploaded under the same tag**. This
+     repository pinned it in three files at three *different* digests and fetched it in
+     a fourth (the Makefile) with **no check at all**; on 2026-08-11 the live bytes
+     matched none of the three and three jobs failed. The integrity check worked — it
+     refused an unrecognised jar — but a pin on a rolling tag fails on upstream's
+     schedule rather than on evidence. Worse, the committed proof logs were split across
+     *two* toolchains: `proofs/tla/` came from TLC 2.19 (v1.7.4) and `proofs/dab/` from
+     the 2026-07-15 prerelease build. The declared pin matched neither consistently.
+     v1.7.4 is the newest non-prerelease, unchanged since 2024-08-08; all nine committed
+     logs are now regenerated under it, and `toolchainPinSync.test.ts` fails if any site
+     drifts again or if the pin returns to a prerelease.
+  2. **Mutant `distinct_states` counts are not reproducible and are retracted (R11).**
+     Baselines exhaust their bounded state space, so their counts are model properties
+     and re-derived byte-identically across the toolchain change: 403,949 / 529 / 64 /
+     1,321 / 51,106. A mutant halts at the *first* counterexample under `-workers auto`,
+     so the count depends on thread scheduling. Measured n=10 per mutant, one host, one
+     commit, one jar: **61–63 / 193–431 / 22–23 / 185–332**. The previously published
+     `63 / 396 / 22 / 221` are single draws printed as constants. The earlier diagnosis
+     — that a macro discipline "covered baselines and skipped mutants" — was wrong; the
+     numbers were never stable, so no discipline over them could have helped. **The gate
+     is unaffected**: `VIOLATION_REPRODUCED` is a yes/no verdict and every mutant
+     violates on every run. Report the verdict; never a bare mutant count.
 
 - GitHub Actions: ci, artifacts-verify, and artifact-evaluation all green on main
   (2026-08-01). Before this date CI had failed on main for 40+ consecutive runs

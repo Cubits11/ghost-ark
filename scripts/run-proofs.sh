@@ -51,16 +51,39 @@ SUMMARY="$ARTIFACT_DIR/proofs_summary.json"
 # a TLA+ specification, while `tools/proofs/run-tlc.sh` -- which downloads the
 # same jar with NO hash check -- ran and reported green.
 #
-# The value below IS verified: it is the sha256 of the asset served by the
-# official tlaplus/tlaplus release for tag v1.8.0, fetched 2026-08-01. That is
-# trust-on-first-use against the upstream project, which is the honest ceiling
-# here; there is no independent publication of this artifact to cross-check
-# against (Maven Central has no org.lamport:tla2tools:1.8.0).
+# THIS FILE IS THE SINGLE SOURCE OF TRUTH FOR THE TLA+ TOOLCHAIN PIN.
+# Dockerfile.reviewer, Dockerfile.reproducer, the Makefile bootstrap target, and
+# .github/workflows/artifacts-verify.yml all read or mirror the two values below,
+# and tests/unit/repo-hygiene/toolchainPinSync.test.ts fails if any of them drift.
 #
-# To update: fetch the asset, record its digest AND the date, and say why the
-# pin moved. Never copy a digest you have not computed from a file you hold.
-TLA_TOOLS_VERSION="v1.8.0"
-TLA_TOOLS_SHA256="e22f8ffb4bacdea0a871f444dd94fe5fb0d8013b3388ae39e82e26f852c735d5"
+# WHY THE PIN MOVED FROM v1.8.0 TO v1.7.4 (2026-08-11)
+#
+# v1.8.0 is a PRERELEASE, and the tlaplus project re-uploads `tla2tools.jar` to
+# that same tag. The URL is stable; the bytes are not. This repository had pinned
+# it three times, in three files, at three DIFFERENT digests -- and on 2026-08-11
+# the live asset matched none of them:
+#
+#   e22f8ffb…  this file, recorded 2026-08-01
+#   58d44845…  Dockerfile.reviewer and Dockerfile.reproducer
+#   ab323b79…  what the URL actually served on 2026-08-11 (re-uploaded 12:59 UTC)
+#
+# CI caught it exactly as designed: the integrity check refused to run TLC against
+# a jar it could not recognise, and three jobs went red. That is the control
+# working. But it also means every proof result this project recorded names a
+# toolchain that is no longer addressable -- "v1.8.0" in an old log does not
+# identify the bytes that produced it.
+#
+# v1.7.4 is the newest NON-prerelease. Its asset has not changed since
+# 2024-08-08, verified by fetching it twice, and all eight specs behave correctly
+# under it (4 baselines clean, 4 mutants violate). A pin is only worth having if
+# it points at something immutable; pinning a rolling tag buys the ceremony of
+# verification without the property.
+#
+# The digest below was computed from a file held locally, not copied from a page.
+# To update: fetch the asset, compute its digest, record the date, and say why
+# the pin moved. Never copy a digest you have not computed yourself.
+TLA_TOOLS_VERSION="v1.7.4"
+TLA_TOOLS_SHA256="936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
 TLA_TOOLS_URL="https://github.com/tlaplus/tlaplus/releases/download/${TLA_TOOLS_VERSION}/tla2tools.jar"
 JAR="${TLA_TOOLS_JAR:-$ROOT/.cache/tla/tla2tools.jar}"
 

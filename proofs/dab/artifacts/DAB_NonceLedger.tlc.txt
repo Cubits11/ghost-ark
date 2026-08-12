@@ -1,31 +1,20 @@
-TLC2 Version 2026.07.15.134331 (rev: 227f61b)
-Running breadth-first search Model-Checking with fp 26 and seed 8158474311764439541 with 8 workers on 8 cores with 1820MB heap and 64MB offheap memory [pid: 14388] (Mac OS X 15.5 aarch64, Oracle Corporation 23.0.1 64bit, MSBDiskFPSet, DiskStateQueue).
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 79 and seed -8584605800484300243 with 8 workers on 8 cores with 1820MB heap and 64MB offheap memory [pid: 10064] (Mac OS X 26.6.1 aarch64, Oracle Corporation 23.0.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file <REPO_ROOT>/proofs/dab/DAB_NonceLedger.tla
-Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
-Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
-Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
-Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
-Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
-Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
-Parsing file <TMPDIR>.tla (jar:file:<REPO_ROOT>/.cache/tla/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Parsing file <TMPDIR>
+Parsing file <TMPDIR>
+Parsing file <TMPDIR>
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
-Semantic processing of module TLC
-Semantic processing of module Integers
-Semantic processing of module TLCExt
-Semantic processing of module _TLCTrace
 Semantic processing of module DAB_NonceLedger
-Linting of module TLCExt
-Linting of module _TLCTrace
-Linting of module DAB_NonceLedger
-Starting... (2026-07-16 01:41:15)
+Starting... (2026-08-11 23:38:42)
 Implied-temporal checking--satisfiability problem has 5 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-07-16 01:41:15.
-Progress(7) at 2026-07-16 01:41:15: 3,511 states generated, 1,321 distinct states found, 0 states left on queue.
-Checking 5 branches of temporal properties for the complete state space with 6605 total distinct states at (2026-07-16 01:41:15)
-Finished checking temporal properties in 00s at 2026-07-16 01:41:15
+Finished computing initial states: 1 distinct state generated at 2026-08-11 23:38:42.
+Progress(7) at 2026-08-11 23:38:42: 3,511 states generated, 1,321 distinct states found, 0 states left on queue.
+Checking 5 branches of temporal properties for the complete state space with 6605 total distinct states at (2026-08-11 23:38:42)
+Finished checking temporal properties in 00s at 2026-08-11 23:38:42
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -33,4 +22,4 @@ Model checking completed. No error has been found.
 3511 states generated, 1321 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 7.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 15 and the 95th percentile is 4).
-Finished in 00s at (2026-07-16 01:41:15)
+Finished in 00s at (2026-08-11 23:38:42)

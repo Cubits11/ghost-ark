@@ -35,9 +35,31 @@ function synthApiTemplate(options: { allowlist?: string[]; wildcard?: boolean } 
   return template;
 }
 
+/**
+ * Every option-set this file asserts against. The pre-warm must cover ALL of
+ * them, not just the default.
+ *
+ * The original pre-warm synthesized only `{}`, so the two tests that pass
+ * options — the allowlist test and the wildcard test — each paid a full,
+ * uncached synth inside an individually-timed `it`. That is how this file went
+ * red again on 2026-08-11 at "does not grant wildcard Bedrock invoke unless
+ * explicitly opted in": memoization was present and correct, but two of three
+ * cache keys were never warmed. Isolated the file took 13.0s against a 15s
+ * timeout, so any parallel load pushed it over.
+ *
+ * Adding an option-set to a test without adding it here re-creates the defect.
+ */
+const SYNTH_CONFIGURATIONS: Parameters<typeof synthApiTemplate>[0][] = [
+  {},
+  { allowlist: ["anthropic.claude-3-5-sonnet-20240620-v1:0"] },
+  { wildcard: true }
+];
+
 describe("ApiStack governed invoke AWS reality gate", () => {
   beforeAll(() => {
-    synthApiTemplate();
+    for (const configuration of SYNTH_CONFIGURATIONS) {
+      synthApiTemplate(configuration);
+    }
   }, 180_000);
 
   it("wires the invoke route behind a Cognito authorizer", () => {
