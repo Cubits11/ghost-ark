@@ -59,7 +59,7 @@ Accepted shape: context managed as a DAG; a trajectory failing the commit predic
 
 ## 5. Formal Model Status
 
-`proofs/tla/ProvenanceLattice.tla` and `ProvenanceLattice.cfg` model the rank chain, meet-based delegation admission, and floor evaluation, alongside the existing `TenantIsolation` stub.
+`proofs/tla/ProvenanceLattice.tla` and `ProvenanceLattice.cfg` model the rank chain, meet-based delegation admission, and floor evaluation, alongside `TenantIsolation` (a stub until 2026-08-12, now checked with a violating mutant).
 
 - **F1 — The dossier's delegation invariant is half the property.** It requires only `Rank(e) <= ReverifiedRank(e)`. Without the claimed-class bound the admitted rank could exceed the claim, which is not the meet. The model states both conjuncts: admitted rank is bounded by claimed and by re-verified.
 - **F2 — The dossier's "P1" invariant is a different property than P1.** `ActionEvidenceRank(action) >= PolicyFloor(action)` is premise soundness (every committed action met its floor). Verdict monotonicity (P1) is the flood property: below-floor additions never change the qualifying set. The model states them separately — `SatisfiedStable` and `FloodImmunity` as action properties, floor satisfaction as a state predicate — because conflating them produces a vacuous check.

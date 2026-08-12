@@ -207,13 +207,14 @@ describe("measured figures agree across every document that quotes them", () => 
       expect(numbers).toEqual(Array.from({ length: numbers.length }, (_, i) => i + 1));
     });
 
-    it("ships five TLC baselines and four mutants, not five of each", () => {
-      // The manuscript claimed "five seeded mutants" until 2026-08-02. There are
-      // four. Mutants are how this project argues its invariants have teeth, so
-      // claiming one that does not exist claims a two-sided oracle that is
-      // one-sided for that spec.
-      expect(TLC_BASELINES).toHaveLength(5);
-      expect(TLC_MUTANTS).toHaveLength(4);
+    it("ships six TLC baselines and five mutants, not six of each", () => {
+      // The manuscript claimed "five seeded mutants" until 2026-08-02, when
+      // there were four. Mutants are how this project argues its invariants
+      // have teeth, so claiming one that does not exist claims a two-sided
+      // oracle that is one-sided for that spec. TenantIsolation was rebuilt
+      // from a declared stub and gained its mutant on 2026-08-12: 5/4 → 6/5.
+      expect(TLC_BASELINES).toHaveLength(6);
+      expect(TLC_MUTANTS).toHaveLength(5);
     });
 
     it("records DAB_ExecutionBoundary as the baseline with no mutant", () => {

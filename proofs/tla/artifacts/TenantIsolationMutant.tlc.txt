@@ -1,0 +1,38 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 37 and seed 5369190408147687327 with 8 workers on 8 cores with 1820MB heap and 64MB offheap memory [pid: 86056] (Mac OS X 26.6.1 aarch64, Oracle Corporation 23.0.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file <REPO_ROOT>/proofs/tla/TenantIsolationMutant.tla
+Parsing file <TMPDIR>.tla
+Parsing file <TMPDIR>.tla
+Parsing file <TMPDIR>.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TenantIsolationMutant
+Starting... (2026-08-12 01:03:20)
+Computing initial states...
+Computed 2 initial states...
+Finished computing initial states: 4 distinct states generated at 2026-08-12 01:03:20.
+Error: Invariant NoCrossTenantAllow is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ owner = (resourceA :> tenantA @@ resourceB :> tenantA)
+/\ cache = (resourceA :> tenantA @@ resourceB :> tenantA)
+/\ accessLog = <<>>
+
+State 2: <TransferMutant line 48, col 3 to line 50, col 35 of module TenantIsolationMutant>
+/\ owner = (resourceA :> tenantB @@ resourceB :> tenantA)
+/\ cache = (resourceA :> tenantA @@ resourceB :> tenantA)
+/\ accessLog = <<>>
+
+State 3: <Grant line 31, col 3 to line 36, col 31 of module TenantIsolationMutant>
+/\ owner = (resourceA :> tenantB @@ resourceB :> tenantA)
+/\ cache = (resourceA :> tenantA @@ resourceB :> tenantA)
+/\ accessLog = << [ tenant |-> tenantA,
+     resource |-> resourceA,
+     decision |-> "allow",
+     ownerAtDecision |-> tenantB ] >>
+
+150 states generated, 114 distinct states found, 87 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 6 (minimum is 6, the maximum 6 and the 95th percentile is 6).
+Finished in 00s at (2026-08-12 01:03:20)

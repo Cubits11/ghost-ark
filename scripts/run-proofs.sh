@@ -175,7 +175,12 @@ log "running proofs/tla family (expected to pass)"
 declare -a RESULTS
 OVERALL=0
 
-# proofs/tla — real, recorded, load-bearing specs
+# proofs/tla — real, recorded, load-bearing specs.
+# TenantIsolation was a DECLARED_STUB until 2026-08-12: tautological (its
+# invariant restated the guard of the only action that could touch it) and
+# unbounded (no log cap, so TLC could not terminate). It now models mutable
+# ownership with a decision-time cache, bounds the log with MaxLog, and gates
+# with a mutant whose seeded defect is transfer-without-cache-invalidation.
 for entry in \
   "ProvenanceLattice:clean" \
   "ProvenanceLatticeMutant:violation" \
@@ -183,19 +188,14 @@ for entry in \
   "SpeculativeCollapseMutant:violation" \
   "TransportBoundary:clean" \
   "TransportBoundaryMutant:violation" \
+  "TenantIsolation:clean" \
+  "TenantIsolationMutant:violation" \
 ; do
   module="${entry%%:*}"; expect="${entry##*:}"
   log "  $module (expect $expect)"
   if json="$(run_spec "$ROOT/proofs/tla" "$module" "$module.cfg" "$expect" "tla")"; then :; else OVERALL=1; fi
   RESULTS+=("$json")
 done
-
-# TenantIsolation is a DECLARED STUB (proofs/tla/README.md: "stub, not checked").
-# It is recorded statically and NOT executed: as written it does not terminate
-# under TLC, and the project treats it as a placeholder, not a claim. Running it
-# would be dishonest either way (a hang is not a result).
-log "  TenantIsolation (declared stub — recorded, not executed)"
-RESULTS+=('{"module":"TenantIsolation","expect":"n/a","status":"DECLARED_STUB","met":true,"parsed":null,"distinct_states":null,"log":"proofs/tla/TenantIsolation.tla","label":"tla-stub","gating":false}')
 
 # proofs/dab — previously quarantined (invalid TLA+, then a true-positive
 # NoReplays violation; history in inventory §7.1-7.2). The committed baseline

@@ -155,15 +155,18 @@ Every specification is therefore paired with a deliberately-broken mutant, and C
 CI.
 
 ```bash
-curl -fsSL -o tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+curl -fsSL -o tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
 bash tools/proofs/run-tlc.sh
 ```
 
-> 4 baselines clean, 4 mutants violated, 0 failures.
+> 5 baselines clean, 5 mutants violated, 0 failures. (v1.7.4 is the pinned
+> toolchain; the runner was previously documented against the rolling v1.8.0
+> prerelease tag, whose bytes change under the same URL.)
 
-`TenantIsolation.tla` and `proofs/cloud/*.tla` are **unchecked stubs** with no mutants. They
-are excluded from the runner rather than passed vacuously, and listed as gaps in
-`CI_COVERAGE.md`.
+`TenantIsolation.tla` joined the gate 2026-08-12 (previously an unchecked stub;
+now checked clean over 149,796 states with a stale-cache mutant that violates).
+`proofs/cloud/*.tla` remain **unchecked stubs** with no mutants — excluded from
+the runner rather than passed vacuously, and listed as gaps in `CI_COVERAGE.md`.
 
 ---
 

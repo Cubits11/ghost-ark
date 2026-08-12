@@ -41,6 +41,8 @@ SPECS=(
   "proofs/tla:SpeculativeCollapseMutant:violate"
   "proofs/tla:TransportBoundary:pass"
   "proofs/tla:TransportBoundaryMutant:violate"
+  "proofs/tla:TenantIsolation:pass"
+  "proofs/tla:TenantIsolationMutant:violate"
   "proofs/dab:DAB_NonceLedger:pass"
   "proofs/dab:DAB_NonceLedger_Mutant:violate"
 )

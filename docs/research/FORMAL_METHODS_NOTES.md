@@ -12,17 +12,13 @@ Current Maturity
 
 Current classification under docs/research/ASSURANCE_MATURITY_LADDER.md:
 
-L1: documented design
-
-If proofs/tla/TenantIsolation.tla and proofs/tla/TenantIsolation.cfg are present, reviewed, and tracked, the model can be described as:
-
-L2: schema/model-bound artifact
+L3/L4: checked local formal model (as of 2026-08-12; recorded checker artifacts under proofs/tla/artifacts/)
 
 It must not be described as:
 
 L8: formal or cryptographic proof
 
-unless a reproducible TLC, Apalache, TLA+ proof, SMT, or equivalent checker output artifact is added with instructions to reproduce the result.
+A checked finite model validates the bounded abstraction for the recorded configuration. It is not a proof about the running implementation.
 
 Current Model
 
@@ -30,16 +26,21 @@ The current model lives in:
 
 proofs/tla/TenantIsolation.tla
 proofs/tla/TenantIsolation.cfg
+proofs/tla/TenantIsolationMutant.tla
+proofs/tla/TenantIsolationMutant.cfg
 
-It models a small tenant-isolation boundary:
+History: until 2026-08-12 this was a declared stub with two defects, both found by reading it. Its only allow action was guarded by `owner[r] = t` and its invariant asserted that every allow entry satisfies `owner[r] = t` — the guard restated, so no behaviour of the spec could violate it and a clean run measured nothing. And its access log grew without a bound, so the state space was infinite and TLC could not terminate. The rebuilt model puts the hazard where real cross-tenant leakage lives: ownership that changes, and a decision made against a possibly-stale read of it.
+
+It models:
 
 * tenants
 * resources
-* resource ownership
-* access requests
-* allow decisions
-* deny decisions
-* append-only access log
+* authoritative resource ownership that CHANGES (transfer; revocation is transfer away)
+* a decision-time cache of ownership, which is what the grant path actually consults
+* atomic cache invalidation on transfer (the baseline discipline; the mutant deletes exactly this)
+* an explicit cache-refresh action (the only other resync path)
+* allow and deny decisions, each logged with the authoritative owner at decision time
+* an append-only access log bounded by MaxLog
 
 The model is intentionally narrow so the invariant can be reviewed without importing unrelated AWS, IAM, networking, storage, or AI-system behavior.
 
@@ -51,19 +52,26 @@ NoCrossTenantAllow
 
 Operationally:
 
-If the access log records an allow decision for tenant t and resource r, then owner[r] = t.
+If the access log records an allow decision, the recorded authoritative owner at the moment of that decision equals the requesting tenant.
 
-This means no logged allow decision may exist when the requesting tenant does not own the requested resource.
+This is not a restatement of the grant guard: the guard reads the cache, the invariant checks the authoritative owner recorded at decision time, and the two are connected only by the cache-invalidation discipline. Break the discipline (the mutant) and a stale-cache grant produces an allow entry for a tenant who no longer owns the resource.
 
-Intended Formal Statement
+Status: checked finite model with recorded checker artifacts.
 
-At the current level, the model is best understood as a precise executable sketch of the following property:
+On 2026-08-12 both modules were checked with TLC2 Version 2.19 (tla2tools v1.7.4, the pinned toolchain) for the committed configuration (two tenants, two resources, MaxLog 5):
 
-For every logged allow decision, the requesting tenant matches the modeled owner of the requested resource.
+* Baseline: proofs/tla/artifacts/TenantIsolation.tlc.txt — no invariant violation; terminating run; 149,796 distinct states, matching the expectation pre-registered in proofs/tla/README.md before the run (4 owner maps x 37,449 bounded log sequences).
+* Mutant: proofs/tla/artifacts/TenantIsolationMutant.tlc.txt — TransferMutant changes ownership without invalidating the decision cache; TLC reports NoCrossTenantAllow violated with a three-state counterexample (transfer resourceA away from its owner, then a grant to the previous owner decided against the stale cache; the entry records ownerAtDecision different from tenant).
+* Discriminator: restoring the cache-invalidation conjunct inside the mutant makes it run clean, and tools/proofs/run-tlc.sh then fails with "mutant passed; property not load-bearing" — the mutant tests the seeded defect, not something incidental.
 
-This is a narrow model property.
+Commands used:
 
-It is not yet a verified property of the TypeScript implementation, AWS IAM policies, Cognito authorizers, Lambda handlers, DynamoDB records, or live cloud deployment.
+java -cp tla2tools.jar tlc2.TLC -workers auto -config TenantIsolation.cfg TenantIsolation.tla
+java -cp tla2tools.jar tlc2.TLC -workers auto -config TenantIsolationMutant.cfg TenantIsolationMutant.tla
+
+Allowed wording: the finite TenantIsolation model satisfies NoCrossTenantAllow for the recorded configuration, as checked by the recorded checker artifacts, and a transfer path that does not invalidate the decision cache violates it.
+
+Required non-claim: this validates the finite abstraction only. It is not a verified property of the TypeScript implementation, AWS IAM policies, Cognito authorizers, Lambda handlers, DynamoDB records, or any live cloud deployment. The mutant's distinct-state count is not a figure (retraction R11); only its verdict is reported.
 
 What This Model Covers
 
@@ -71,12 +79,13 @@ The model covers:
 
 * finite tenant set
 * finite resource set
-* resource ownership mapping
+* mutable resource ownership (transfer/revocation)
+* a decision-time ownership cache and its invalidation discipline
 * access requests
 * allow decisions
 * deny decisions
-* logged decisions
-* append-only access-log shape
+* logged decisions carrying the authoritative owner at decision time
+* append-only access-log shape, bounded by MaxLog
 * one tenant-isolation safety invariant
 
 What This Model Does Not Cover
@@ -319,11 +328,10 @@ This does not prove production Ghost-Ark tenant isolation, AWS IAM correctness, 
 
 Next Formal-Methods Steps
 
+Done for TenantIsolation on 2026-08-12: TLC run instructions, a checked output artifact, and a mutant demonstrating the invariant catches cross-tenant allow behavior (the first three candidates below at the time of writing).
+
 Near-term candidates:
 
-1. Add TLC run instructions.
-2. Add a checked output artifact.
-3. Add a deliberately broken model or mutant configuration to demonstrate the invariant catches cross-tenant allow behavior.
 4. Model explicit deny precedence.
 5. Model policy compilation as a separate refinement boundary.
 6. Model tenant namespace derivation.
@@ -334,13 +342,9 @@ Near-term candidates:
 
 Public Claim Guidance
 
-Safe wording:
+Safe wording (the TLC artifact exists as of 2026-08-12):
 
-Ghost-Ark includes a narrow formal-methods model stub for tenant-isolation access-log reasoning.
-
-Safe wording after TLC artifact exists:
-
-The finite TenantIsolation model was checked for the recorded configuration and invariant.
+The finite TenantIsolation model was checked for the recorded configuration and invariant, and its mutant — transfer without cache invalidation — violates the invariant as required.
 
 Unsafe wording:
 

@@ -100,7 +100,8 @@ absent, runs each spec, and records output under `proofs/**/artifacts/`.
 | `proofs/tla/SpeculativeCollapseMutant.tla` | `.cfg` | `CollapseSound` violated | **PASS** |
 | `proofs/tla/TransportBoundary.tla` | `.cfg` | no violation; 64 states | **PASS** |
 | `proofs/tla/TransportBoundaryMutant.tla` | `.cfg` | `NoSilentCompromise` violated | **PASS** |
-| `proofs/tla/TenantIsolation.tla` | `.cfg` | stub, not checked | **STUB** (declared, not a claim) |
+| `proofs/tla/TenantIsolation.tla` | `.cfg` | no violation; 149,796 states (checked 2026-08-12; previously a declared stub) | **PASS** |
+| `proofs/tla/TenantIsolationMutant.tla` | `.cfg` | `NoCrossTenantAllow` violated (stale-cache grant) | **PASS** |
 | `proofs/dab/DAB_NonceLedger.tla` | `.cfg` | dissertation claims "no error found" | **FAIL** — invalid TLA+ (`\setminus`); once corrected, `NoReplays` is **violated** (§7.1–7.2) |
 | `proofs/dab/DAB_NonceLedger_Mutant.tla` | `.cfg` | `NoReplays` violated (TOCTOU) | **FAIL** — invalid TLA+ (does not parse) |
 

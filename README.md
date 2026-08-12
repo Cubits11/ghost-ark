@@ -108,7 +108,7 @@ graph TD
 - **What does CI actually verify, and what can rot?** → [CI_COVERAGE.md](./docs/artifact/CI_COVERAGE.md)
 - New to the terminology (spine, evidence class, governed invoke)? → [Glossary](./docs/GLOSSARY.md)
 - Who are the adversaries and what holds at each boundary? → [Threat Model](./docs/security/THREAT_MODEL.md)
-- Want the formal models and their logs? → `proofs/tla/` — **provenance lattice, speculative collapse, and transport boundary each ship a mutant** showing the property is load-bearing; `TenantIsolation.tla` is a 38-line **declared stub with no mutant and no TLC run**, excluded from the gate rather than passed vacuously (see [CI_COVERAGE](./docs/artifact/CI_COVERAGE.md)). Also `proofs/dab/artifacts/` (nonce-ledger TLC logs, plus `DAB_ExecutionBoundary` — clean but with no mutant, so one-sided) and `proofs/cloud/` (unchecked).
+- Want the formal models and their logs? → `proofs/tla/` — **provenance lattice, speculative collapse, transport boundary, and tenant isolation each ship a mutant** showing the property is load-bearing. `TenantIsolation.tla` was a declared stub until 2026-08-12; it now models mutable ownership with a decision-time cache (149,796 distinct states, clean) and its mutant — transfer without cache invalidation — violates as required (see [CI_COVERAGE](./docs/artifact/CI_COVERAGE.md)). Also `proofs/dab/artifacts/` (nonce-ledger TLC logs, plus `DAB_ExecutionBoundary` — clean but with no mutant, so one-sided) and `proofs/cloud/` (unchecked).
 - Fastest hands-on path (zero AWS credentials): `./scripts/bootstrap-local.sh` then `./scripts/run-local-demo.sh`
 - Reviewing this as an artifact? → [README-AE.md](./README-AE.md) and [ARTIFACT_EVALUATION.md](./ARTIFACT_EVALUATION.md)
 - **About to contribute?** → [CONTRIBUTING.md](./CONTRIBUTING.md) — the invariants that must not be weakened, the empirical reporting rules, and the maturity tiers every claim must carry. Read it before your first pull request.
@@ -247,18 +247,21 @@ cd dab/gateway && cargo clippy --locked --all-targets -- -D warnings && cargo te
 ```
 
 ```bash
-curl -fsSL -o tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
-bash tools/proofs/run-tlc.sh   # 4 baselines must pass; 4 mutants must violate
+curl -fsSL -o tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+bash tools/proofs/run-tlc.sh   # 5 baselines must pass; 5 mutants must violate
 ```
 
+(v1.7.4 is the pinned toolchain — see `scripts/run-proofs.sh` for why the pin
+moved off the rolling v1.8.0 prerelease tag.)
+
 Two runners, two scopes — both numbers below are correct, so read the scope
-before quoting either. `run-tlc.sh` is the **gate** and covers 4 baselines + 4
+before quoting either. `run-tlc.sh` is the **gate** and covers 5 baselines + 5
 mutants. `make proof` writes `artifacts/proofs/proofs_summary.json` and records
-**5** baselines + 4 mutants: it additionally checks `DAB_ExecutionBoundary`,
+**6** baselines + 5 mutants: it additionally checks `DAB_ExecutionBoundary`,
 which is clean over 51,106 distinct states but ships **no mutant**, so that
-result is one-sided and is excluded from the gate rather than counted as a fifth
-pair. `TenantIsolation` is a `DECLARED_STUB` — excluded rather than passed
-vacuously. Do not write "five mutants": there are four.
+result is one-sided and is excluded from the gate rather than counted as a sixth
+pair. `TenantIsolation` was a `DECLARED_STUB` until 2026-08-12 and is now a
+checked pair like the others. Do not write "six mutants": there are five.
 
 Or use the wrappers (same gates, one command each):
 
@@ -462,7 +465,7 @@ A completed item means the repository contains evidence for that narrow claim.
 | E3 adversarial corpus detection | Complete locally | Research | 26/26 verifier-intrinsic, 3/3 controls; no compromised-signer fixtures |
 | E4 metamorphic guard | Complete locally | Research | Tautology verdict PASS; 7 of 10 checks load-bearing, 1 corpus gap (`tenant`) and 2 unisolatable in principle (documented) |
 | Rust gateway/verifier in CI | Complete | Research | 26 tests, clippy `-D warnings`, `--locked`; previously unguarded |
-| TLA+ specs + mutants in CI | Complete | Research | 4 baselines pass and 4 mutants must violate; `TenantIsolation` and `proofs/cloud/*` remain unchecked stubs |
+| TLA+ specs + mutants in CI | Complete | Research | 5 baselines pass and 5 mutants must violate; `TenantIsolation` joined the gate 2026-08-12; `proofs/cloud/*` remain unchecked stubs |
 | Real-traffic kernel frequency | Not complete | Research | Falsifier F2 and the largest open weakness; requires a corpus this repository does not have |
 | Claim/evidence matrix | Complete | Spine A | Versioned local documentation and claim boundaries |
 | Non-claim scanner | Complete | Spine A | Local enforcement with exact-path quarantine |

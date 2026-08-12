@@ -49,7 +49,7 @@ Non-claim: benchmark rates are estimands on stated workloads, not field safety r
 Capability: the checkable properties are checked by more than assertion — finite models machine-checked, mutants proving the invariants bite, adversarial corpora proving fail-closed behavior.
 
 Artifacts (partially in place):
-- TLA+ models with recorded TLC artifacts and load-bearing mutants: TenantIsolation (stub), ProvenanceLattice (checked, 403,949 states), SpeculativeCollapse (checked, claim-trusting mutant refuted).
+- TLA+ models with recorded TLC artifacts and load-bearing mutants: TenantIsolation (checked 2026-08-12, 149,796 states, stale-cache mutant refuted; previously a stub), ProvenanceLattice (checked, 403,949 states), SpeculativeCollapse (checked, claim-trusting mutant refuted).
 - Malicious receipt corpus with expected fail-closed verdicts (in place).
 - Refinement layer connecting model actions to implementation traces (to build) — the current honest gap between checked abstraction and running code.
 

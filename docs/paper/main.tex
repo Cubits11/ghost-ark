@@ -88,10 +88,11 @@
 % dab/roundtrip/RECORDED_CONCURRENT_STRESS.txt
 \newcommand{\stressops}{275{,}415}
 \newcommand{\stressrejm}{10.1}
-% TLC (tla2tools v1.8.0), recorded logs in artifacts/proofs/logs/ and proofs/dab/artifacts/
+% TLC (tla2tools v1.7.4, the pinned toolchain), recorded logs in artifacts/proofs/logs/ and proofs/dab/artifacts/
 \newcommand{\plstates}{403{,}949}
 \newcommand{\scstates}{529}
 \newcommand{\tbstates}{64}
+\newcommand{\tistates}{149{,}796}
 \newcommand{\nlstates}{1{,}321}
 \newcommand{\ebstates}{51{,}106}
 % Mutant distinct-state counts — WITHDRAWN 2026-08-11 as retraction R11.
@@ -191,7 +192,7 @@ global-state validation), and a \emph{semantic gate} (a dependence-free upper bo
 on cumulative trajectory failure).
 
 We report what is implemented and measured, and label what is only specified.
-TLC model checking of five bounded models (up to \plstates{} distinct states) caught
+TLC model checking of six bounded models (up to \plstates{} distinct states) caught
 a subtle garbage-collection replay flaw in our own design, which we repaired spec-first.
 Against a malicious-fixture corpus run through the standalone verifier,
 \evthreeintrinsic{} mutations are rejected by verifier rules alone, with a
@@ -269,8 +270,8 @@ enumerates non-claims):
   \emph{starvation trap}); the read-set projection $\piR$ recovers liveness
   at a precisely stated cost in conflict-detection strength.
 \item \textbf{Model checking with teeth} (\S\ref{sec:tla},
-  \S\ref{sec:eval-tla}): five TLC-checked bounded models plus four seeded
-  mutants that must fail (the fifth model has none, and we say so) ---
+  \S\ref{sec:eval-tla}): six TLC-checked bounded models plus five seeded
+  mutants that must fail (the sixth model has none, and we say so) ---
   including the case study where TLC refuted our
   own baseline design (garbage collection re-enabled replay) and the repair
   was propagated spec-first into the implementation.
@@ -412,7 +413,7 @@ buffer to the environment or triggers \texttt{SpeculativeCollapse}: the
 buffer is discarded, the replica reverts to $G(\sigma_0)$, and an abort
 receipt is emitted. Collapse is the mechanism that makes agent fallibility
 survivable: a hallucinated plan that dies in validation costs a receipt, not
-an environment. The collapse/commit state machine is one of the five
+an environment. The collapse/commit state machine is one of the six
 TLC-checked models (\S\ref{sec:eval-tla}, \scstates{} distinct states).
 
 \subsection{The three-gate validation pipeline}
@@ -796,6 +797,8 @@ SpeculativeCollapse        & \scstates{}    & clean \\
 \quad\emph{mutant}         & 193--431       & violation reproduced \\
 TransportBoundary          & \tbstates{}    & clean \\
 \quad\emph{mutant}         & 22--23         & violation reproduced \\
+TenantIsolation            & \tistates{}    & clean \\
+\quad\emph{mutant}         & 94--140        & violation reproduced \\
 DAB\_NonceLedger           & \nlstates{}    & clean (incl.\ temporal) \\
 \quad\emph{mutant}         & 185--332       & \texttt{NoReplays} violated \\
 DAB\_ExecutionBoundary     & \ebstates{}    & clean --- \emph{no mutant} \\
@@ -803,33 +806,40 @@ DAB\_ExecutionBoundary     & \ebstates{}    & clean --- \emph{no mutant} \\
 \end{tabular}
 \caption{TLC results at HEAD (tla2tools v1.7.4; recorded logs committed).
 \textbf{Baseline counts are exact and reproducible}; they exhaust the bounded
-state space, and all five re-derived byte-identically across a toolchain change.
+state space, and the five that predate the 2026-08 toolchain change re-derived
+byte-identically across it (\texttt{TenantIsolation}, checked 2026-08-12, has
+run only under the current pin; its count matches the expectation pre-registered
+in \texttt{proofs/tla/README.md} before the run).
 \textbf{Mutant counts are ranges, and deliberately so} (retraction R11): a mutant
 halts at the first counterexample under \texttt{-workers auto}, so the count
 depends on thread scheduling rather than on the model. Ranges are $n=10$ per
 mutant on one host at one commit. The \emph{verdict} is what reproduces; the
 count is not, and was previously reported as a constant.
 Baselines must verify clean; mutants must reproduce their seeded violations.
-Five baselines, \emph{four} mutants: \texttt{DAB\_ExecutionBoundary} has no
+Six baselines, \emph{five} mutants: \texttt{DAB\_ExecutionBoundary} has no
 seeded mutant, so its clean result is one-sided. These are bounded models of
 the design, not proofs of the implementation.}
 \label{tab:tlc}
 \end{table}
 
-Table~\ref{tab:tlc} summarizes five baselines and four mutants. The
+Table~\ref{tab:tlc} summarizes six baselines and five mutants. The
 two-sided oracle matters: a harness that can only report success cannot
 distinguish a verified invariant from a vacuous one. The mutant rows are the
 evidence that the invariants have teeth; the \texttt{NoReplays} mutant in
 particular reproduces the historical design flaw of \S\ref{sec:tla} as a
-permanent regression witness.
+permanent regression witness. \texttt{TenantIsolation} is the newest pair
+(2026-08-12) and a lesson in what this table is for: its first version was
+tautological --- the invariant restated the guard of the only action that could
+produce an allow entry, so no behaviour could violate it --- and unbounded, so
+TLC could not terminate. The rebuilt model makes ownership mutable and routes
+grant decisions through a cache that transfer must invalidate; the mutant
+deletes exactly that invalidation and violates through a stale-cache grant.
 
 By that same standard we must mark our own gap: \texttt{DAB\_ExecutionBoundary}
 is checked clean over \ebstates{} distinct states but ships \emph{no} mutant, so
 nothing demonstrates its invariants can fail. Its row is exactly the one-sided
 result the rest of this table exists to rule out, and we count it as unverified
-teeth rather than as a fifth mutant. A sixth model,
-\texttt{TenantIsolation}, is a declared stub: excluded from the gate rather than
-passed vacuously.
+teeth rather than as a sixth mutant.
 
 \subsection{Adversarial corpus}
 \label{sec:eval-corpus}

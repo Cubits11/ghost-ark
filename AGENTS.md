@@ -206,13 +206,20 @@ on the first thing a reviewer checks.
   under -D warnings. Measured 2026-08-02. This line previously read "26 ... (13 + 13)", counting
   two crates and omitting the other two.
 
-- tools/proofs/run-tlc.sh: 4 TLA+ baselines clean, 4 mutants violate as required.
-  Note the two runners disagree in scope and both are right: `run-tlc.sh` gates 4+4,
-  while `artifacts/proofs/proofs_summary.json` (via `make proof`) records **5 clean
-  baselines and 4 mutants** — `DAB_ExecutionBoundary` is checked clean over 51,106
-  states but has **no seeded mutant**, so its result is one-sided, and
-  `TenantIsolation` is a `DECLARED_STUB`. The paper claimed "five mutants" until
-  2026-08-02. Do not write "five mutants" until a fifth exists.
+- tools/proofs/run-tlc.sh: 5 TLA+ baselines clean, 5 mutants violate as required
+  (measured 2026-08-12; previously 4+4). Note the two runners disagree in scope and
+  both are right: `run-tlc.sh` gates 5+5, while `artifacts/proofs/proofs_summary.json`
+  (via `make proof`) records **6 clean baselines and 5 mutants** —
+  `DAB_ExecutionBoundary` is checked clean over 51,106 states but has **no seeded
+  mutant**, so its result is one-sided. `TenantIsolation` was a `DECLARED_STUB` until
+  2026-08-12: its old invariant restated the guard of the only action that could
+  create an allow entry (no behaviour could violate it) and its log was unbounded (TLC
+  could not terminate). It now models mutable ownership with a decision-time cache,
+  checks clean over 149,796 distinct states (count matches the expectation
+  pre-registered in proofs/tla/README.md), and its mutant — ownership transfer that
+  does not invalidate the cache — violates NoCrossTenantAllow as required. The paper
+  claimed "five mutants" until 2026-08-02, when there were four; a fifth exists as of
+  2026-08-12. Do not write "six mutants": DAB_ExecutionBoundary still has none.
 
   **Toolchain pinned to tla2tools v1.7.4 (2026-08-11), and only baseline counts are
   evidence.** Two findings, both from CI going red:
@@ -758,9 +765,9 @@ self-reported.
 
 ## Phase 4 — Formal methods
 
-57. `TenantIsolation.tla` is an unchecked stub and tenant isolation is a headline claim. Write it to a checkable state. — Acceptance: TLC runs it.
-58. Write its mutant. — Acceptance: the mutant violates.
-59. Add both to `run-tlc.sh`. — Acceptance: 5 baselines / 5 mutants.
+57. ~~`TenantIsolation.tla` is an unchecked stub and tenant isolation is a headline claim. Write it to a checkable state.~~ **DONE 2026-08-12.** The stub had two defects: a tautological invariant (NoCrossTenantAllow restated the guard of the only action that appended "allow") and an unbounded log (no constraint, so TLC could not terminate). Rebuilt with mutable ownership, a decision-time cache the grant path reads instead of the authoritative owner, and MaxLog. TLC: clean, 149,796 distinct states — exactly the count pre-registered in proofs/tla/README.md before the run (4 owner maps × Σₖ₌₀..₅ 8ᵏ log sequences).
+58. ~~Write its mutant.~~ **DONE 2026-08-12.** `TenantIsolationMutant.tla` seeds one named defect: `TransferMutant` changes ownership without invalidating the decision cache. NoCrossTenantAllow violated in a 3-state trace (transfer resourceA away, grant to the old owner via the stale cache). Discriminator-checked: restoring the invalidation line makes the mutant run clean and `run-tlc.sh` fail with "mutant passed; property not load-bearing".
+59. ~~Add both to `run-tlc.sh`.~~ **DONE 2026-08-12.** Gate now 5 baselines / 5 mutants, exit 0; `run-proofs.sh` executes the pair instead of recording DECLARED_STUB.
 60. `proofs/cloud/BigQueryIndex.tla` — check or delete. — Acceptance: TLC log committed, or the file is gone with a reason.
 61. Same for `CloudConsistency.tla`. — Acceptance: as above.
 62. Same for `ReceiptPublication.tla`. — Acceptance: as above.
