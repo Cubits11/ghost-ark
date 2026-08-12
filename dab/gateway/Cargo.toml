@@ -37,7 +37,7 @@ rand = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 
 # Infrastructure Support
-thiserror = "1.0"
+thiserror = "2.0"
 getrandom = "0.2"
 crossbeam-epoch = "0.9.20"
 zeroize = { version = "1.9.0", features = ["zeroize_derive"] }
