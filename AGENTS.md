@@ -712,9 +712,9 @@ self-reported.
 
 ## Phase 1 — Third-party independence (the largest open weakness)
 
-13. Write a one-page reviewer brief: what to attack, what would falsify, what is already known-broken. — Acceptance: reviewable without reading the repository.
-14. Send it to one person outside the project. — Acceptance: a reply exists. **This step cannot be completed by an assistant.**
-15. Record their findings verbatim in `docs/validation/`, including ones that are wrong. — Acceptance: findings file with attribution and date.
+13. ~~Write a one-page reviewer brief: what to attack, what would falsify, what is already known-broken.~~ **DONE 2026-08-12, by a different route than proposed.** Not a brief about the repository — a *measurement of somebody else's system*, which is reviewable without reading this one because it is about theirs. Five reports filed against `json-canonicalize`, the JCS reference repo, `safe-stable-stringify`, `json-stable-stringify`, and `canonicalize`, each with a reproduction that runs from a published npm package rather than from this clone. A brief asks a stranger for attention; a finding about their code earns it.
+14. **INITIATED 2026-08-12, NOT COMPLETE.** Five reports sent. The acceptance criterion is **"a reply exists"** and no reply exists yet, so this stays open. Filing is an action; a reply is the observation. Counting outbound messages as external validation would be this repository's own tautology defect committed one social layer up. Tracked in `docs/validation/EXTERNAL_KERNEL_PROBE_REPORTS_2026-08-12.md`.
+15. Record their findings verbatim in `docs/validation/`, including ones that are wrong. — Acceptance: findings file with attribution and date. **Receiving structure built 2026-08-12** (same file), with the disposition log empty and a stated ranking of which replies are most valuable — a maintainer saying "your intent is wrong" ranks first, because the alphabet is what F2 attacks and the part this project can least verify alone.
 16. Fix what they find, or record why not. — Acceptance: each finding has a disposition.
 17. Ask a second reviewer to reimplement the receipt verifier from `docs/` alone, without reading `verifiers/`. — Acceptance: an independent implementation exists.
 18. Run E5 with that implementation as a fourth arm. — Acceptance: disagreement count reported, whatever it is.
