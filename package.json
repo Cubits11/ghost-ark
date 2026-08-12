@@ -113,7 +113,7 @@
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
     "@types/aws-lambda": "^8.10.152",
-    "@types/node": "^24.0.10",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
     "ajv": "^8.20.0",
