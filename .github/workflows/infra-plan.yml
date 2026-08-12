@@ -6,26 +6,52 @@ on:
       - "infra/**"
       - ".github/workflows/infra-plan.yml"
 
+# `id-token: write` was dropped with the plan step: no job here assumes an AWS
+# role any more, and an OIDC token nothing redeems is standing privilege.
 permissions:
   contents: read
-  id-token: write
+
+concurrency:
+  group: infra-plan-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  terraform-plan:
+  # `terraform plan` was removed from this job on 2026-08-06, for two reasons
+  # that point the same way.
+  #
+  #   1. IT COULD NOT HAVE WORKED. `infra/terraform/bootstrap/main.tf` declares
+  #      `data "aws_caller_identity" "current" {}`, which is resolved at plan
+  #      time and requires AWS credentials. The job granted `id-token: write`
+  #      and named `environment: dev`, but never assumed a role — the same
+  #      defect deploy-dev.yml carried. `plan` would have failed on the first
+  #      pull request that touched infra/.
+  #
+  #   2. IT SHOULD NOT WORK ON THIS TRIGGER. This is a public repository and the
+  #      trigger is `pull_request`, which includes pull requests from forks.
+  #      Handing cloud credentials to a job whose inputs an unreviewed
+  #      contributor controls is not a thing to fix by adding the missing
+  #      credential step.
+  #
+  # `init -backend=false` and `validate` need no credentials and catch the
+  # errors a reviewer actually wants caught on a pull request: syntax, provider
+  # constraints, and module wiring. A plan against real AWS belongs on a manual,
+  # environment-gated workflow — see the live-AWS runbooks under
+  # docs/operations/runbooks/ and the AWS reality boundary in
+  # docs/artifact/CI_COVERAGE.md.
+  terraform-validate:
     runs-on: ubuntu-latest
-    environment: dev
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - run: terraform fmt -check -recursive infra/terraform
       - run: terraform -chdir=infra/terraform/bootstrap init -backend=false
       - run: terraform -chdir=infra/terraform/bootstrap validate
-      - run: terraform -chdir=infra/terraform/bootstrap plan -input=false -lock=false
 
   cdk-synth:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm

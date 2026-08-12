@@ -225,7 +225,7 @@ separate faults were behind it, and they need different fixes:
   merely widening it, so the two runs are not comparable and the report now says so.
 - **A transient spawn failure aborted the run.** Under parallel load `execFileSync` exceeded
   its timeout and threw `ETIMEDOUT` straight out of the census, making the suite
-  nondeterministically red — the same class as the CDK-synth flake in `CLAUDE.md`. Spawns now
+  nondeterministically red — the same class as the CDK-synth flake in `AGENTS.md`. Spawns now
   retry once on transient `errno` codes only; a definitive failure still raises
   `ArmUnavailableError` rather than being laundered into a rejection.
 
@@ -896,7 +896,7 @@ every run. Both halves are gameable and they drift in opposite directions:
 - Shrinking the killer test set **lowers** it, so it cannot inflate — but it can make a later
   pass look like an improvement. Pinned for that reason too.
 
-Ten source files are mutated: the five `CLAUDE.md` names under "Be careful with", plus the
+Ten source files are mutated: the five `AGENTS.md` names under "Be careful with", plus the
 five modules those five delegate integrity decisions to (`chain`, `keyManifest`, `kmsSigner`,
 `kmsVerifier`, `strictJsonAdmission`). Storage adapters, the generated zod shape, the v2
 prototype, type-only modules, and ledger-anchored revocation are excluded **with reasons
@@ -1051,7 +1051,7 @@ emphatically.** In `kmsVerifier.ts` the unexecuted lines are the key-identity
 the response-`KeyId` mismatch. In `emission.ts` they include the empty-HMAC-secret
 guard, `IntegrityCollisionError` on a replay-lookup digest mismatch,
 `ChainHeadConflictError`, and the throw when a KMS signer exposes a mutable alias
-`keyId`. `CLAUDE.md` names immutable KMS key ARNs in verification-critical paths
+`keyId`. `AGENTS.md` names immutable KMS key ARNs in verification-critical paths
 as a hard requirement; the code enforcing it is largely unexecuted.
 
 This is narrower than "KMS needs AWS". Sibling tests do reject mutable aliases at

@@ -47,3 +47,11 @@ updates:
     directory: "/tools/experiments"
     schedule:
       interval: weekly
+
+  # E11's serde_json arm. Omitted when this file was written, so the one Rust
+  # crate that exists to be an INDEPENDENT third-party JSON implementation was
+  # the only crate whose dependencies nobody was tracking.
+  - package-ecosystem: cargo
+    directory: "/tools/experiments-json"
+    schedule:
+      interval: weekly

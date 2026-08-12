@@ -6,6 +6,21 @@
 # is deliberately unowned so that ordinary contribution stays cheap.
 #
 # GitHub applies the LAST matching pattern, so the order below is significant.
+#
+# ---------------------------------------------------------------------------
+# ORGANISATION PRECONDITION — this file has a silent failure mode.
+#
+# GitHub IGNORES a code owner who does not have write access to the repository,
+# and it reports no error when it does so. Under an organisation that means every
+# rule below can stop applying while the file still looks correct on disk.
+#
+# So @Cubits11 must hold write access on PSUCyberSecurityLab/ghost-ark. Verify it
+# rather than assume it: open a pull request touching
+# packages/enforcement-runtime/src/receipts/ and confirm a reviewer is actually
+# requested. If ownership later moves to a lab team, replace the handle with
+# @PSUCyberSecurityLab/<team-slug> and re-run the same check — the verification,
+# not the edit, is the part that matters.
+# ---------------------------------------------------------------------------
 
 # Default: no required owner. Ordinary changes do not need a gatekeeper.
 
@@ -45,7 +60,7 @@
 # ---------------------------------------------------------------------------
 /README.md                                             @Cubits11
 /CONTRIBUTING.md                                       @Cubits11
-/CLAUDE.md                                             @Cubits11
+/AGENTS.md                                             @Cubits11
 /CITATION.cff                                          @Cubits11
 /SECURITY.md                                           @Cubits11
 /docs/governance/                                      @Cubits11

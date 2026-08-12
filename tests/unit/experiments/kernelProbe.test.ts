@@ -2,10 +2,10 @@ import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { PATHOLOGY_ALPHABET } from "../../../tools/experiments/kernelAlphabet";
-import { probeKernel, runTarget } from "../../../tools/experiments/kernelProbe";
+import { probeKernel as probeKernelUncached, runTarget } from "../../../tools/experiments/kernelProbe";
 
 /**
  * Guard tests for the standalone kernel probe.
@@ -40,6 +40,43 @@ const REFUSE_ALL = script("refuse-all", "cat >/dev/null\nexit 1");
 
 const DISTINCT_CLASSES = PATHOLOGY_ALPHABET.filter((p) => p.intent === "distinct").length;
 const EQUIVALENT_CLASSES = PATHOLOGY_ALPHABET.filter((p) => p.intent === "equivalent").length;
+
+/**
+ * Memoized probe, pre-warmed below.
+ *
+ * `runTarget` spawns the target with `execFileSync` — one SYNCHRONOUS process per
+ * pathology class. With 31 classes and eight `probeKernel` calls this file was
+ * spawning ~248 processes, of which ~155 were redundant: the eight calls cover
+ * only three distinct canonicalizers.
+ *
+ * That cost is invisible alone (3.4s) and fatal in the full suite, where vitest
+ * runs many files concurrently and process-spawn latency balloons. Measured
+ * 2026-08-06: 3.4s isolated versus 30.9s under full-suite load, against a 15s
+ * per-test timeout — the exact recurrence AGENTS.md asked to have the test name
+ * captured for.
+ *
+ * This is the fix already recorded in AGENTS.md for the CDK-synth flake, applied
+ * to the same failure class: memoize the expensive call and pre-warm it in
+ * `beforeAll`, so the cost is paid once and outside any individually-timed `it`.
+ * It is NOT a raised timeout — the work is genuinely ~93 process spawns, and no
+ * algorithmic defect is being masked. Do not reintroduce a per-test probe run.
+ */
+const probeCache = new Map<string, ReturnType<typeof probeKernelUncached>>();
+function probeKernel(command: string): ReturnType<typeof probeKernelUncached> {
+  const hit = probeCache.get(command);
+  if (hit) {
+    return hit;
+  }
+  const report = probeKernelUncached(command);
+  probeCache.set(command, report);
+  return report;
+}
+
+beforeAll(() => {
+  for (const target of [DEGENERATE, IDENTITY, REFUSE_ALL]) {
+    probeKernel(target);
+  }
+}, 120_000);
 
 describe("kernel probe: calibration against known-kernel canonicalizers", () => {
   it("reports maximum collapse for a canonicalizer that maps everything to one output", () => {

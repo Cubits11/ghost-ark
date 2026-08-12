@@ -86,7 +86,7 @@ const allowedPolicyFiles = new Set([
 
   // Policy and boundary documents are allowed to quote unsafe wording because
   // their purpose is to define rejected claims, limitations, and evidence gaps.
-  "CLAUDE.md",
+  "AGENTS.md",
   "docs/research/THREAT_MODEL_FRONTIER.md",
   "docs/research/ASSURANCE_MATURITY_LADDER.md",
   "docs/research/AGENT_RESEARCH_AUDIT_2026-07-08.md",

@@ -3,7 +3,7 @@
 **One file. No install. No dependencies. Nothing from this repository.**
 
 ```bash
-curl -O https://raw.githubusercontent.com/Cubits11/ghost-ark/main/tools/kernel-probe/kernel-probe.mjs
+curl -O https://raw.githubusercontent.com/PSUCyberSecurityLab/ghost-ark/main/tools/kernel-probe/kernel-probe.mjs
 node kernel-probe.mjs --command "jq -S -c ."
 ```
 

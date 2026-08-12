@@ -31,7 +31,7 @@ export const ASSUMPTIONS = [
 ] as const;
 
 export const CHAITIN_PROTOCOL = "GHOST-CHAITIN-V1" as const;
-/** Dev-only signing key. Local HMAC is development-only (see CLAUDE.md). */
+/** Dev-only signing key. Local HMAC is development-only (see AGENTS.md). */
 const DEV_HMAC_KEY = "ghost-ark-chaitin-dev-only-hmac-vector-v1";
 
 const sha256hex = (b: Uint8Array | string): string =>

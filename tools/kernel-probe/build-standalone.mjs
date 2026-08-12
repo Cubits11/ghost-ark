@@ -95,7 +95,7 @@ const BANNER = `#!/usr/bin/env node
 // uncomfortable about your canonicalizer, that finding is yours and it does not
 // depend on trusting anyone.
 //
-// Provenance: https://github.com/Cubits11/ghost-ark
+// Provenance: https://github.com/PSUCyberSecurityLab/ghost-ark
 `;
 
 // One String.raw template for the whole body, so `\n` survives into the output

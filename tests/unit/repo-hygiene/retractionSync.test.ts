@@ -103,7 +103,7 @@ describe("retraction lists stay in sync", () => {
       // paperEvidenceSource.test.ts asserts it still does.
       "docs/paper/main.tex",
       "docs/artifact/STATUS_AND_LIMITATIONS.md",
-      "CLAUDE.md",
+      "AGENTS.md",
       "CONTRIBUTING.md",
       "packages/research-frontier/src/stats/descriptive.ts",
       "tests/unit/experiments/descriptiveStats.test.ts",

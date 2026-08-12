@@ -307,7 +307,7 @@ describe("measured figures agree across every document that quotes them", () => 
         files: /Test counts \([\d,]+ \/ ([\d,]+)\)/u
       },
       {
-        file: "CLAUDE.md",
+        file: "AGENTS.md",
         tests: /([\d,]+) tests \(1 file/u,
         files: /npm test passes: ([\d,]+) test files/u
       }
@@ -342,7 +342,7 @@ describe("measured figures agree across every document that quotes them", () => 
       // are added. A DECREASE is the case worth catching, and pinning equality
       // here would make the guard fail every time someone writes a test — which
       // is how a guard earns a blanket skip.
-      const source = read("CLAUDE.md");
+      const source = read("AGENTS.md");
       expect(digits(/([\d,]+) tests \(1 file/u.exec(source)?.[1] ?? "0")).toBeGreaterThanOrEqual(1253);
       expect(digits(/npm test passes: ([\d,]+) test files/u.exec(source)?.[1] ?? "0")).toBeGreaterThanOrEqual(162);
     });

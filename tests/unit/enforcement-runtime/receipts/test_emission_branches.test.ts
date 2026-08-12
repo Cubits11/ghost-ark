@@ -31,7 +31,7 @@ import type { PolicyDecision } from "../../../../packages/enforcement-runtime/sr
  *   - `ChainHeadConflictError` and the bounded retry around it;
  *   - the throw when a KMS signer exposes a mutable alias `keyId` **after**
  *     signing, which is the post-hoc half of the immutable-key-ARN rule
- *     `CLAUDE.md` states as a hard requirement.
+ *     `AGENTS.md` states as a hard requirement.
  *
  * The existing suite emits receipts successfully. Nothing established that
  * malformed input, a colliding digest, or an alias-bearing signer is refused —

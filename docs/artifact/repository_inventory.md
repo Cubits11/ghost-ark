@@ -6,7 +6,7 @@
 > pipeline. It is deliberately blunt about what is verified, what is
 > aspirational, and what is currently broken.
 
-**Claim boundary (repeated verbatim from `CLAUDE.md`).** Ghost-Ark provides
+**Claim boundary (repeated verbatim from `AGENTS.md`).** Ghost-Ark provides
 cryptographic receipts and bounded governance evidence. It verifies what was
 recorded, signed, policy-bounded, and replayable under Ghost-Ark verifier rules.
 It does **not** prove semantic safety, truth, compliance, alignment, production
@@ -64,7 +64,7 @@ still reports whatever is true.
 `orchestration`, `governance`.
 `infra/cdk` (+ `infra/terraform`). `tools/scripts`.
 
-Careful-with paths (from `CLAUDE.md`): receipt canonicalization, signer,
+Careful-with paths (from `AGENTS.md`): receipt canonicalization, signer,
 emission, verifier, runtime, retrieval, vault, and `infra/cdk/lib/api-stack.ts`.
 The AE pipeline does **not** modify any of these.
 

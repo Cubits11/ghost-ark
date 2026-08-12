@@ -21,7 +21,7 @@
  *
  * The files whose corruption would let a receipt verify that should not, or fail
  * to verify one that should: canonical form, admission, digest, signature,
- * emission, chain linkage, key identity. `CLAUDE.md` names five of these under
+ * emission, chain linkage, key identity. `AGENTS.md` names five of these under
  * "Be careful with"; the remaining five are the modules those five delegate
  * integrity decisions to.
  *

@@ -145,7 +145,7 @@ Controls (evidence):
   manifests (`npm run receipt:verify:replay`).
 - What a signature means is constrained in writing: signing shows signing
   authorization over the payload; it does not show the content is true or safe
-  (CLAUDE.md signature rules; README claim discipline).
+  (AGENTS.md signature rules; README claim discipline).
 
 Residual: no external cryptographic audit; checkpoint/witness model has no
 independent witness (Spine G partial); Object Lock retention/denial evidence is
@@ -157,7 +157,7 @@ Threats: A12, A6.
 
 Controls (evidence):
 - AWS mode signs with an asymmetric KMS key (`SIGN_VERIFY`); verification-critical
-  paths use immutable key ARNs, not mutable aliases (CLAUDE.md signature rules;
+  paths use immutable key ARNs, not mutable aliases (AGENTS.md signature rules;
   `infra/cdk/lib/api-stack.ts` assertions).
 - Local HMAC is dev-only and stated as such everywhere it appears; key lifecycle
   and rotation protocol exist locally (Spine D: epoch/signing policy + runbook

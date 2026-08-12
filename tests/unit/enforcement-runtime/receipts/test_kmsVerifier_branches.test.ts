@@ -23,7 +23,7 @@ import type { SignedDecisionReceipt } from "../../../../packages/enforcement-run
  * does not match the configured key, and a KMS response whose `KeyId` or
  * `SigningAlgorithm` disagrees with what was asked for.
  *
- * `CLAUDE.md` states that KMS key ids in verification-critical paths must be
+ * `AGENTS.md` states that KMS key ids in verification-critical paths must be
  * immutable key ARNs rather than mutable aliases, because an alias can be
  * repointed after the fact and a receipt that verifies under a repointable
  * identity proves less than it appears to. That rule is enforced here, and until

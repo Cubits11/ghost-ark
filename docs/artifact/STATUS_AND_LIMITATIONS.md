@@ -101,7 +101,7 @@ Six modules were remediated against their own survivor lists and re-measured:
 empty-secret guard, `IntegrityCollisionError`, `ChainHeadConflictError`, and the
 throw when a KMS signer exposes a mutable alias. In `canonical`, the two
 execution-boundary assertions that stop a development default reaching a
-production receipt. In `chain`, every continuity detection. **`CLAUDE.md` names
+production receipt. In `chain`, every continuity detection. **`AGENTS.md` names
 immutable KMS key ARNs as a hard requirement; the code enforcing it was
 unexecuted.** The pattern held in all six: the guards were the untested part.
 

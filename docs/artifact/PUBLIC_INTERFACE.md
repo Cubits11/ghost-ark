@@ -7,6 +7,14 @@ is: not a working directory made visible, but an artifact an institution's name
 is attached to. This page states what belongs on the public surface, what does
 not, and which of those rules are enforced by tests rather than by intention.
 
+**Status of that sentence, stated precisely.** At the time of writing the remote
+is still `Cubits11/ghost-ark`, a personal account. Everything below describes the
+rules the repository is held to *in preparation for* the move, and every one of
+them is enforced now. The move itself has an unusual property worth naming: an
+account boundary is not a code change, so nothing in this repository's own CI
+could have told it that a job was about to break. One did — see "Before the
+move".
+
 ## The five things a reader must be able to reach
 
 Everything else is supporting detail. If a reader cannot get to these five from
@@ -88,6 +96,77 @@ not measured. Tables and prose only.
 
 Numbers carry their denominators, their host, and their provenance. A proportion
 without a denominator is not reportable here, and neither is a grade.
+
+## Before the move
+
+Findings from the 2026-08-06 pre-migration audit. Each was verified by running
+something, and each is stated with what was actually checked.
+
+**Push `main` explicitly. Never `--all`, never `--mirror`.** Five local branches
+are not on `origin`, and one of them — `backup/pre-empirical-audit-d61062a` —
+contains commit `47d3c55`, which adds a `.env.example` holding a real-format
+Google `GEMINI_API_KEY` (53 characters, `AQ.`-prefixed). It is **not** reachable
+from `main` and **not** on `origin`, so it is not public today. A mirror push
+publishes it in one step, under an institutional name, with the author's
+attribution on the commit.
+
+```
+git push <psu-remote> main          # transfers only the verified history
+git push <psu-remote> --all         # DO NOT: carries the branch above
+```
+
+Measured with gitleaks 8.30.1 on 2026-08-06: `main`'s 229-commit history returns
+**0 findings**; all refs together return **1**, and that one is the branch above.
+The `gitleaks` CI job now scans full history on every push, so this is guarded
+going forward rather than remembered.
+
+**Rotate that key regardless of what is pushed.** It sat in a working tree and in
+local history; treat it as disclosed. Rotation is not something this repository
+can verify, so it is listed here rather than claimed anywhere.
+
+**The secret scanner had to be replaced to survive the move.**
+`gitleaks/gitleaks-action@v2` requires a licence key for repositories owned by an
+organisation and none for a personal account. It ran green here for months and
+would have failed on the first push under the organisation — a licensing error on
+the one job whose silence is most expensive. It is now the pinned CLI, which has
+no such condition. The general lesson is in
+[CI_COVERAGE.md](./CI_COVERAGE.md): a CI result measured under one account type
+is not evidence about another.
+
+**Three things still name the personal account and must be re-pointed after the
+move**, none of which any test can decide for you:
+
+| What | Where |
+|:--|:---|
+| `repository-code` | [CITATION.cff](../../CITATION.cff) |
+| `curl` install line for `kernel-probe` | [README.md](../../README.md), [KERNEL_PROBE.md](../research/KERNEL_PROBE.md), `tools/kernel-probe/` |
+| Every owner entry (`@Cubits11`) | [.github/CODEOWNERS](../../.github/CODEOWNERS) |
+
+CODEOWNERS is the one with a silent failure mode: GitHub ignores an owner who
+lacks write access to the repository, and it does not report an error for it. If
+the account is not carried into the organisation with write access, every review
+requirement in that file stops applying and the file still looks correct. Verify
+by opening a pull request that touches `packages/enforcement-runtime/src/receipts/`
+and confirming a reviewer is actually requested.
+
+**Two organisation settings decide whether CI runs at all**, and neither is
+visible from inside the repository:
+
+- *Actions permissions.* An organisation set to "allow actions created by GitHub
+  and select non-GitHub actions" blocks every third-party action here —
+  `dtolnay/rust-toolchain`, `Swatinem/rust-cache`, `hashicorp/setup-terraform`,
+  `aws-actions/configure-aws-credentials`, `sigstore/cosign-installer`,
+  `anchore/sbom-action`. Every one is now pinned to a commit SHA, which is the
+  form an allowlist can be written against; supply the list above to whoever
+  administers the organisation.
+- *Default workflow token permissions.* Every workflow here declares its own
+  `permissions:` block, so a restrictive organisation default is safe. Nothing
+  relies on the inherited default being permissive.
+
+**The manuscript's correspondence address is a placeholder.**
+`docs/paper/main.tex` previously carried a personal free-mail address; it now
+points at the repository. Substitute the institutional address before any
+submission or preprint.
 
 ## Contact
 

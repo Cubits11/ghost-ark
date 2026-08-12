@@ -18,7 +18,7 @@ import type { UnsignedDecisionReceipt } from "../../../../packages/enforcement-r
  *
  * `canonical.ts` scored 61.0% covered (47/77) with **58 of its 135 mutants
  * executed by no test at all** — the largest coverage hole in the trust kernel.
- * `CLAUDE.md` names this file first under "Be careful with".
+ * `AGENTS.md` names this file first under "Be careful with".
  *
  * As everywhere else in this kernel, the unreached code is the guards:
  * `assertString`, `assertNonEmptyString`, `assertDigestShape`,

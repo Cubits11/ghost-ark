@@ -2,9 +2,16 @@
 
 Date: 2026-07-08  
 Local repo: `<REPO_ROOT>`  
-Remote: `https://github.com/Cubits11/ghost-ark.git`  
+Remote **as recorded on the audit date**: `https://github.com/Cubits11/ghost-ark.git`  
 Sibling inspected locally: `<HOME>/Documents/GitHub/cc-framework`  
 Remote: `https://github.com/Cubits11/cc-framework.git`
+
+> **Provenance note, added 2026-08-06.** This repository has since moved to
+> `https://github.com/PSUCyberSecurityLab/ghost-ark`. The remote above is left as
+> it was written rather than back-dated to the new one: this is a dated audit, and
+> a record that silently acquires facts it did not have on its date is no longer a
+> record. Everywhere the *current* location matters — the citation metadata, the
+> install lines, the manuscript — the new URL is used.
 
 ## Scope And Verification Boundary
 

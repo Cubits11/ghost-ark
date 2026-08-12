@@ -87,7 +87,7 @@ describe("E10 survivors: the plain-object boundary", () => {
   });
 
   it("rejects a host-language object that is not a plain JSON object", () => {
-    // Kills the prototype-check mutant at line 23. This is the rule CLAUDE.md
+    // Kills the prototype-check mutant at line 23. This is the rule AGENTS.md
     // states as "reject host-language non-JSON objects before signing": a class
     // instance carries a prototype whose methods never survive canonicalization,
     // so signing it would sign something other than what the caller believes.

@@ -29,7 +29,7 @@ import { describe, expect, it } from "vitest";
  *
  * Separately, a `python3` spawn that exceeded its timeout under parallel load
  * threw `ETIMEDOUT` straight out of the census, making the suite
- * nondeterministically red. Same class as the CDK-synth flake in CLAUDE.md.
+ * nondeterministically red. Same class as the CDK-synth flake in AGENTS.md.
  *
  * WHY THIS TEST SHELLS OUT
  *

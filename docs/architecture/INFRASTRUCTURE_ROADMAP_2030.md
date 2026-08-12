@@ -710,14 +710,14 @@ effects can persist beyond context-window lifetime:
 | Vault records | Deferred: speculative vault partition | Vault with expiry | local-only primitive |
 | External API calls (writes) | Deferred: deferred-effect buffer (Layer 2) | Effect interceptor | research-only design |
 | Fine-tuning / preference data | Deferred: training-data writes buffered | Effect interceptor | research-only design |
-| Tool-state side effects | Deferred: read-only tool gateway | Tool gateway boundary | local-only (CLAUDE.md mandate) |
+| Tool-state side effects | Deferred: read-only tool gateway | Tool gateway boundary | local-only (AGENTS.md mandate) |
 | Context-window influence | **Uncontained**: not closable by construction | None — see §6.6 | research-only |
 
 **Design invariant: real reads, deferred writes.** The ghost executes reads
 through the existing brokered read-only tool gateway — real data, no stubs.
 Writes are deferred into the effect buffer. This eliminates simulation
 divergence by construction: there is no stub-fidelity problem because there
-are no stubs for reads. The read-only tool gateway mandate in CLAUDE.md is
+are no stubs for reads. The read-only tool gateway mandate in AGENTS.md is
 the ghost's defining isolation property, promoted from a policy constraint to
 a structural invariant.
 

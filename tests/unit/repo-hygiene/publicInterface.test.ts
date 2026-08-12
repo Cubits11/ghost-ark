@@ -43,9 +43,34 @@ function trackedFiles(): string[] {
     .filter((path) => path.length > 0);
 }
 
-/** Text files worth scanning. Lockfiles and binaries are excluded by extension. */
-const SCANNABLE = /\.(md|mdx|ts|tsx|mjs|cjs|js|json|yml|yaml|txt|sh|rs|py|tla|cff|toml)$/u;
+/**
+ * Text files worth scanning. Lockfiles and binaries are excluded by extension.
+ *
+ * This list is an enforcement boundary, not a convenience: anything absent from
+ * it is a public surface this file silently does not check. It omitted `.tex`
+ * for four days, during which `docs/paper/main.tex` — the manuscript, the single
+ * most externally-facing document here — carried a free-mail address that the
+ * test below exists to forbid. The guard reported green because it never opened
+ * the file. Extensions added in that repair: tex, tf, tfvars, cfg, mts, cts,
+ * html, sql, c, h, bib, and the extensionless build files.
+ */
+const SCANNABLE =
+  /(\.(md|mdx|ts|tsx|mts|cts|mjs|cjs|js|json|yml|yaml|txt|sh|rs|py|tla|cfg|cff|toml|tex|bib|tf|tfvars|html|sql|c|h)$)|((^|\/)(Makefile|Dockerfile[^/]*)$)/u;
 const SKIP = /(^|\/)(package-lock\.json|Cargo\.lock)$/u;
+
+/**
+ * A maintainer contact belongs in SECURITY.md as a role, not a personal inbox
+ * scattered through documentation. Free-mail domains are the specific signal:
+ * an institutional address in a citation is legitimate.
+ *
+ * The local part is bounded to 64 characters because RFC 5321 §4.5.3.1.1 bounds
+ * it there. An unbounded `+` made this pattern quadratic on long runs of
+ * local-part characters — see the linear-time discriminator below, which is the
+ * test that would have caught it. No `g` flag, so the constant is stateless and
+ * safe to share across cases.
+ */
+const FREE_MAIL =
+  /[A-Za-z0-9._%+-]{1,64}@(gmail|yahoo|hotmail|outlook|proton(mail)?|icloud|aol)\.[A-Za-z.]{2,}/u;
 
 function scannableFiles(): string[] {
   return trackedFiles().filter((path) => SCANNABLE.test(path) && !SKIP.test(path));
@@ -79,18 +104,54 @@ describe("public interface: no career correspondence", () => {
   });
 
   it("carries no personal email address on a public surface", () => {
-    // A maintainer contact belongs in SECURITY.md as a role, not a personal
-    // inbox scattered through documentation. Free-mail domains are the specific
-    // signal: an institutional address in a citation is legitimate.
-    const freeMail = /[A-Za-z0-9._%+-]+@(gmail|yahoo|hotmail|outlook|proton(mail)?|icloud|aol)\.[A-Za-z.]{2,}/u;
     const offenders: string[] = [];
     for (const path of scannableFiles()) {
-      const match = freeMail.exec(read(path));
+      const match = FREE_MAIL.exec(read(path));
       if (match) {
         offenders.push(`${path}: ${match[0]}`);
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it("detects a free-mail address in every scanned file type (discriminator)", () => {
+    // The test above passing means either "no violation exists" or "the scanner
+    // never looked". Those are not the same result, and this repository has
+    // already shipped the second one while reporting the first. Assert the
+    // scanner opens the file types that carry author contact details, and that
+    // the pattern fires on a planted address in each.
+    // Assembled at runtime rather than written as a literal. Spelling a real
+    // free-mail address here would force this file onto an exemption list, and
+    // an exemption is a permanent blind spot in the one file most likely to
+    // accumulate contact details while being edited.
+    const planted = `contact: someone${"@"}gmail.com`;
+    for (const ext of ["tex", "md", "cff", "bib", "html", "mts", "tf"]) {
+      expect(SCANNABLE.test(`docs/planted.${ext}`), `.${ext} must be scanned`).toBe(true);
+      expect(FREE_MAIL.test(`${planted} in a .${ext} file`), `.${ext} content`).toBe(true);
+    }
+    // ...and that it stays silent on the address type the rule permits.
+    expect(FREE_MAIL.test(`contact: someone${"@"}psu.edu`)).toBe(false);
+  });
+
+  it("scans the whole tracked tree in linear time (discriminator)", () => {
+    // The original pattern began `[A-Za-z0-9._%+-]+@`. On input with a long run
+    // of local-part characters and no `@`, the engine retries from every offset
+    // in the run, which is quadratic. `tools/kernel-probe/kernel-probe.mjs`
+    // embeds a 65,536-character run of `x` and contains no `@` at all — a
+    // generated file, committed by this project, that took the guard above from
+    // 94ms to 13s and pushed it past the suite timeout. A hygiene check that
+    // times out is a hygiene check that did not run.
+    //
+    // The bound is RFC 5321 §4.5.3.1.1's 64-octet limit on a local part, so it
+    // is the specification's number rather than a tuned one.
+    const adversarial = `${"x".repeat(65_536)} no at-sign anywhere`;
+    const started = process.hrtime.bigint();
+    expect(FREE_MAIL.test(adversarial)).toBe(false);
+    const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+    // Measured at ~0.3ms bounded against ~13,000ms unbounded on the development
+    // host. Two orders of magnitude of headroom, so this fails on a return of
+    // the quadratic pattern rather than on a slow runner.
+    expect(elapsedMs).toBeLessThan(1_000);
   });
 });
 

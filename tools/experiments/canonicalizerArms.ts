@@ -112,7 +112,7 @@ function isTransientSpawnFailure(error: unknown): boolean {
  * spawning `python3` exceeds its timeout even though the interpreter is present
  * and healthy. That surfaced as a nondeterministically red suite
  * (`spawnSync python3 ETIMEDOUT` thrown straight out of the census), which is
- * the same class of defect as the CDK-synth timeout recorded in CLAUDE.md.
+ * the same class of defect as the CDK-synth timeout recorded in AGENTS.md.
  * One retry is enough because the contention is bursty; a retry loop would just
  * convert a fast failure into a slow one.
  */

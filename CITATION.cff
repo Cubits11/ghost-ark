@@ -10,7 +10,11 @@ type: software
 authors:
   - family-names: Bhave
     given-names: Pranav
-repository-code: https://github.com/Cubits11/ghost-ark
+    affiliation: >-
+      S2 Lab, College of Information Sciences and Technology,
+      The Pennsylvania State University
+repository-code: https://github.com/PSUCyberSecurityLab/ghost-ark
+url: https://s2.ist.psu.edu/
 license: MIT
 abstract: >-
   Ghost-Ark is an AWS-native reference implementation of bounded governance

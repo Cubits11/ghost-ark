@@ -102,7 +102,7 @@
 \newcommand{\scmutstates}{396}
 \newcommand{\tbmutstates}{22}
 \newcommand{\nlmutstates}{221}
-% Test suite at HEAD (npm test, 2026-08-02): 1253 passed / 162 files;
+% Test suite at HEAD (npm test, 2026-08-06): 1270 total / 164 files;
 % 9 tests in 1 file skipped. Previously recorded as 706/105 and stale by 547 tests
 % while the artifact appendix labelled the row "Exact".
 %
@@ -111,8 +111,8 @@
 % says to read the current output rather than match a constant. Do not treat a
 % differing count as a failed reproduction; treat a differing count with a RED
 % suite as one.
-\newcommand{\testcount}{1{,}253}
-\newcommand{\testfiles}{162}
+\newcommand{\testcount}{1{,}270}
+\newcommand{\testfiles}{164}
 % Claim-language gate (npm run scan:claims, 2026-08-04): 838 scannable files, 0 hits.
 % Coverage includes .tex/.bib (this manuscript). Count is the tracked tree; the
 % scanner also walks gitignored generated artifacts, so a post-reproduce working
@@ -132,13 +132,21 @@ Evidence for Non-Deterministic Compute\vspace{-0.5em}}
 
 % ============================================================================
 % ARXIV / CAMERA-READY AUTHOR BLOCK
-% (Use this for your ArXiv preprint, portfolio, and personal distribution)
+% ============================================================================
+% CORRESPONDENCE ADDRESS: substitute the institutional address before any
+% submission or preprint. This line previously carried a personal free-mail
+% address; under an institutional account that is a personal inbox published in
+% the most externally-facing document in the repository, which
+% docs/artifact/PUBLIC_INTERFACE.md forbids and
+% tests/unit/repo-hygiene/publicInterface.test.ts now enforces over .tex.
+% A free-mail domain here will fail `npm test`. An institutional address
+% (e.g. a .edu) will not, and is the intended value.
 % ============================================================================
 \author{
   Pranav Bhave \\
-  \normalsize\texttt{bhavepranavwork@gmail.com} \vspace{0.2em} \\
-  \normalsize \href{https://www.linkedin.com/in/pranav-bhave-2a328721a/}{\color{blue}LinkedIn} \quad $\vert$ \quad
-  \href{https://github.com/Cubits11/ghost-ark/}{\color{blue}GitHub: Cubits11/ghost-ark}
+  \normalsize\href{https://github.com/PSUCyberSecurityLab/ghost-ark/}{\color{blue}github.com/PSUCyberSecurityLab/ghost-ark} \vspace{0.2em} \\
+  \normalsize Correspondence via the repository's issue tracker until an
+  institutional address is set.
 }
 \date{Draft of 2026-07-16 --- evidence-bound; see \S\ref{sec:nonclaims} for explicit non-claims}
 

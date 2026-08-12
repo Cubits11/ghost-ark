@@ -34,6 +34,13 @@ on:
 permissions:
   contents: read
 
+# A five-hour census must not be cancelled by the next dispatch. Its own header
+# says a truncated run is missing data rather than a low score; cancelling one
+# manufactures exactly that.
+concurrency:
+  group: mutation
+  cancel-in-progress: false
+
 jobs:
   mutation:
     name: mutation score (receipt trust kernel)
@@ -43,12 +50,12 @@ jobs:
     # a truncated census is missing data, not a measurement.
     timeout-minutes: 330
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           # Several tests in E10's declared scope reach E1's Python arm. Without
           # an interpreter those tests now FAIL rather than quietly passing with
@@ -100,7 +107,7 @@ jobs:
 
       - name: upload report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mutation-report
           path: |

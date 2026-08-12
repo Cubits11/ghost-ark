@@ -1,27 +1,75 @@
 name: deploy-dev
 
+# Manual dev deployment. Three defects were fixed here on 2026-08-06, all of
+# which would have surfaced only when somebody actually pressed the button:
+#
+#   1. NO BUILD STEP. The deploy ran `cdk deploy --app "node
+#      dist/infra/cdk/bin/app.js"`, but the only compile in the job was
+#      `npm run validate`, whose lint stage is `tsc --noEmit`. Nothing ever
+#      emitted `dist/`, so the app entrypoint did not exist. deploy-prod.yml has
+#      always carried the `npm run build` this file was missing.
+#
+#   2. NO CREDENTIALS. `id-token: write` was granted and no OIDC role was ever
+#      assumed, so `cdk deploy` ran with no AWS identity.
+#
+#   3. A DEAD INPUT. `tenantSeed` was offered in the dispatch form and read by
+#      nothing. Seeding needs the receipt table name as well as the slug
+#      (`tools/scripts/seedGovernedPolicy.ts` requires --table AND --tenant), and
+#      this workflow has no source for it. An input that silently does nothing is
+#      worse than an absent one: the form accepts a slug, the run goes green, and
+#      no policy is seeded. Seed out of band until the table name is plumbed
+#      through as a stack output.
+#
+# This workflow has NOT been executed against live AWS. It is repaired to the
+# point of being correct-by-inspection; the first real run is still the first
+# real evidence. See docs/artifact/CI_COVERAGE.md on the AWS reality boundary.
+
 on:
   workflow_dispatch:
-    inputs:
-      tenantSeed:
-        description: Initial tenant slug to seed after deployment
-        required: false
-        type: string
 
 permissions:
   contents: read
   id-token: write
 
+# Never let two dev deployments mutate the same stacks at once, and never cancel
+# one midway: a half-applied CloudFormation change set is worse than a queue.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      CDK_DEFAULT_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # Fail on the missing variable rather than on a confusing downstream error
+      # from configure-aws-credentials with an empty role ARN.
+      - name: require the deploy role variable
+        env:
+          ROLE_ARN: ${{ vars.AWS_DEV_DEPLOY_ROLE_ARN }}
+        run: |
+          if [ -z "${ROLE_ARN:-}" ]; then
+            echo "vars.AWS_DEV_DEPLOY_ROLE_ARN is not set for the 'dev' environment." >&2
+            echo "Set it to the OIDC role this workflow should assume before deploying." >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEV_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
       - run: npm ci
       - run: npm run validate
+      # `validate` typechecks with --noEmit; this is what actually writes dist/.
+      - run: npm run build
+      - run: npx cdk synth --app "node dist/infra/cdk/bin/app.js" -c stage=dev
       - run: npx cdk deploy --app "node dist/infra/cdk/bin/app.js" --all --require-approval never -c stage=dev

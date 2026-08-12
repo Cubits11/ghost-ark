@@ -1,5 +1,8 @@
 # Ghost-Ark: A Provenance-Kernel Verifier for AI Governance Receipts
 
+*A research artifact of the [S2 Lab](https://s2.ist.psu.edu/), College of
+Information Sciences and Technology, The Pennsylvania State University.*
+
 **The research claim, in one sentence.** A governance receipt identifies an execution only up to the *kernel* of its canonicalizer — the set of distinct inputs that the canonicalizer maps to the same digest — and because that kernel is fixed while the set of downstream consumers keeps growing, **receipt soundness does not persist over time even when nothing about the receipt system changes.**
 
 Ghost-Ark is the executable demonstration of that claim. It ships the verifier, the adversarial corpora, the formal models, and the measurement harness needed to check it — including real unintended kernel members found in Ghost-Ark's *own* canonicalizer.
@@ -95,7 +98,7 @@ graph TD
 - **What is the contribution, and what would refute it?** → [docs/research/00_THESIS.md](./docs/research/00_THESIS.md) (one page)
 - **Want the part that is useful without Ghost-Ark?** → [kernel-probe](./tools/kernel-probe/README.md). **One file, no install, nothing from this repository.** Point it at *your* canonicalizer and it reports which real distinctions that canonicalizer destroys. No receipt, no AWS, no account, and no trust in this project required:
   ```bash
-  curl -O https://raw.githubusercontent.com/Cubits11/ghost-ark/main/tools/kernel-probe/kernel-probe.mjs
+  curl -O https://raw.githubusercontent.com/PSUCyberSecurityLab/ghost-ark/main/tools/kernel-probe/kernel-probe.mjs
   node kernel-probe.mjs --command "jq -S -c ."
   ```
   Background and findings: [docs/research/KERNEL_PROBE.md](./docs/research/KERNEL_PROBE.md).

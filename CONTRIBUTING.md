@@ -210,12 +210,18 @@ retractions, tiered academic drafts) and the register documentation is written
 in, is [docs/artifact/PUBLIC_INTERFACE.md](./docs/artifact/PUBLIC_INTERFACE.md).
 It is enforced by `tests/unit/repo-hygiene/publicInterface.test.ts`.
 
-## Relationship to `CLAUDE.md`
+## Relationship to `AGENTS.md`
 
-`CLAUDE.md` states the same operating rules for AI coding assistants working in
-this repository. It is intentionally near-duplicative. Where the two disagree,
-**this file governs for humans and `CLAUDE.md` governs for assistants**, and the
-disagreement is a bug — fix both in the same commit.
+[AGENTS.md](./AGENTS.md) is the repository's engineering doctrine: the same
+operating rules stated as binding constraints, plus the measured baseline, the
+empirical and statistical rules, the claim boundaries, and the execution plan. It
+is tool-neutral and governs **everyone** who edits this repository — human
+contributors and coding assistants alike, because a rule that only binds one of
+them is not a control.
+
+This file is the onboarding path into those rules; `AGENTS.md` is the reference.
+The overlap is intentional. Where the two disagree, **`AGENTS.md` governs**, and
+the disagreement is itself a bug — fix both in the same commit.
 
 ## North star
 
