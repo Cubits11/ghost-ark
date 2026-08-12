@@ -14,7 +14,7 @@ dashmap = "5.5"
 tokio = { version = "1", features = ["rt", "time", "macros", "net", "rt-multi-thread"] }
 
 # Native Rust HTTP Proxy (Zero-Day 2, 5 Mitigation)
-axum = "0.7"
+axum = "0.8"
 tower = { version = "0.4", features = ["limit", "buffer", "load-shed"] }
 
 # Memory Allocation (For AWS Linux Deployments)
