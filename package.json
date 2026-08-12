@@ -96,7 +96,7 @@
     "@aws-sdk/client-sfn": "^3.1080.0",
     "@aws-sdk/client-sns": "^3.1080.0",
     "@aws-sdk/credential-provider-node": "^3.972.65",
-    "@aws-sdk/lib-dynamodb": "^3.1080.0",
+    "@aws-sdk/lib-dynamodb": "^3.1106.0",
     "@aws-sdk/util-format-url": "^3.972.32",
     "@smithy/hash-node": "^4.4.7",
     "@smithy/protocol-http": "^5.5.7",
