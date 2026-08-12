@@ -20,7 +20,7 @@
 // Provenance: https://github.com/PSUCyberSecurityLab/ghost-ark
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -669,10 +669,22 @@ function main() {
   }
 }
 
-// Resolve both sides rather than string-munging the URL: the naive comparison
-// breaks on Windows path separators and on symlinked invocations.
+// Compare REAL paths on both sides. Node resolves the ESM main module to its
+// realpath, so import.meta.url never carries a symlink — while an npm bin shim
+// invokes this file THROUGH one, leaving process.argv[1] as the link. A bare
+// resolve() comparison therefore fails exactly when the file is installed as a
+// package bin, and the tool exits 0 having printed nothing: a silent no-op in
+// the one deployment the package exists for. realpathSync closes that; the
+// catch covers an argv[1] that no longer exists on disk.
 const invokedDirectly =
-  Boolean(process.argv[1]) && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+  Boolean(process.argv[1]) &&
+  (() => {
+    try {
+      return fileURLToPath(import.meta.url) === realpathSync(resolve(process.argv[1]));
+    } catch {
+      return false;
+    }
+  })();
 if (invokedDirectly) {
   main();
 }

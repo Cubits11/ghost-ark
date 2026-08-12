@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -232,6 +232,27 @@ describe("standalone kernel-probe runs from a clean directory", () => {
       status = (error as { status?: number }).status ?? 0;
     }
     expect(status).toBe(2);
+  });
+
+  it("still runs when invoked through a symlink, which is how an npm bin shim invokes it", () => {
+    // Node resolves the ESM main module to its realpath while process.argv[1]
+    // keeps the symlink, so a naive path comparison in the am-I-the-main-module
+    // check is false precisely when the file is installed as a package bin —
+    // and the tool exits 0 having printed NOTHING. Found 2026-08-12 while
+    // packaging: the silent no-op shipped in exactly the deployment the
+    // package exists for. This drives the file the way `npm i -g` would.
+    const dir = mkdtempSync(join(tmpdir(), "kernel-probe-binlink-"));
+    try {
+      const link = join(dir, "kernel-probe-bin");
+      symlinkSync(STANDALONE, link);
+      const stdout = execFileSync(process.execPath, [link, "--emit-alphabet"], {
+        encoding: "utf8",
+        maxBuffer: 32 * 1024 * 1024
+      });
+      expect(JSON.parse(stdout)).toEqual(PATHOLOGY_ALPHABET);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

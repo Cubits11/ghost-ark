@@ -1,6 +1,14 @@
 # kernel-probe — standalone
 
-**One file. No install. No dependencies. Nothing from this repository.**
+**One file. No dependencies. Nothing from this repository.**
+
+```bash
+npm install -g @ghost-ark/kernel-probe
+kernel-probe --command "jq -S -c ."
+```
+
+Or skip npm entirely — the package is a single file with zero dependencies, so
+fetching that file IS the install:
 
 ```bash
 curl -O https://raw.githubusercontent.com/PSUCyberSecurityLab/ghost-ark/main/tools/kernel-probe/kernel-probe.mjs
@@ -8,6 +16,29 @@ node kernel-probe.mjs --command "jq -S -c ."
 ```
 
 That is the whole setup. Node ≥ 18, one file, and a canonicalizer of your own.
+
+Here is what that jq run reports (jq 1.7.1, probe output verbatim):
+
+```
+kernel-probe (ghost.kernel_probe.v1)
+target: jq -S -c .
+alphabet: 31 classes | provenance: census (no confidence intervals)
+alphabet-source: built-in sha256=0518f19e84911d5460295fd298cfbb7c95664f4a26bf809a5b0cb19eb8717534
+
+sound 21 | UNINTENDED-KERNEL 4 | over-discrimination 5 | fail-closed 0 | sound-by-rejection 1 | rejection-asymmetry 0
+
+UNINTENDED KERNEL MEMBERS (4) — pairs a declared consumer distinguishes but this canonicalizer identifies:
+  - duplicate-key-last-wins: Same key twice in one object; JSON.parse keeps the last occurrence.
+  - nested-duplicate-key-in-array: Duplicate key inside an object nested within an array.
+  - duplicate-empty-key: The empty-string key repeated.
+  ...
+```
+
+`jq -S -c .` is a perfectly reasonable canonicalizer, and four of the
+pre-registered pathology classes still collapse under it — pairs of different
+documents its pipeline gives one identity. That is not a bug in jq; it is what
+the parse step does before jq's formatter ever runs, and it is the shape of
+finding this tool exists to surface.
 
 ## What it answers
 

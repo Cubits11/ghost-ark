@@ -18,6 +18,7 @@
     "services/ingest/lambda/*",
     "services/transform/lambda/*",
     "infra/cdk",
+    "tools/kernel-probe",
     "tools/scripts"
   ],
   "scripts": {

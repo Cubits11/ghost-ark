@@ -1,0 +1,43 @@
+{
+  "name": "@ghost-ark/kernel-probe",
+  "version": "0.1.0",
+  "description": "Report which distinctions a JSON canonicalizer destroys: probe any parse->canonicalize->digest pipeline with a pre-registered pathology corpus, or bring your own corpus with --alphabet.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "kernel-probe": "./kernel-probe.mjs"
+  },
+  "exports": {
+    ".": "./kernel-probe.mjs"
+  },
+  "files": [
+    "kernel-probe.mjs"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "canonicalization",
+    "canonical-json",
+    "json",
+    "digest",
+    "content-addressing",
+    "identity",
+    "provenance",
+    "sbom",
+    "attestation",
+    "duplicate-keys"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PSUCyberSecurityLab/ghost-ark.git",
+    "directory": "tools/kernel-probe"
+  },
+  "homepage": "https://github.com/PSUCyberSecurityLab/ghost-ark/tree/main/tools/kernel-probe#readme",
+  "bugs": {
+    "url": "https://github.com/PSUCyberSecurityLab/ghost-ark/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
