@@ -8,7 +8,7 @@ license = "MIT"
 
 [dependencies]
 # Concurrent Data Structures (Lock-Free Hot Path)
-dashmap = "5.5"
+dashmap = "6.2"
 
 # Asynchronous Runtime (Background GC, axum)
 tokio = { version = "1", features = ["rt", "time", "macros", "net", "rt-multi-thread"] }
