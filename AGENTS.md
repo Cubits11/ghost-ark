@@ -846,7 +846,10 @@ experiment behind it moves that ratio the wrong way. The quarantine directories
 exist because that lesson was learned expensively, twice.
 
 Do not raise a threshold before measuring. It has already been wrong once:
-`break: 75` was set on two files' evidence when the full sweep held 60.6%.
+`break: 75` was set on two files' evidence when the full sweep held 60.6%. The
+gate has since moved only after sweeps (75 -> 58 -> 70 -> 80); the current value
+is `break: 80` in `stryker.config.json`, and `mutationThresholdSync.test.ts`
+fails any document that states a different one.
 
 Do not report a step complete without its acceptance output. "Should work" and
 "works locally" have both been false in this repository within the last month —

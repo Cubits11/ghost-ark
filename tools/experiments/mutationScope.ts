@@ -116,6 +116,11 @@ const TEST_FILES = [
   "tests/unit/enforcement-runtime/receipts/test_keyManifest_branches.test.ts",
   "tests/unit/enforcement-runtime/receipts/test_key_manifest.test.ts",
   "tests/unit/enforcement-runtime/receipts/test_kmsDecisionReceiptVerification.test.ts",
+  // Added 2026-08-12: drives signCanonical's three rejection branches with
+  // adversarial Sign RESPONSES (missing signature, missing/alias/mismatched
+  // key attestation). Those branches had zero coverage in E10's first sweeps —
+  // 6 no-coverage mutants and 7 survivors on kmsSigner.ts, the weakest file.
+  "tests/unit/enforcement-runtime/receipts/test_kmsSigner_attestation.test.ts",
   "tests/unit/enforcement-runtime/receipts/test_kmsVerifier_branches.test.ts",
   "tests/unit/enforcement-runtime/receipts/test_ledgerAnchoredRevocation.test.ts",
   "tests/unit/enforcement-runtime/receipts/test_sign_verify.test.ts",

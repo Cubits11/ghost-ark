@@ -930,9 +930,11 @@ Deliberately **not** in `npm run validate` and not on pull requests. Stryker cop
 working tree per worker (11 GB on the recording host) and re-runs covering tests per mutant.
 A gate slow enough that the honest response to a red build is "skip the slow job" is worse
 than no gate. It runs weekly and on demand via `.github/workflows/mutation.yml`, with
-`break: 75` in `stryker.config.json` — a threshold set to what the repository can hold, not
+`break: 80` in `stryker.config.json` — a threshold set to what the repository can hold, not
 an aspirational one, following the same principle as the `npm audit --audit-level=critical`
-gate.
+gate. (Until 2026-08-12 this sentence stated the stale value 75 while the config said 80 —
+the gate's own history section below was right and this sentence had drifted; now pinned by
+`mutationThresholdSync.test.ts`.)
 
 ### Measured result — all 10 declared files
 
@@ -973,6 +975,45 @@ this repository documents elsewhere as a threshold declared rather than met,
 committed here and corrected. After the remediation below the measured total is
 83.6%, and the gate is `break: 80`. It has moved 75 -> 58 -> 70 -> 80, each step
 after a sweep rather than before one.
+
+#### Second remediation round — the two weakest files (2026-08-12)
+
+The two worst covered-ratio files were re-swept, remediated, and re-swept again.
+Command per file: `bash tools/experiments/run-e10-sweep.sh <file>`, then
+`npm run mutation:summarize`. Host as above. The re-sweeps were run
+**non-incremental** (`artifacts/mutation/stryker-incremental.json` deleted
+first): the incremental cache carried one stale `Survived` verdict across a
+test-file change, exposed by hand-applying that mutant — seven tests fail
+against it — and re-sweeping clean.
+
+| file | covered before | covered after | killed | survivors | no coverage |
+|:---|---:|---:|---:|---:|---:|
+| `receipts/kmsSigner.ts` | 68.2% | **96.4%** | 15/22 -> 27/28 | 7 -> 1 | 6 -> 0 |
+| `receipts/signer.ts` | 73.2% | **98.1%** | 156/213 -> 209/213 | 57 -> 4 | 4 -> 4 |
+
+Two gaps account for nearly all of it. In `kmsSigner.ts`, the KMS Sign
+**response** was never treated as an input: no test supplied a response with
+missing signature bytes, a missing or alias key attestation, or an attestation
+by a *different* immutable key — so the guard that stops the signer silently
+re-binding to an unconfigured key was mutable without detection
+(`test_kmsSigner_attestation.test.ts`). In `signer.ts`, the surviving mutants
+concentrated on the rejection **contract**: messages, field labels, and
+`ValidationError.context` payloads that no test asserted, plus the two clauses
+of the envelope key-set check, each of which needs the input only it rejects —
+a deleted *final* key for the length clause, a *renamed* key for the
+element-wise clause (`test_signer_branches.test.ts`).
+
+Every remaining survivor carries a written disposition in its covering test
+file: the `typeof` left-operand in `immutableKeyIdFromSign` (equivalent within
+the SDK's `string | undefined` contract), the pre-sorted key-list `.sort()`,
+the zero-byte-decode branch (unreachable behind the non-empty and base64
+guards; its throw body is the remaining no-coverage block), and two Buffer
+encoding literals Node normalizes identically.
+
+**Not re-measured:** the other eight kernel files and therefore the aggregate.
+The 85.8% / 223-survivor aggregate above predates this round and now
+understates the suite; re-derive it with a full sweep before quoting either
+number.
 
 #### First-round measurement, before remediation
 

@@ -15,9 +15,12 @@ name: mutation
 # So it runs on a schedule and on demand, and it can be made blocking on a
 # release branch once the survivor list has been worked down.
 #
-# The threshold in stryker.config.json is `break: 75`, deliberately set to a
-# number the repository can hold rather than an aspirational one. See
+# The threshold in stryker.config.json is `break: 80`, deliberately set to a
+# number the repository can hold rather than an aspirational one (it has moved
+# 75 -> 58 -> 70 -> 80, each step after a sweep rather than before one). See
 # docs/research/EXPERIMENTS.md for what the score does and does not mean.
+# tests/unit/repo-hygiene/mutationThresholdSync.test.ts fails if this comment
+# and the config disagree.
 
 on:
   schedule:
