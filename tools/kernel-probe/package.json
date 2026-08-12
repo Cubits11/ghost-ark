@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "kernel-probe": "./kernel-probe.mjs"
+    "kernel-probe": "kernel-probe.mjs"
   },
   "exports": {
     ".": "./kernel-probe.mjs"
