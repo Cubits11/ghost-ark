@@ -17,6 +17,24 @@ node kernel-probe.mjs --command "jq -S -c ."
 
 That is the whole setup. Node ≥ 18, one file, and a canonicalizer of your own.
 
+## What the release provenance means
+
+Published versions are built and pushed to npm by this repository's GitHub
+Actions workflow with `npm publish --provenance`. The attestation binds the
+tarball on the registry to a commit SHA in this repository and to the exact
+workflow run that built it — you can verify that the bytes you installed came
+from this source, built in public CI rather than on somebody's machine:
+
+```bash
+npm audit signatures
+```
+
+That linkage is **all** the attestation establishes. It binds artifact to
+source; it says nothing about the code's behaviour. It is not a review, not an
+endorsement, and not evidence that the probe's verdicts are correct — those
+properties are argued (and bounded) by the tests and experiments in the
+repository, never by the signature on the tarball.
+
 Here is what that jq run reports (jq 1.7.1, probe output verbatim):
 
 ```

@@ -57,9 +57,23 @@ project.
 | **Lockfile integrity** | `lockfile-lint`: every resolved URL must be an HTTPS npm host | `artifacts-verify.yml` | yes |
 | **Dependency advisories** | `npm audit --audit-level=critical` blocks; full report printed non-blocking | `artifacts-verify.yml` | yes (at critical) |
 | **Strict JSON admission** | 24 tests pinning the fix that takes E1's five unintended kernel members to 0 (measured 2026-08-02) | `ci.yml` (in `npm test`) | yes: each rule paired with a demonstration that the collapse it prevents is real |
+| **npm provenance attestation** | `release-provenance.yml`: publishes `@ghost-ark/kernel-probe` to npm on `v*` tag push with `--provenance`. Binds tarball to commit SHA and GitHub Actions execution context. Does **not** prove semantic safety, model alignment, truth, or deployment correctness. | `release-provenance.yml` | yes: fails build on test failure or unpinned action |
 
 "Directionally asserted" means CI checks that the guard can *fail*, not merely that it
 passes. A green invariant with no failing mutant is not evidence.
+
+**What the npm provenance attestation does and does not establish.** For
+`@ghost-ark/kernel-probe`, the attestation minted by `npm publish --provenance`
+binds the published tarball to this repository, the tagged commit SHA, and the
+exact `release-provenance.yml` run that built it — verifiable with
+`npm audit signatures` or from the package's registry page. That is supply-chain
+custody: the bytes on npm came from this source, built in public CI, and nobody
+substituted a different tarball on the way. It establishes nothing about the
+code's behaviour — not that the probe's verdicts are correct, not that the code
+is free of defects, and nothing about safety or compliance. Those claims live
+and die with the experiments and guards in this matrix; the only connection the
+attestation has to them is that the workflow runs `npm run validate` before it
+publishes, so a tarball cannot ship from a tree whose own gates are red.
 
 ## NOT verified in CI — read this section first
 

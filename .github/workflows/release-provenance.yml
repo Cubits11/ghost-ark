@@ -24,6 +24,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+          registry-url: "https://registry.npmjs.org"
       - run: npm ci
       - run: npm run validate
       - run: npm run build
@@ -50,3 +51,7 @@ jobs:
         with:
           name: ghost-ark-provenance-${{ github.sha }}
           path: artifacts/
+      - name: Publish @ghost-ark/kernel-probe to npm with provenance
+        run: npm publish --provenance --access public --workspace @ghost-ark/kernel-probe
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
