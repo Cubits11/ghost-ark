@@ -231,7 +231,7 @@ dependencies = [
  "crossbeam-epoch",
  "dashmap",
  "ed25519-dalek",
- "getrandom 0.2.17",
+ "getrandom 0.4.3",
  "hex",
  "mimalloc",
  "rand 0.8.7",

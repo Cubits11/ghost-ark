@@ -38,7 +38,7 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 
 # Infrastructure Support
 thiserror = "1.0"
-getrandom = "0.2"
+getrandom = "0.4"
 crossbeam-epoch = "0.9.20"
 zeroize = { version = "1.9.0", features = ["zeroize_derive"] }
 
