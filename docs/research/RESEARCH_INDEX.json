@@ -1,6 +1,6 @@
 {
   "schema_version": "ghost.research_index.v1",
-  "updated_at": "2026-07-29T00:00:00.000Z",
+  "updated_at": "2026-08-12",
   "purpose": "Every document in docs/research/ is classified by its epistemic tier so a reviewer can tell load-bearing research from exploratory speculation without reading all of it. tests/unit/repo-hygiene/researchIndex.test.ts fails if any file here is unclassified or any classified file is missing, so this index cannot silently drift.",
   "tiers": {
     "core": "Load-bearing for the thesis in 00_THESIS.md. Every claim maps to a runnable command or a checked-in artifact. A reviewer should read these.",
@@ -99,6 +99,11 @@
       "file": "HUMAN_REVIEW_INCIDENT_WORKFLOW.md",
       "tier": "supporting",
       "note": "Human review and incident schema; Spine H."
+    },
+    {
+      "file": "JCS_CANONICALIZER_PROBE.md",
+      "tier": "supporting",
+      "note": "Kernel probe against two RFC 8785 implementations and three stable-stringify libraries; a MUST violation and a spec-layer duplicate-key gap."
     },
     {
       "file": "KERNEL_PROBE.md",

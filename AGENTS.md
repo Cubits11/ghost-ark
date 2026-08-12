@@ -838,6 +838,33 @@ self-reported.
 111. Decide the venue and the authorship, including the lab's role. — Acceptance: written. **Requires a human decision.**
 112. Re-run every number in the draft from a clean clone on the day of submission. — Acceptance: each figure reproduced, with the command and host recorded.
 
+## Feature freeze, declared 2026-08-12
+
+**This repository is feature-frozen. The binding constraint is no longer artifact quality;
+it is that almost nobody outside this project has run it.**
+
+The record supports that plainly. The suite is 166 files and 1,311 tests, the TLA+ gate is
+5 baselines and 5 mutants, the receipt kernel's two weakest files went to 96.4% and 98.1%
+covered, and `@ghost-ark/kernel-probe@0.1.0` is on npm with a verified provenance
+attestation. Against that, F2 — "unintended kernel members are an artifact of the curated
+alphabet" — is exactly as open as it was in July, because closing it requires *other people*
+running the alphabet, which no amount of local work produces. Plan step 14 has said so since
+it was written: **this step cannot be completed by an assistant.**
+
+So until external results exist, the following are the only changes worth making:
+
+- Findings measured against systems this project does not control (see
+  [JCS_CANONICALIZER_PROBE.md](./docs/research/JCS_CANONICALIZER_PROBE.md), the first of
+  these).
+- Fixes to defects those measurements surface.
+- Whatever an external reviewer or upstream maintainer asks for.
+- Security and dependency maintenance.
+
+Not worth making: another mutation-score point, another spec, another subsystem. The 223rd
+surviving mutant is a smaller improvement to this project than one issue filed against a
+canonicalizer somebody else maintains. Phases 2–8 below stay written down and stay paused;
+resume them when the external gap is no longer the largest one.
+
 ## What NOT to do
 
 Do not add a new subsystem before Phase 3 finishes. The repository's credibility
