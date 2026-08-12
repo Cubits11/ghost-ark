@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -41,6 +42,12 @@ import type { ArmOutcome } from "../../../tools/experiments/canonicalizerArms";
 const REPO_ROOT = resolve(__dirname, "../../..");
 const STANDALONE = resolve(REPO_ROOT, "tools/kernel-probe/kernel-probe.mjs");
 
+interface AlphabetSource {
+  kind: string;
+  path?: string | null;
+  sha256: string;
+}
+
 interface StandaloneModule {
   PATHOLOGY_ALPHABET: PathologyClass[];
   classify: (
@@ -49,6 +56,15 @@ interface StandaloneModule {
     b: ArmOutcome
   ) => { observed: string; verdict: string };
   KERNEL_PROBE_SCHEMA_VERSION: string;
+  BUILT_IN_ALPHABET_SHA256: string;
+  validateSuppliedAlphabet: (parsed: unknown, label: string) => void;
+  probeKernel: (
+    command: string,
+    args?: readonly string[],
+    alphabet?: readonly PathologyClass[],
+    runner?: (cmd: string, a: readonly string[], raw: string) => ArmOutcome,
+    alphabetSource?: AlphabetSource
+  ) => { counts: Record<string, number>; alphabet_source: AlphabetSource };
 }
 
 // Loaded in beforeAll rather than at module scope: a top-level await would
@@ -150,6 +166,7 @@ describe("standalone kernel-probe runs from a clean directory", () => {
           schema_version: string;
           alphabet_size: number;
           sample_provenance: string;
+          alphabet_source: { kind: string; sha256: string };
           cells: Array<{ pathologyId: string; verdict: string }>;
           unintended_kernel_members: string[];
           non_claim: string;
@@ -158,6 +175,15 @@ describe("standalone kernel-probe runs from a clean directory", () => {
         expect(report.schema_version).toBe("ghost.kernel_probe.v1");
         expect(report.alphabet_size).toBe(PATHOLOGY_ALPHABET.length);
         expect(report.sample_provenance).toBe("census");
+
+        // A run with no --alphabet must say so, with the hash of the exact
+        // bytes --emit-alphabet writes — the comparability key for reports.
+        expect(report.alphabet_source).toEqual({
+          kind: "built-in",
+          sha256: createHash("sha256")
+            .update(`${JSON.stringify(PATHOLOGY_ALPHABET, null, 2)}\n`, "utf8")
+            .digest("hex")
+        });
         expect(report.cells).toHaveLength(PATHOLOGY_ALPHABET.length);
         expect(report.non_claim.length).toBeGreaterThan(100);
 
@@ -206,5 +232,233 @@ describe("standalone kernel-probe runs from a clean directory", () => {
       status = (error as { status?: number }).status ?? 0;
     }
     expect(status).toBe(2);
+  });
+});
+
+describe("supplied alphabet (--alphabet)", () => {
+  // E11 answers the "artifact of our implementation" objection. It cannot answer
+  // the "artifact of the author's alphabet" one while the only corpus the probe
+  // can run is the author's. --alphabet is the tooling half of that answer: a
+  // caller can now run THEIR pathology corpus. These guards hold the three
+  // properties that make a caller's run meaningful — the emitted corpus round-
+  // trips, the supplied corpus is what actually runs and is recorded, and a
+  // malformed corpus aborts rather than silently thinning the census.
+
+  // In-process mirror of fixtures/sorted-json-canonicalizer.mjs, so parity
+  // checks over the full 31-class alphabet cost zero process spawns.
+  function sortedCanonical(value: unknown): string {
+    if (value === null || typeof value !== "object") return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(sortedCanonical).join(",")}]`;
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${sortedCanonical(record[key])}`)
+      .join(",")}}`;
+  }
+
+  const stubRunner = (_cmd: string, _args: readonly string[], raw: string): ArmOutcome => {
+    let value: unknown;
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      return { status: "rejected", reason: "exit 1" };
+    }
+    const canonical = sortedCanonical(value);
+    return {
+      status: "digest",
+      digest: createHash("sha256").update(canonical, "utf8").digest("hex"),
+      canonicalForm: canonical
+    };
+  };
+
+  it("round-trips its own --emit-alphabet output: validates, hashes as built-in, same counts", () => {
+    const emitted = execFileSync(process.execPath, [STANDALONE, "--emit-alphabet"], {
+      encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024
+    });
+    const parsed = JSON.parse(emitted) as PathologyClass[];
+
+    expect(() => standalone.validateSuppliedAlphabet(parsed, "emitted")).not.toThrow();
+
+    // The comparability key: a corpus produced by --emit-alphabet must hash
+    // byte-identically to the built-in, so a round-tripped report is visibly
+    // comparable to a built-in one. Anything else hashes differently and is
+    // conservatively not comparable.
+    expect(createHash("sha256").update(emitted, "utf8").digest("hex")).toBe(
+      standalone.BUILT_IN_ALPHABET_SHA256
+    );
+
+    const builtIn = standalone.probeKernel("stub", [], undefined, stubRunner);
+    const supplied = standalone.probeKernel("stub", [], parsed, stubRunner);
+    expect(supplied.counts).toEqual(builtIn.counts);
+
+    // The supplied run must not be mislabelled built-in even though its content
+    // is identical — but its hash must still match, which is what says the two
+    // reports may be compared.
+    expect(builtIn.alphabet_source.kind).toBe("built-in");
+    expect(supplied.alphabet_source.kind).toBe("supplied");
+    expect(supplied.alphabet_source.sha256).toBe(builtIn.alphabet_source.sha256);
+  });
+
+  it("runs a hand-written corpus through the CLI and records the file's sha256", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kernel-probe-alphabet-"));
+    try {
+      const canonicalizer = join(dir, "canon.mjs");
+      copyFileSync(resolve(REPO_ROOT, "tools/kernel-probe/fixtures/sorted-json-canonicalizer.mjs"), canonicalizer);
+
+      // Three classes, one of which a sorted-key canonicalizer is KNOWN to
+      // collapse: duplicate keys resolve inside JSON.parse before the
+      // canonicalizer runs. If that row does not come back unintended-kernel,
+      // the supplied corpus is not what actually ran.
+      const corpus = JSON.stringify(
+        [
+          {
+            id: "caller-dup-key",
+            description: "Same key twice; JSON.parse keeps the last occurrence.",
+            rawA: '{"total":10,"total":20}',
+            rawB: '{"total":20}',
+            intent: "distinct",
+            consumerRationale: "A dispute-resolution consumer distinguishes a contradictory submission from a clean one."
+          },
+          {
+            id: "caller-key-order",
+            description: "Same members, different order.",
+            rawA: '{"x":1,"y":2}',
+            rawB: '{"y":2,"x":1}',
+            intent: "equivalent",
+            consumerRationale: "No declared consumer depends on member order."
+          },
+          {
+            id: "caller-malformed-side",
+            description: "One side is not JSON at all.",
+            rawA: '{"v":1',
+            rawB: '{"v":1}',
+            intent: "distinct",
+            consumerRationale: "An admission-control consumer distinguishes a truncated transmission from a complete one."
+          }
+        ],
+        null,
+        2
+      );
+      writeFileSync(join(dir, "corpus.json"), corpus, "utf8");
+
+      const stdout = execFileSync(
+        process.execPath,
+        [STANDALONE, "--alphabet", "corpus.json", "--command", `${process.execPath} ${canonicalizer}`, "--json"],
+        { cwd: dir, encoding: "utf8", timeout: 60_000 }
+      );
+      const report = JSON.parse(stdout) as {
+        alphabet_size: number;
+        alphabet_source: { kind: string; path: string; sha256: string };
+        unintended_kernel_members: string[];
+        counts: Record<string, number>;
+      };
+
+      expect(report.alphabet_size).toBe(3);
+      expect(report.unintended_kernel_members).toEqual(["caller-dup-key"]);
+      expect(report.counts["sound-by-rejection"]).toBe(1);
+      expect(report.alphabet_source).toEqual({
+        kind: "supplied",
+        path: "corpus.json",
+        sha256: createHash("sha256").update(corpus, "utf8").digest("hex")
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  // Fail-closed rejections. Each corpus is valid except for exactly one defect,
+  // so the message asserted is the message for THAT defect — a probe that
+  // skipped the class instead of aborting would fail every row here.
+  const validClass = {
+    id: "ok",
+    description: "d",
+    rawA: "1",
+    rawB: "2",
+    intent: "distinct",
+    consumerRationale: "r"
+  };
+
+  const malformedCases: ReadonlyArray<{ name: string; corpus: string; message: string }> = [
+    {
+      name: "a class with a missing intent",
+      corpus: JSON.stringify([validClass, { ...validClass, id: "no-intent", intent: undefined }]),
+      message: 'class "no-intent" has no intent'
+    },
+    {
+      name: "an unknown intent value",
+      corpus: JSON.stringify([{ ...validClass, id: "bad-intent", intent: "maybe" }]),
+      message: 'class "bad-intent" has unknown intent "maybe"'
+    },
+    {
+      name: "a duplicate id",
+      corpus: JSON.stringify([validClass, { ...validClass, rawA: "3", rawB: "4" }]),
+      message: 'duplicate pathology id "ok"'
+    },
+    {
+      name: "a pair that is not two documents",
+      corpus: JSON.stringify([{ ...validClass, id: "same-sides", rawA: "5", rawB: "5" }]),
+      message: 'class "same-sides" is not a pair of two documents'
+    },
+    {
+      name: "a corpus that is not an array",
+      corpus: JSON.stringify({ classes: [] }),
+      message: "must be a JSON array of pathology classes"
+    },
+    {
+      name: "an empty corpus",
+      corpus: "[]",
+      message: "contains no pathology classes"
+    },
+    {
+      name: "a file that is not JSON",
+      corpus: "{ not json",
+      message: "is not valid JSON"
+    }
+  ];
+
+  for (const { name, corpus, message } of malformedCases) {
+    it(`rejects ${name} with a specific message and a non-zero exit`, () => {
+      const dir = mkdtempSync(join(tmpdir(), "kernel-probe-malformed-"));
+      try {
+        writeFileSync(join(dir, "corpus.json"), corpus, "utf8");
+        let status = 0;
+        let stderr = "";
+        try {
+          execFileSync(
+            process.execPath,
+            [STANDALONE, "--alphabet", "corpus.json", "--command", "definitely-not-run"],
+            { cwd: dir, encoding: "utf8", stdio: "pipe" }
+          );
+        } catch (error) {
+          const failure = error as { status?: number; stderr?: string };
+          status = failure.status ?? 0;
+          stderr = failure.stderr ?? "";
+        }
+        expect(status, `corpus with ${name} must exit non-zero`).toBe(2);
+        expect(stderr).toContain(message);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
+
+  it("rejects --alphabet with a missing or unreadable file", () => {
+    for (const [args, message] of [
+      [[STANDALONE, "--alphabet", "--command", "x"], "--alphabet requires a file path"],
+      [[STANDALONE, "--alphabet", "/nonexistent/corpus.json", "--command", "x"], "cannot read alphabet file"]
+    ] as ReadonlyArray<[string[], string]>) {
+      let status = 0;
+      let stderr = "";
+      try {
+        execFileSync(process.execPath, args, { encoding: "utf8", stdio: "pipe" });
+      } catch (error) {
+        const failure = error as { status?: number; stderr?: string };
+        status = failure.status ?? 0;
+        stderr = failure.stderr ?? "";
+      }
+      expect(status).toBe(2);
+      expect(stderr).toContain(message);
+    }
   });
 });

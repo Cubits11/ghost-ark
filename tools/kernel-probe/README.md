@@ -62,6 +62,37 @@ intent, not to change it to match a result.
 `--emit-alphabet` gives you the whole corpus as JSON so you can score it in your
 own language, with your own intents, without this file or Node at all.
 
+## Run your own corpus
+
+`--alphabet <file>` runs the probe the other way around: hand it a pathology
+corpus of your own, in exactly the schema `--emit-alphabet` writes, and the
+probe runs yours instead of the author's.
+
+```bash
+node kernel-probe.mjs --emit-alphabet > pathologies.json   # start from this schema
+node kernel-probe.mjs --alphabet my-pathologies.json --command "jq -S -c ."
+```
+
+The corpus is validated before anything runs, and it fails closed: a class with
+a missing or unknown intent, a duplicate id, or a byte-identical pair aborts
+the whole probe with a specific message rather than being silently skipped — a
+report over 30 of your 31 classes that reads as a report over all 31 is worse
+than no report.
+
+Every report records which alphabet ran: `built-in` or `supplied`, with a
+sha256. The built-in hash is over the exact bytes `--emit-alphabet` writes, so
+a round-tripped corpus hashes identically to the built-in and anything else
+does not — two reports are comparable when their alphabet hashes match, and
+conservatively not otherwise.
+
+This matters for one specific objection. Running four canonicalizers the
+project does not control answers *"is the finding an artifact of Ghost-Ark's
+implementation?"* It cannot answer *"is the finding an artifact of the author's
+alphabet?"* while the only corpus the probe can run is the author's. With
+`--alphabet`, that second objection is now testable by anyone: bring your own
+pathology classes, declare your own intents, and the probe will score them —
+whatever they show.
+
 ## A worked example: one flag changes your kernel
 
 Measured 2026-08-04 with this file, from an empty directory, against stock

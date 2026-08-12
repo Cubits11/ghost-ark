@@ -106,6 +106,7 @@ const BANNER = `#!/usr/bin/env node
 // string literal.
 const BODY = String.raw`
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -136,6 +137,98 @@ const NON_CLAIM = ${JSON.stringify(nonClaim)};
  * to say so rather than to change the intent to match a result.
  */
 export const PATHOLOGY_ALPHABET = ${JSON.stringify(alphabet, null, 2)};
+
+/**
+ * sha256 of the exact byte stream --emit-alphabet writes. Every report records
+ * an alphabet hash so two reports are comparable exactly when they ran the same
+ * corpus bytes: a file produced by --emit-alphabet hashes identically to the
+ * built-in, and anything else is conservatively NOT assumed comparable. The
+ * hash is over bytes rather than a canonical form on purpose — a canonical form
+ * would have its own kernel, which is this tool's entire subject.
+ */
+export const BUILT_IN_ALPHABET_SHA256 = createHash("sha256")
+  .update(JSON.stringify(PATHOLOGY_ALPHABET, null, 2) + "\n", "utf8")
+  .digest("hex");
+
+/**
+ * Validates a supplied corpus against the exact schema --emit-alphabet writes.
+ *
+ * FAIL-CLOSED: any malformed class aborts the whole probe with a specific
+ * message. Silently skipping a class would misreport the census — a report
+ * over 30 of a caller's 31 classes reads as a report over all 31, and the
+ * dropped one is invisible precisely to the person relying on it.
+ */
+export function validateSuppliedAlphabet(parsed, label) {
+  if (!Array.isArray(parsed)) {
+    throw new Error("kernel-probe: alphabet " + label + " must be a JSON array of pathology classes");
+  }
+  if (parsed.length === 0) {
+    throw new Error("kernel-probe: alphabet " + label + " contains no pathology classes");
+  }
+  const seen = new Set();
+  parsed.forEach((entry, index) => {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error("kernel-probe: alphabet " + label + " entry " + index + " is not an object");
+    }
+    if (typeof entry.id !== "string" || entry.id.length === 0) {
+      throw new Error("kernel-probe: alphabet " + label + " entry " + index + " has no string \"id\"");
+    }
+    const where = "class \"" + entry.id + "\"";
+    if (seen.has(entry.id)) {
+      throw new Error("kernel-probe: alphabet " + label + " has duplicate pathology id \"" + entry.id + "\"");
+    }
+    seen.add(entry.id);
+    for (const field of ["description", "rawA", "rawB", "consumerRationale"]) {
+      if (typeof entry[field] !== "string") {
+        throw new Error("kernel-probe: alphabet " + label + " " + where + " is missing string field \"" + field + "\"");
+      }
+    }
+    if (entry.rawA === entry.rawB) {
+      throw new Error(
+        "kernel-probe: alphabet " + label + " " + where +
+        " is not a pair of two documents: rawA and rawB are byte-identical"
+      );
+    }
+    if (entry.intent === undefined) {
+      throw new Error(
+        "kernel-probe: alphabet " + label + " " + where +
+        " has no intent; every class must pre-register \"distinct\" or \"equivalent\""
+      );
+    }
+    if (entry.intent !== "distinct" && entry.intent !== "equivalent") {
+      throw new Error(
+        "kernel-probe: alphabet " + label + " " + where + " has unknown intent " +
+        JSON.stringify(entry.intent) + "; must be \"distinct\" or \"equivalent\""
+      );
+    }
+  });
+}
+
+/** Reads, parses, and validates a caller-supplied corpus file. */
+function loadSuppliedAlphabet(path) {
+  let bytes;
+  try {
+    bytes = readFileSync(path);
+  } catch (error) {
+    const reason = error && error.code ? error.code : "unreadable";
+    throw new Error("kernel-probe: cannot read alphabet file " + path + " (" + reason + ")");
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(bytes.toString("utf8"));
+  } catch (error) {
+    throw new Error("kernel-probe: alphabet file " + path + " is not valid JSON: " + error.message);
+  }
+  validateSuppliedAlphabet(parsed, "file " + path);
+  return {
+    alphabet: parsed,
+    source: {
+      kind: "supplied",
+      path: path,
+      sha256: createHash("sha256").update(bytes).digest("hex")
+    }
+  };
+}
 
 /**
  * Runs the target once. A NON-ZERO EXIT IS A REJECTION, NOT AN ERROR.
@@ -210,7 +303,7 @@ export function classify(intent, outcomeA, outcomeB) {
   return { observed: "distinct", verdict: intent === "equivalent" ? "over-discrimination" : "sound" };
 }
 
-export function probeKernel(command, args = [], alphabet = PATHOLOGY_ALPHABET, runner = runTarget) {
+export function probeKernel(command, args = [], alphabet = PATHOLOGY_ALPHABET, runner = runTarget, alphabetSource = undefined) {
   const seen = new Set();
   for (const entry of alphabet) {
     if (seen.has(entry.id)) throw new Error("kernel-probe: duplicate pathology id " + entry.id);
@@ -247,11 +340,26 @@ export function probeKernel(command, args = [], alphabet = PATHOLOGY_ALPHABET, r
   };
   for (const cell of cells) counts[cell.verdict] += 1;
 
+  // Record which alphabet actually ran. Callers that load a file pass the
+  // file-byte hash explicitly; programmatic callers get an honest default —
+  // never a "built-in" label on a corpus that is not the built-in one.
+  const source =
+    alphabetSource !== undefined
+      ? alphabetSource
+      : alphabet === PATHOLOGY_ALPHABET
+        ? { kind: "built-in", sha256: BUILT_IN_ALPHABET_SHA256 }
+        : {
+            kind: "supplied",
+            path: null,
+            sha256: createHash("sha256").update(JSON.stringify(alphabet, null, 2) + "\n", "utf8").digest("hex")
+          };
+
   return {
     schema_version: KERNEL_PROBE_SCHEMA_VERSION,
     target: [command, ...args].join(" "),
     sample_provenance: "census",
     alphabet_size: alphabet.length,
+    alphabet_source: source,
     counts,
     unintended_kernel_members: cells.filter((c) => c.verdict === "unintended-kernel").map((c) => c.pathologyId),
     over_discriminated: cells.filter((c) => c.verdict === "over-discrimination").map((c) => c.pathologyId),
@@ -263,7 +371,7 @@ export function probeKernel(command, args = [], alphabet = PATHOLOGY_ALPHABET, r
 const USAGE = @@BT@@kernel-probe — report which distinctions a canonicalizer destroys
 
 USAGE
-  node kernel-probe.mjs --command "<program> [args...]" [--json] [--fail-on-kernel]
+  node kernel-probe.mjs --command "<program> [args...]" [--alphabet <file>] [--json] [--fail-on-kernel]
   node kernel-probe.mjs --emit-alphabet
 
 CONTRACT FOR <program>
@@ -274,6 +382,12 @@ CONTRACT FOR <program>
 
 OPTIONS
   --command         the canonicalizer to probe (required unless --emit-alphabet)
+  --alphabet <file> probe a corpus of your own instead of the built-in one.
+                    Accepts exactly the JSON --emit-alphabet writes. The corpus
+                    is validated before anything runs, and one malformed class
+                    aborts the whole probe rather than being silently skipped.
+                    The report records the file's sha256, so reports over
+                    different corpora are not silently compared.
   --json            emit the full machine-readable report
   --fail-on-kernel  exit 1 if any unintended kernel member is found
   --emit-alphabet   write the pathology corpus as JSON and exit, so it can be
@@ -283,6 +397,7 @@ EXAMPLES
   node kernel-probe.mjs --command "jq -S -c ."
   node kernel-probe.mjs --command "./my-canonicalizer" --json
   node kernel-probe.mjs --emit-alphabet > pathologies.json
+  node kernel-probe.mjs --alphabet my-pathologies.json --command "jq -S -c ."
 
 READING THE OUTPUT
   UNINTENDED-KERNEL     two documents a declared consumer distinguishes, which
@@ -316,11 +431,32 @@ function main() {
     return;
   }
 
+  let alphabet = PATHOLOGY_ALPHABET;
+  let alphabetSource; // undefined -> probeKernel records the built-in source
+  if (process.argv.includes("--alphabet")) {
+    const alphabetPath = argValue("--alphabet");
+    if (!alphabetPath || alphabetPath.startsWith("--")) {
+      process.stderr.write("kernel-probe: --alphabet requires a file path\n");
+      process.exitCode = 2;
+      return;
+    }
+    let loaded;
+    try {
+      loaded = loadSuppliedAlphabet(alphabetPath);
+    } catch (error) {
+      process.stderr.write((error && error.message ? error.message : String(error)) + "\n");
+      process.exitCode = 2;
+      return;
+    }
+    alphabet = loaded.alphabet;
+    alphabetSource = loaded.source;
+  }
+
   // Split on whitespace so --command "jq -S -c ." works. Deliberately NOT passed
   // through a shell: this tool is meant to be safe to point at a target without
   // also handing that target a shell.
   const parts = target.trim().split(/\s+/u);
-  const report = probeKernel(parts[0], parts.slice(1));
+  const report = probeKernel(parts[0], parts.slice(1), alphabet, runTarget, alphabetSource);
 
   if (process.argv.includes("--json")) {
     process.stdout.write(JSON.stringify(report, null, 2) + "\n");
@@ -329,6 +465,13 @@ function main() {
     lines.push("kernel-probe (" + report.schema_version + ")");
     lines.push("target: " + report.target);
     lines.push("alphabet: " + report.alphabet_size + " classes | provenance: census (no confidence intervals)");
+    lines.push(
+      "alphabet-source: " +
+      (report.alphabet_source.kind === "built-in"
+        ? "built-in"
+        : "supplied (" + report.alphabet_source.path + ")") +
+      " sha256=" + report.alphabet_source.sha256
+    );
     lines.push("");
     lines.push(
       "sound " + report.counts.sound +
