@@ -138,6 +138,12 @@ const TEST_FILES = [
   "tests/unit/enforcement-runtime/vault/test_ttl_filtering.test.ts",
   "tests/unit/experiments/compromisedSigner.test.ts",
   "tests/unit/experiments/kernelCensus.test.ts",
+  // Added 2026-08-12 with E13. Not a judgement call: the invariant in
+  // mutationScope.test.ts requires this list to EQUAL the set of tests that
+  // transitively import the trust kernel, and E13 reaches it through E1's
+  // `classify`. Adding killers can only raise a score, so every E10 figure
+  // recorded before this date is a lower bound with respect to it.
+  "tests/unit/experiments/kernelComposition.test.ts",
   "tests/unit/experiments/kernelProbe.test.ts",
   "tests/unit/experiments/optionConfusionAndFuzz.test.ts",
   "tests/unit/experiments/randomizedKernel.test.ts",

@@ -46,6 +46,11 @@
       "note": "Revocation invariants."
     },
     {
+      "file": "CANONICALIZATION_LAYER_SURVEY.md",
+      "tier": "supporting",
+      "note": "Arm C of the Observability Gap program: one row per standard answering what layer it is defined over, what it forbids, and whether a conforming implementation can observe a violation. Carries the DER control arm and the CBOR probe as measured results, records that the strong form of the thesis was falsified by measurement, and concedes XMLDSig 8.1.1 and concurrent 2026 work as prior art."
+    },
+    {
       "file": "CC_CORRELATION_ANALYSIS.md",
       "tier": "supporting",
       "note": "Frechet bound adapter contract; Spine F."
@@ -121,14 +126,14 @@
       "note": "Local witness bundle format."
     },
     {
-      "file": "MVE_ROADMAP.md",
-      "tier": "process",
-      "note": "Phase I-IV roadmap."
-    },
-    {
       "file": "M_ESTIMATION.md",
       "tier": "supporting",
       "note": "M estimator with pre-registered epsilon; implemented in packages/research-frontier/src/oracle/mEstimator.ts."
+    },
+    {
+      "file": "MVE_ROADMAP.md",
+      "tier": "process",
+      "note": "Phase I-IV roadmap."
     },
     {
       "file": "NITRO_ENCLAVE_ISOLATION_ARCHITECTURE.md",
@@ -151,14 +156,14 @@
       "note": "Byte reconciler; decode-before-compare."
     },
     {
-      "file": "PHASE_VI_RUNTIME_CUSTODY.md",
-      "tier": "supporting",
-      "note": "Transit ledger and runtime custody layer."
-    },
-    {
       "file": "PHASE_V_LATENCY_BENCHMARK.md",
       "tier": "supporting",
       "note": "Latency benchmark protocol. Superseded for reporting discipline by EXPERIMENTS.md E2."
+    },
+    {
+      "file": "PHASE_VI_RUNTIME_CUSTODY.md",
+      "tier": "supporting",
+      "note": "Transit ledger and runtime custody layer."
     },
     {
       "file": "PRIOR_ART_AND_NOVELTY.md",

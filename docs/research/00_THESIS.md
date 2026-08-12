@@ -72,13 +72,13 @@ Stated before the fact so the thesis is refutable rather than merely defended.
 | # | Falsifier | What it would take |
 |:--|:---|:---|
 | F1 | **The ternary framing is unnecessary.** Exhibit a canonicalizer sound for *every* consumer set over a realistic alphabet, with no fail-closed rejections. | The soundness-does-not-persist result collapses to a solved engineering problem. |
-| F2 | **Unintended kernel members are an artifact of the curated alphabet.** Show that E1's pathology classes cannot arise in real receipt traffic. | C2 loses practical force; the kernel becomes a theoretical curiosity. |
+| F2 | **Unintended kernel members are an artifact of the curated alphabet.** Show that E1's pathology classes cannot arise in real receipt traffic. | C2 loses practical force; the kernel becomes a theoretical curiosity. **Partly realised 2026-08-12 — see below.** |
 | F3 | **The consumer set is stable in practice.** Show that deployed receipt consumers do not grow, so antitonicity never bites. | Non-persistence becomes irrelevant even if formally true. |
 | F4 | **A parser-independent kernel.** Show the pipeline kernel is fixed by canonicalization alone. | C1 is false, and auditing canonicalizers alone would suffice. |
 | F5 | **The corpus results are tautological.** Show E3's detections survive when the mechanisms they depend on are broken. | E4 exists precisely to test this, and currently reports PASS. A failure here would void E3. |
 
-F2 is the live weakness and this document will not pretend otherwise. Three moves narrow it and
-none closes it:
+F2 was the live weakness and this document will not pretend otherwise. Three moves narrowed it,
+and a fourth measured it directly:
 
 - **Independence.** E11 runs the same alphabet against four canonicalizers written entirely
   outside this repository — Rust `serde_json`, Ruby, CPython, jq. All four exhibit unintended
@@ -93,11 +93,33 @@ none closes it:
 - **A genuinely sampled arm.** E1-B draws from a declared generator, so its confidence
   intervals are legitimate: 52.5% [49.0%, 56.1%] unguarded versus 0.0% [0.0%, 0.5%] guarded.
 
-What remains open is the step neither move makes: **the generator is a model of adversarial
-input, not a sample of production receipt traffic.** Quoting E1-B's interval as a real-world
-frequency would be precisely the inferential overreach the census rules exist to prevent.
-Establishing real-traffic frequency needs a corpus this repository does not have, and that is
-recorded in EXPERIMENTS.md §Open Gaps rather than papered over.
+What remained open was the step none of those moves makes: **the generator is a model of
+adversarial input, not a sample of production receipt traffic.** Quoting E1-B's interval as a
+real-world frequency would be precisely the inferential overreach the census rules exist to
+prevent.
+
+**Measured 2026-08-12, and F2 was confirmed rather than narrowed.** E12 drew 3,000 uniform
+random entries from Sigstore's public Rekor transparency log and scanned the raw bytes of every
+retrievable attestation payload. **0 of 64 eligible payloads carried any pathology class** —
+across 18,528 object members and 33,982 strings — with all seven detector controls firing on
+the same run and every payload's digest verified against the log's own record.
+
+So the honest position is now stronger in one direction and weaker in the other, and both
+halves belong in the same sentence:
+
+> These collapses are real, constructible, and exhibited by four independent third-party
+> canonicalizers (E11). They did **not** occur in a random sample of real supply-chain
+> attestation payloads (E12). **C2 stands as a statement about what is possible and does not
+> stand as a statement about what is prevalent.** The pathology alphabet is adversarial
+> fiction with respect to this traffic.
+
+Two things E12 does not settle, recorded so the confirmation is not over-read. Its zeros are
+not equally informative — `unsafe-magnitude-integer` had **zero opportunities** to fire because
+the corpus contains 103 numbers in total — and at the level of independent producers the sample
+has n = 16, below the interval floor, so **no rate can be bounded at all**. Full result and
+coverage boundary in EXPERIMENTS.md §E12; what replaces F2 as the live weakness is recorded in
+§Open Gaps, and it is narrower: **no consumer has been named and shown to distinguish any
+pair.**
 
 ## 5. What Is Explicitly Not Claimed
 

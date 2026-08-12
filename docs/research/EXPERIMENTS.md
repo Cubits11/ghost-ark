@@ -27,20 +27,20 @@ These exist because this repository previously violated each of them.
 
 1. **No point estimate without dispersion.** Latency is reported as p50 with IQR. A bare
    p50 is not a result.
-2. **No proportion without a denominator**, and no rate without its control arm.
-3. **No confidence interval over a curated census.** A CI describes sampling variability
+4. **No proportion without a denominator**, and no rate without its control arm.
+5. **No confidence interval over a curated census.** A CI describes sampling variability
    under repeated random draws. A hand-authored corpus has none: it is the whole
    population and its size is an authoring decision. `reportProportion` refuses to attach
    an interval when provenance is `census`, and `assertCensusReporting` throws.
    *This rule exists because a Wilson interval was once computed at n = 2 and described as
    a "robust statistical lower bound". At 2/2 successes that interval's lower bound is
    below 0.4 — consistent with a true rate of one in three.*
-4. **No interval below n = 30** (`MIN_N_FOR_PROPORTION_INTERVAL`), even for genuine samples.
-5. **Intent before results.** E1's consumer intents are declared in
+6. **No interval below n = 30** (`MIN_N_FOR_PROPORTION_INTERVAL`), even for genuine samples.
+7. **Intent before results.** E1's consumer intents are declared in
    `tools/experiments/kernelAlphabet.ts` and pinned by a test. Editing one to match a
    measured result requires editing the test, which surfaces it in review.
-6. **State the host.** A latency figure without a machine is not reproducible.
-7. **Report what was not measured.** A silently-dropped arm makes a system look better
+8. **State the host.** A latency figure without a machine is not reproducible.
+9. **Report what was not measured.** A silently-dropped arm makes a system look better
    than it is.
 
 ---
@@ -49,8 +49,11 @@ These exist because this repository previously violated each of them.
 
 | Component | Path |
 |:---|:---|
-| E1–E7, E10 harnesses | `tools/experiments/*.ts` |
+| E1–E7, E10–E13 harnesses | `tools/experiments/*.ts` |
 | Pre-registered E1 alphabet | `tools/experiments/kernelAlphabet.ts` |
+| E12 raw-byte scanner (must not parse; pinned by a hygiene test) | `tools/experiments/rawJsonScan.ts` |
+| E12 Rekor sampler (network; pre-registers its index list) | `tools/experiments/e12RealTrafficKernel.ts` |
+| E13 composition search (finite model + real hops) | `tools/experiments/e13KernelComposition.ts` |
 | Pre-registered E10 scope | `tools/experiments/mutationScope.ts`, `stryker.config.json` |
 | TypeScript reporting discipline | `packages/research-frontier/src/stats/descriptive.ts` |
 | Rust measurement stats (MAD, tie-corrected Mann-Whitney, counter quantum) | `tools/experiments/src/stats.rs` |
@@ -1139,6 +1142,12 @@ sweep was running, so `canonical.ts` and `chain.ts` were measured against a
 `chain.ts`, `canonical.ts`, and `signer.ts`, and more killers can only raise a
 score, so those three rows are lower bounds. Stated rather than smoothed over.
 
+A second scope change, 2026-08-12: `tests/unit/experiments/kernelComposition.test.ts`
+arrived with E13 and reaches the kernel through E1's `classify`, so the
+pre-registration invariant required adding it. **Every score in the table above
+was measured before it existed and is therefore a lower bound**; none has been
+re-measured against the larger killer pool.
+
 ### Coverage boundary (what E10 does NOT establish)
 
 Mutation operators are a **proxy** for defects, not a generator of them. A high score is not
@@ -1241,6 +1250,273 @@ per-arm counts are not a quality ranking.
 
 ---
 
+## E12 — Real-traffic kernel incidence (Arm E)
+
+**The gap this closes.** Every incidence figure this repository had reported came from a
+hand-curated alphabet or a declared generator. Falsifier F2 says the finding may therefore be
+an artifact of what the author chose to look at. Closing it needs a corpus this project did
+not author.
+
+**Corpus.** Sigstore's public Rekor transparency log. Uniform random draws over the **global**
+log index with a recorded seed. Provenance: **sampled** — the only experiment in this
+repository that legitimately earns a confidence interval, because the draws are uniform over a
+population this project did not construct and cannot influence.
+
+**Run:** `npm run experiment:e12` (network). Seed 20260812, 3,000 draws, frame 2,438,317,323,
+2026-08-12. Replay requires the seed **and** `--frame-total`: the log grows, and a different
+total turns the same seed into a different index sequence.
+
+### Measured result — 3,000 draws, 64 eligible, 2026-08-12
+
+```
+draws requested 3000 | resolved 3000 | unresolved 0 | complete true
+kinds drawn:  dsse 2030 | hashedrekord 901 | intoto 69  (65 v0.0.1, 4 v0.0.2)
+eligibility:  eligible 64 | absent-by-type 2931 | absent-though-typed 5
+              payload-digest-mismatch 0 | unresolved 0
+```
+
+| Class | entries carrying it | 95% CI (entry level) |
+|:---|:---|:---|
+| duplicate-member-name | **0 / 64** | [0.00%, 5.66%] |
+| unsafe-magnitude-integer | **0 / 64** | [0.00%, 5.66%] |
+| non-round-tripping-literal | **0 / 64** | [0.00%, 5.66%] |
+| overflow-to-infinity | **0 / 64** | [0.00%, 5.66%] |
+| underflow-to-zero | **0 / 64** | [0.00%, 5.66%] |
+| lone-surrogate-escape | **0 / 64** | [0.00%, 5.66%] |
+| non-nfc-string | **0 / 64** | [0.00%, 5.66%] |
+| invalid-utf8 | **0 / 64** | [0.00%, 5.66%] |
+
+Corpus descriptors, without which none of those zeros is readable: **1,056,499 payload bytes**,
+**18,528 object members**, **33,982 strings**, **103 numbers**, 0 of them inexact, 0 of them
+above 2^53 − 1, 0 malformed payloads. Payload sizes 341 B / 3,714 B / 84,047 B
+(min / median / max).
+
+### Findings
+
+**F12.1 — F2 is CONFIRMED, not narrowed, and this is the result.** Not one pathology class
+occurred in a single real attestation payload. Stated in the form the program pre-committed
+to: **the alphabet is adversarial fiction with respect to this production traffic, and the
+claim contracts to "possible, not observed."** E1 shows these collapses are constructible and
+that real canonicalizers exhibit them. E12 shows they are not what production supply-chain
+attestations look like. Both are true and the second bounds the first.
+
+**F12.2 — The zeros are not equally informative, and treating them as one number would be the
+error.** Each class needs the denominator of its own opportunities:
+
+| Class | opportunities in the corpus | strength of the zero |
+|:---|:---|:---|
+| duplicate-member-name | 18,528 object members | **strongest.** Every member was a chance to repeat a name and none did. |
+| lone-surrogate-escape, non-nfc-string, invalid-utf8 | 33,982 strings | strong. |
+| non-round-tripping-literal | **103 numbers** | weak. The corpus is almost entirely strings. |
+| unsafe-magnitude-integer | **0 numbers above 2^53 − 1** | **vacuous.** The class had *zero* opportunities to fire. This is not evidence about large integers; it is evidence that these payloads contain almost no numbers at all. |
+
+**F12.3 — At the level of independent producers, no rate can be bounded at all, and the
+entry-level interval must not be quoted alone.** Rekor entries are not independent draws from
+"the population of attestations": a handful of toolchains emit most of them and one CI run
+emits many. Collapsing the clustering gives **0 / 16 producers**, and 16 is below
+`MIN_N_FOR_PROPORTION_INTERVAL = 30`, so `reportProportion` **refuses an interval** — which is
+the correct output and the honest reading:
+
+> The entry-level [0%, 5.66%] describes 64 observations that are not independent. At the level
+> of units that plausibly are independent, this experiment has **n = 16 and cannot bound the
+> rate at all.** Reaching n = 30 producers needs a substantially larger draw.
+
+Largest producer 20.3% of eligible entries; 63 distinct payload digests among 64 entries, so
+de-duplication moves almost nothing. Producers observed: SPDX documents, apko image
+configurations and build provenance, Tekton `TaskRun`/`PipelineRun` provenance, GitHub Actions
+workflow provenance, and one npm publish attestation.
+
+**F12.4 — The zero is a measurement, not a broken instrument, and that is checked rather than
+asserted.** Seven synthetic payloads, one per class, are pushed through the **same**
+base64-decode-and-scan path a live entry takes on every run; **all seven were detected**. A
+zero from a working detector and a zero from a broken tokenizer are the same number, and this
+repository has already shipped the second kind once — E1's Python arm reported a missing
+interpreter through the same channel CPython uses to reject an input, and a headline count
+moved with the ambient environment at exit 0.
+
+**F12.5 — The bytes scanned are the producer's bytes, verified per entry.** Each payload's
+SHA-256 is compared against the `payloadHash` the log recorded: **64 / 64 matched, 0
+mismatches.** Without this the arm's central methodological claim — that it probes raw bytes
+and never a re-serialization — would be a generalization from however many entries were
+spot-checked by hand.
+
+**F12.6 — The eligible population is time-skewed by construction, and the skew is not
+incidental.** Eligibility requires the log to have *stored* a payload, which only `intoto`
+v0.0.1 does:
+
+| shard | drawn | eligible | eligibility rate |
+|:---|---:|---:|---:|
+| 1 (earliest) | 4 | 0 | 0.00% |
+| 2 | 136 | 24 | **17.65%** |
+| 3 (active, 95% of the log) | 2,860 | 40 | **1.40%** |
+
+Shard 2 supplies 4.5% of the draws and **37.5% of the eligible entries**. The modern log is
+dominated by `dsse`, which stores hashes only. So the property that makes an entry measurable
+is correlated with era, and the estimand is **"intoto entries with stored attestations, skewed
+toward the older shard"** — not "Rekor", and not "supply-chain attestations today".
+
+**F12.7 — Sigstore is not the subject, and on this question it is the safe design.** DSSE signs
+the raw payload octets under PAE and Rekor hashes those same octets. **No canonicalization
+step exists in that verification path**, so the gap studied here structurally cannot bite
+there. The log is used as a corpus of real build-system JSON. Any hazard a finding would
+describe belongs to a downstream consumer that parses and re-serializes such a payload.
+
+**F12.8 — Three corrections to the program document, found by building the harness.** The
+frame was mis-specified as the active shard's `treeSize` when `logIndex` is global across
+three shards; the pilot read 16 `dsse` entries as 16 payloads when `dsse` stores no payload,
+overstating eligibility by roughly thirtyfold (67% claimed, **2.13% measured**); and "signed
+attestation payload" overstates the log, which does not store the DSSE envelope and therefore
+supports no signature check from log data alone.
+
+### Coverage boundary (what E12 does NOT establish)
+
+One log, one day, one seed. **A zero here is not evidence that these constructs do not occur
+in supply-chain attestations**, and specifically not for large integers, where the corpus
+offered no opportunity at all. The eligible population is a small, era-skewed, `intoto`-only
+slice of the log. `unsafe-magnitude-integer` is deliberately restricted to *syntactically*
+integral literals, which can under-count and cannot over-count — an asymmetry that strengthens
+a positive finding and **weakens this zero**. Rekor's attestation storage has a documented size
+cap; the largest payload drawn was 84 KB, so censoring at the cap was not observed but is not
+ruled out, and large payloads are exactly the ones most likely to carry deep nesting and many
+keys. No consumer was named or shown to distinguish any pair. Nothing here is a security review
+of Sigstore, Rekor, or any producer whose entries were drawn — **no entry, producer, or
+implementation observed in this experiment is defective**, and the measurement is of the JSON
+identity problem, not of anyone's competence.
+
+---
+
+## E13 — Is the canonicalization kernel compositional? (Arm F)
+
+**Question.** Evidence crosses hops. A receipt is canonicalized and signed at a gateway,
+transported, re-parsed by a consumer, and re-canonicalized before comparison. Each hop has
+its own `parse . canonicalize` and therefore its own kernel. Can soundness of a chain be
+inferred from soundness of its links?
+
+**Why it could fail.** Soundness is not a property of a canonicalizer; it is a property of a
+canonicalizer *relative to an input alphabet*. In a chain the second hop is never evaluated
+on the alphabet it was tested against — it is evaluated on the **first hop's image** of that
+alphabet. Composition changes the alphabet the downstream hop faces. That is this program's
+layering thesis restated one level up.
+
+Provenance: **census**. Curated alphabet plus an exhaustive finite-model enumeration. Exact
+counts, no confidence intervals.
+
+Run with `npx ts-node tools/experiments/e13KernelComposition.ts`.
+
+### Part 1 — exhaustive enumeration over a finite model
+
+Every hop on a four-document domain is a total function into that domain plus a rejection
+symbol — 5^4 = **625 hops**, **390,625 ordered compositions**, all enumerated. Verdicts come
+from E1's `classify`, imported rather than reimplemented, so nothing is graded on a different
+curve.
+
+| Question | Count |
+|:---|---:|
+| both hops acceptable alone, composite **not** acceptable | **1,480** |
+| a hop unacceptable, composite acceptable | 102,120 |
+| upstream collapse neutralized **by rejection** | 75,000 |
+| upstream collapse repaired **by separation** | **0** |
+
+**The zero is the result worth having.** It is the exhaustive check of a proposition that
+also has a one-line proof: if `c1(a) = c1(b)` and neither is a rejection, then
+`c2(c1(a)) = c2(c1(b))` by functionality, so the composite either collapses the pair too or
+refuses it. There is no third option.
+
+> **Repair impossibility.** Once a hop maps two documents to one canonical form without
+> refusing them, no downstream hop can separate them again. It can pass the collapse along
+> or it can refuse. **You cannot audit an upstream collapse away downstream; you can only
+> decline to build on it.**
+
+That is the practically useful half of Arm F, and it points the other way from the
+conjecture: it says component-wise reasoning fails, *and* it says exactly which repair is
+available.
+
+### Part 2 — real implementations
+
+Nine hops, each a step a real pipeline performs, composed pairwise over the 31-class
+pre-registered alphabet: 9 x 9 x 31 = **2,511 composite cells**.
+
+Hops: `jq -S -c`, `jq -c`, CPython `json.dumps(sort_keys=True)`, the same with
+`ensure_ascii=False` in two codec configurations, Ruby stdlib `json`, Node
+`JSON.stringify(JSON.parse(x))`, a `js-yaml` round trip (the hop taken whenever JSON is read
+by a YAML parser, as Kubernetes manifests and in-toto layouts routinely are), and a
+raw-byte duplicate-name admission gate from this repository.
+
+**The harness carries `Buffer`, not `string`, between hops, and that choice is what made the
+result below visible.** The alphabet's own inputs are pure ASCII — a lone surrogate is
+written as the six characters `\ud800`, not as a surrogate — so passing *inputs* as strings
+would have been safe. The **intermediates** are not. Measured: hop 1 emits the WTF-8 octets
+`ED A0 80`, and a `Buffer -> string -> Buffer` round trip turns them into
+`EF BF BD EF BF BD EF BF BD`. A string-based harness would have replaced the surrogate on
+*both* sides of the pair, reported a clean collapse, and destroyed the one counterexample
+this arm found. This is the E4 discriminator applied to Arm F's harness.
+
+#### Measured result
+
+| | count |
+|:---|---:|
+| forward counterexamples (both hops acceptable alone, composite not) | **2** |
+| repairs (an unacceptable hop inside an acceptable chain) | 405 |
+| ... of which by **separation** | **0** |
+| non-idempotent hop applications | 0 |
+
+**The counterexample, reproduced by hand.** Class `lone-surrogate-escape`, intent `distinct`:
+`{"v":"\ud800"}` against `{"v":"�"}`.
+
+| step | observed |
+|:---|:---|
+| `jq` alone on the originals | **rejects** side A: `parse error: Invalid \uXXXX\uXXXX surrogate pair escape`, exit 5 — fail-closed, correct |
+| CPython with `errors='surrogatepass'` alone | A becomes `{"v":<ED A0 80>}`, B becomes `{"v":<EF BF BD>}` — **distinct**, sound |
+| `jq` after CPython | both become `{"v":<EF BF BD>}` — **one identity** |
+
+The upstream hop re-encoded the escaped surrogate as raw WTF-8 octets. `jq`'s guard is
+written against the **escape syntax**; the same condition arriving as **raw bytes** is not
+observable to it, so it decodes the ill-formed sequence to U+FFFD and emits the bytes it
+emits for the control. **A normalization step placed in front of a fail-closed verifier
+disabled that verifier's refusal.** The layering thesis, inside a pipeline.
+
+#### What this counterexample does not support, stated in the same breath
+
+It requires **one permissive codec configuration, and that configuration was chosen by this
+harness, not by any default.** Measured on the same machine:
+
+| hop, default configuration | result on `{"v":"\ud800"}` |
+|:---|:---|
+| CPython `json.dumps(..., ensure_ascii=False).encode('utf-8')` | raises — **refuses** |
+| Ruby stdlib `JSON.parse` | `JSON::ParserError: incomplete surrogate pair` — **refuses** |
+| Node `JSON.stringify(JSON.parse(x))` | emits `{"v":"\ud800"}` — **keeps the escape**, so a downstream `jq` still refuses |
+
+**No pair of all-default hops on this machine exhibits the counterexample.** The mechanism is
+demonstrated; its incidence in deployed pipelines is **unmeasured**. This is a
+"possible, not observed" result and it is reported as one.
+
+#### The repairs are the more actionable half
+
+All 405 repairs are by rejection, none by separation, matching Part 1. The largest groups are
+the raw-byte admission gate composed in front of each other hop — 14 of 31 classes repaired
+against CPython, Ruby, and the YAML round trip; 12 against `jq`. The gate reads the bytes
+*before* anything parses them, which is the layer the requirement is actually about, and that
+placement is what neutralizes downstream collapses.
+
+### Coverage boundary
+
+Nine hops on one machine, not a sample of pipelines. **The counts are not comparable across
+machines with different hop availability** — `buildHops()` includes only interpreters present
+on the host, and a run with `ruby` missing searches 8 x 8 x 31 cells rather than 9 x 9 x 31,
+which changes the search space rather than merely narrowing it. This is E1's F1.7 lesson, and
+E13 is deliberately **not** wired into `npm run experiments`: a chain that runs in CI would
+report a hop-set-dependent count as a stable one. The hop list is recorded in every report;
+read it before comparing two runs. One hand-curated 31-class alphabet, so
+absence of a counterexample outside those classes is not evidence of absence. Chains of
+length two only; longer chains are unmeasured. **No implementation here is defective** —
+every one behaves as its documentation says, `jq`'s refusal is correct behaviour, and the
+counterexample is a property of a composition, not of a component. Part 1's enumeration is
+exhaustive over a four-element domain; the existence results transfer because a witness is a
+witness, but no universal claim about larger domains is established by it beyond the
+repair-impossibility argument given above, which does not depend on the domain size.
+
+---
+
 ## Retractions
 
 Prior claims in this repository that these experiments contradict. Listed rather than
@@ -1271,23 +1547,37 @@ there was missing from here.
 
 Honest list of what is missing, ordered by how much it would strengthen the work.
 
-1. **No real-traffic corpus.** E1 establishes that unintended kernel members exist, not
-   how often. This is falsifier F2 and the largest open weakness.
-2. ~~**No compromised-signer fixtures.**~~ CLOSED by E4-B. Remaining: no RSA/KMS
+1. ~~**No real-traffic corpus.**~~ CLOSED by E12, and the closure went **against** the
+   thesis: 0 of 64 real attestation payloads carried any pathology class, so F2 is
+   confirmed rather than narrowed and the claim contracts to "possible, not observed".
+   What replaces it as the largest open weakness is narrower and sharper:
+   **no consumer has been named and shown to distinguish any pair.** Every `distinct`
+   intent in this work is a declared consumer model, never an observed one. Demonstrating
+   that a real policy engine — Kyverno, OPA, `in-toto` verification, a cosign policy —
+   actually distinguishes one of these pairs is the single measurement that would convert
+   the work from structural to consequential.
+2. **E12's eligible sample has too few independent producers to bound a rate.** 64 entries
+   from 16 producers; the clustered denominator is below `MIN_N_FOR_PROPORTION_INTERVAL`
+   and the interval is refused. A larger draw, or a second population, is needed before any
+   rate statement is defensible.
+3. **No second real-traffic population.** npm provenance attestations expose full DSSE
+   payload bytes and would be genuinely independent of Rekor. No defensible sampling frame
+   for npm was established, so it was not run rather than run badly.
+4. ~~**No compromised-signer fixtures.**~~ CLOSED by E4-B. Remaining: no RSA/KMS
    compromised-signer coverage (public key only), and no record-receipt (`rct_`) fixtures,
    which leaves the `tenant` check unisolated.
-3. **No live AWS evidence bundle.** Every AWS-path claim is synth-only or local-only.
-4. ~~**E1's randomized arm is not built.**~~ CLOSED by E1-B, which samples from a declared
+5. **No live AWS evidence bundle.** Every AWS-path claim is synth-only or local-only.
+6. ~~**E1's randomized arm is not built.**~~ CLOSED by E1-B, which samples from a declared
    seeded generator and therefore earns intervals. The gap text above survived the commit
    that closed it and contradicted this document's own E1-B heading — recorded here rather
    than silently deleted, because a stale gap list is the second thing a reviewer checks.
-5. **No cross-machine reproduction of E2.** Single host only.
-6. **CI does not run the Rust or TLA+ artifacts on every commit** — see
+7. **No cross-machine reproduction of E2.** Single host only.
+8. **CI does not run the Rust or TLA+ artifacts on every commit** — see
    [../artifact/CI_COVERAGE.md](../artifact/CI_COVERAGE.md) for the exact matrix.
-7. **E10's mutation scope covers the receipt trust kernel only.** Ten files. The rest of the
+9. **E10's mutation scope covers the receipt trust kernel only.** Ten files. The rest of the
    repository — policy evaluation, runtime, vault, retrieval, gateway, the CDK stack — has no
    measured test strength at all. A repo-wide mutation score is not reported because it has
    not been run.
-8. **No third-party reimplementation.** E5 reports agreement across three verifiers written
+10. **No third-party reimplementation.** E5 reports agreement across three verifiers written
    by the same author from the same specification; they can share a misreading. Only a
    genuinely independent implementation fixes this, and none exists.
