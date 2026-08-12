@@ -141,6 +141,11 @@
       "note": "The mechanically-enforced non-claim vocabulary; the discipline the whole artifact rests on."
     },
     {
+      "file": "OBSERVABILITY_GAP_PROGRAM.md",
+      "tier": "core",
+      "note": "Research program: canonicalization standards are sound only over the layer they are defined on. Rekor real-traffic arm, cross-standard survey with DER as control, kernel composition."
+    },
+    {
       "file": "PHASE_III_EFFECT_ORACLE.md",
       "tier": "supporting",
       "note": "Byte reconciler; decode-before-compare."

@@ -103,7 +103,7 @@ graph TD
   ```
   Background and findings: [docs/research/KERNEL_PROBE.md](./docs/research/KERNEL_PROBE.md).
 - **Reviewing this adversarially?** → [Reviewer Attack Sheet](./docs/artifact/REVIEWER_ATTACK_SHEET.md) — the ten sharpest questions against this work, answered with commands, including the unflattering ones
-- **Which of the 41 research documents matter?** → [RESEARCH_INDEX.json](./docs/research/RESEARCH_INDEX.json) classifies every one as core / supporting / exploratory / process / non-research. Seven are core; 24 supporting, 5 exploratory, 5 process.
+- **Which of the 42 research documents matter?** → [RESEARCH_INDEX.json](./docs/research/RESEARCH_INDEX.json) classifies every one as core / supporting / exploratory / process / non-research. Eight are core; 24 supporting, 5 exploratory, 5 process.
 - **What is NOT established?** → [Status and Limitations](./docs/artifact/STATUS_AND_LIMITATIONS.md) — the three limitations that bound every result here, stated before the results.
 - **What does CI actually verify, and what can rot?** → [CI_COVERAGE.md](./docs/artifact/CI_COVERAGE.md)
 - New to the terminology (spine, evidence class, governed invoke)? → [Glossary](./docs/GLOSSARY.md)
