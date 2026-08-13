@@ -1,0 +1,732 @@
+{
+  "schema_version": "ghost.receipt_conformance.v1",
+  "suite_version": "0.1.0",
+  "spec": "SPEC.md",
+  "generated_by": "tools/receipt-conformance/build-conformance.mjs",
+  "adapter_contract": {
+    "description": "A candidate verifier is any executable invoked as: <command...> <case args>. It must exit 0 to accept and non-zero to reject. It SHOULD print a JSON report to stdout containing a `checks` array of {name, passed} objects and, on acceptance, a `recomputed` object with `receipt_id` and `digest_sha256`; when it does, the harness additionally scores failing-check and identity conformance. Paths in case args are relative to the directory containing this file.",
+    "options": [
+      "--receipt <path>",
+      "--key <path>",
+      "--hmac-secret <published dev-only test vector>",
+      "--expected-key-id <key id>",
+      "--tenant <tenant id>",
+      "--identity-hmac-secret <published dev-only test vector>",
+      "--pss-mode <digest-as-message|digest-as-mhash>"
+    ]
+  },
+  "check_vocabulary": {
+    "ordered": [
+      "configuration",
+      "load",
+      "schema",
+      "canonical_payload",
+      "receipt_id",
+      "envelope",
+      "key_id",
+      "digest",
+      "signature",
+      "tenant_expectation"
+    ],
+    "note": "SPEC.md defines each check and the short-circuit rules. `expected_failing_checks` lists the acceptable check names for a rejection: at least one of them must be reported failed."
+  },
+  "levels": {
+    "verdict": "REQUIRED. The exit-code verdict matches expected_verdict on every case.",
+    "failing-check": "Evaluated when the candidate emits a parseable JSON `checks` array: on every expected-FAIL case, at least one expected failing check is reported failed.",
+    "identity": "Evaluated when the candidate emits `recomputed`: on cases carrying expected_recomputed, the recomputed receipt_id and digest_sha256 match byte-for-byte."
+  },
+  "canonical_vectors": {
+    "description": "Implement the canonicalizer first and self-check it against these before touching cryptography: sha256(canonical_payload file bytes) must equal digest_sha256, and 'grct_' + sha256(canonicalize(payload minus receipt_id)) must equal receipt_id.",
+    "fixtures": [
+      {
+        "fixture_id": "hmac-baseline",
+        "canonical_payload_path": "fixtures/canonical-payloads/hmac-baseline.canonical.json",
+        "digest_sha256": "b73b061366bd0b713c9ccc82d9e1fb785c82fc38a30620d6f33b213f37476184",
+        "receipt_id": "grct_1debd067f8310ec416610ea9866d6162e12f73e5b96f4a001e66d7203342cb64"
+      },
+      {
+        "fixture_id": "hmac-chained",
+        "canonical_payload_path": "fixtures/canonical-payloads/hmac-chained.canonical.json",
+        "digest_sha256": "250c831eec0156b18e2f585e08d17fb4f3b97c7fd98d18c09611c751b551f854",
+        "receipt_id": "grct_7add8fc0cdf17dba1d09fb3daf6cc450fa1d4fcef1e839375c49efaa6e7ed07c"
+      },
+      {
+        "fixture_id": "kms-style-rsa",
+        "canonical_payload_path": "fixtures/canonical-payloads/kms-style-rsa.canonical.json",
+        "digest_sha256": "590ec12bbc1e56fdcc169e508776345c74a1c4ddd57685ef6479abcabdaf2d87",
+        "receipt_id": "grct_5dc895402e98810a7b4df34b571debc209a9eeb2bf8823b46c8531048c476bc7"
+      }
+    ],
+    "tenant_commitment": {
+      "description": "tenant_id_hash = 'hmac-sha256:' + hex(HMAC-SHA-256(identity_secret, tenant_id)). Both inputs are published dev-only test vectors, not credentials.",
+      "identity_hmac_secret_dev_only_test_vector": "ghost-ark-repro-identity-dev-only-test-vector-v1",
+      "tenant_id": "tenant-repro-a",
+      "expected_tenant_id_hash": "hmac-sha256:585fb5719f8ae7739d9dbd7b047166dd02102c4fbfcb04fed5f5440098ca277f"
+    }
+  },
+  "secrets_note": "Every secret in this file is a published dev-only test vector recorded in the Ghost-Ark repository since 2026-07-09. None is a credential; local HMAC signing is dev-only and never a production mode.",
+  "cases": [
+    {
+      "case_id": "valid-hmac-baseline",
+      "description": "Minimal chain-head decision receipt signed with the dev-only local HMAC path using default local-dev execution boundary values.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/hmac-baseline.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "PASS",
+      "expected_failing_checks": null,
+      "expected_recomputed": {
+        "receipt_id": "grct_1debd067f8310ec416610ea9866d6162e12f73e5b96f4a001e66d7203342cb64",
+        "digest_sha256": "b73b061366bd0b713c9ccc82d9e1fb785c82fc38a30620d6f33b213f37476184"
+      }
+    },
+    {
+      "case_id": "valid-hmac-chained",
+      "description": "Second receipt in the tenant chain: non-null prev_receipt_hash linking to hmac-baseline, populated retrieved_context_digests and multi-entry action_taken, non-default execution boundary values.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/hmac-chained.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "PASS",
+      "expected_failing_checks": null,
+      "expected_recomputed": {
+        "receipt_id": "grct_7add8fc0cdf17dba1d09fb3daf6cc450fa1d4fcef1e839375c49efaa6e7ed07c",
+        "digest_sha256": "250c831eec0156b18e2f585e08d17fb4f3b97c7fd98d18c09611c751b551f854"
+      }
+    },
+    {
+      "case_id": "valid-kms-style-rsa",
+      "description": "Decision receipt signed locally with a throwaway RSA-2048 key using the same RSASSA_PSS_SHA_256 parameters as the KMS signing path. LOCAL SIMULATION ONLY: no AWS KMS call was made and this fixture is not AWS evidence. The private key was discarded after generation; only the public key is committed.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/kms-style-rsa.receipt.json",
+        "--key",
+        "fixtures/keys/kms-style-public-key.pem",
+        "--expected-key-id",
+        "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-0000000000aa",
+        "--pss-mode",
+        "digest-as-message"
+      ],
+      "expected_verdict": "PASS",
+      "expected_failing_checks": null,
+      "expected_recomputed": {
+        "receipt_id": "grct_5dc895402e98810a7b4df34b571debc209a9eeb2bf8823b46c8531048c476bc7",
+        "digest_sha256": "590ec12bbc1e56fdcc169e508776345c74a1c4ddd57685ef6479abcabdaf2d87"
+      }
+    },
+    {
+      "case_id": "pss-kms-style-rsa-wrong-treatment",
+      "description": "The kms-style-rsa signature was produced under digest-as-message; it must NOT verify under digest-as-mhash.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/kms-style-rsa.receipt.json",
+        "--key",
+        "fixtures/keys/kms-style-public-key.pem",
+        "--expected-key-id",
+        "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-0000000000aa",
+        "--pss-mode",
+        "digest-as-mhash"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "signature"
+      ],
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "valid-kms-digest-mode",
+      "description": "Same receipt body as kms-style-rsa, signature produced with OpenSSL over the precomputed digest (AWS KMS MessageType=DIGEST semantics); verifies under digest-as-mhash only.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/kms-digest-mode.receipt.json",
+        "--key",
+        "fixtures/keys/pss-digest-mode-public-key.pem",
+        "--expected-key-id",
+        "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-0000000000bb",
+        "--pss-mode",
+        "digest-as-mhash"
+      ],
+      "expected_verdict": "PASS",
+      "expected_failing_checks": null,
+      "expected_recomputed": {
+        "receipt_id": "grct_5dc895402e98810a7b4df34b571debc209a9eeb2bf8823b46c8531048c476bc7",
+        "digest_sha256": "590ec12bbc1e56fdcc169e508776345c74a1c4ddd57685ef6479abcabdaf2d87"
+      }
+    },
+    {
+      "case_id": "pss-kms-digest-mode-wrong-treatment",
+      "description": "The kms-digest-mode signature must NOT verify under digest-as-message.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/kms-digest-mode.receipt.json",
+        "--key",
+        "fixtures/keys/pss-digest-mode-public-key.pem",
+        "--expected-key-id",
+        "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-0000000000bb",
+        "--pss-mode",
+        "digest-as-message"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "signature"
+      ],
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-001",
+      "description": "Flips the final hex character of receipt_id so the id no longer matches the canonical unsigned receipt.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-001.altered-receipt-id.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "receipt_id"
+      ],
+      "claim_boundary": "receipt_id is derived, not asserted: a mutated id must fail recomputation.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-002",
+      "description": "Flips one hex character of the digestSha256 embedded in the signature envelope, leaving the receipt body and HMAC signature intact.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-002.altered-envelope-digest.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "digest"
+      ],
+      "claim_boundary": "The envelope digest must equal the recomputed canonical unsigned receipt digest even when the raw signature bytes still verify.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-003",
+      "description": "Flips the first byte of the decoded signature and re-encodes it as valid standard base64.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-003.altered-signature.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "signature"
+      ],
+      "claim_boundary": "A syntactically valid but wrong signature must fail cryptographic verification, not just format checks.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-004",
+      "description": "Replaces the envelope keyId with a different non-empty key identifier.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-004.altered-key-id.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "key_id"
+      ],
+      "claim_boundary": "The verifier must bind receipts to an expected key identity, not accept any self-declared keyId.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-005",
+      "description": "Replaces the immutable key ARN in a KMS-algorithm receipt envelope with a mutable KMS alias ARN.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-005.kms-alias-key-id.receipt.json",
+        "--key",
+        "fixtures/keys/kms-style-public-key.pem",
+        "--expected-key-id",
+        "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-0000000000aa",
+        "--pss-mode",
+        "digest-as-message"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "key_id"
+      ],
+      "claim_boundary": "Mutable aliases are not accepted for signed evidence: alias retargeting would break key-identity binding.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-006",
+      "description": "Sets the envelope algorithm to KMS_SIGN_RSASSA_PSS_SHA_256 while the receipt signature_alg remains LOCAL_HMAC_SHA256_DEV_ONLY.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-006.signature-alg-mismatch.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "envelope"
+      ],
+      "claim_boundary": "Algorithm identity is part of the envelope contract; algorithm confusion between envelope and receipt must fail closed.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-007",
+      "description": "Rewrites the envelope schemaVersion to an unsupported value.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-007.envelope-schema-version-mutation.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "envelope"
+      ],
+      "claim_boundary": "Envelope schema versioning is enforced at verification, not only at signing. Before the strict envelope check this mutation verified end-to-end.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-008",
+      "description": "Adds an extra attacker-controlled field to the signature envelope.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-008.envelope-extra-field.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "envelope"
+      ],
+      "claim_boundary": "The envelope field set is exact; smuggled fields must fail closed. Before the strict envelope check this mutation verified end-to-end.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-009",
+      "description": "Removes keyId from the signature envelope.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-009.envelope-missing-field.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "envelope"
+      ],
+      "claim_boundary": "All five envelope fields are required; a missing field must fail closed.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-010",
+      "description": "Re-encodes the canonical envelope JSON as padded standard base64 instead of unpadded base64url. Node's lenient decoder still parses it, so without the strict envelope check this mutation verified end-to-end.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-010.envelope-standard-base64.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "envelope"
+      ],
+      "claim_boundary": "receipt_signature encoding is exact (unpadded base64url); alternative encodings of the same bytes must fail closed.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-011",
+      "description": "Replaces receipt_signature with text that is not base64url and does not decode to JSON.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-011.malformed-base64url-envelope.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "envelope"
+      ],
+      "claim_boundary": "Garbage envelopes must be rejected as malformed, never silently treated as unsigned.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-012",
+      "description": "Flips one hex character of prev_receipt_hash in a chained receipt, attempting to re-point the hash chain.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-012.prev-receipt-hash-mutation.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "receipt_id"
+      ],
+      "claim_boundary": "Chain linkage is signature-bound: rewriting history must break receipt identity and digest binding.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-013",
+      "description": "Flips one hex character of tenant_id_hash, attempting to reassign the receipt to a different tenant identity.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-013.tenant-id-hash-mutation.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "receipt_id"
+      ],
+      "claim_boundary": "Tenant identity is signature-bound inside the receipt; tenant reassignment must fail closed.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-014",
+      "description": "The receipt is a byte-identical copy of a valid tenant-repro-a receipt, presented to a consumer that expects tenant-repro-b. verifyDecisionReceipt alone passes; the tenant expectation must be enforced by the consumer.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-014.cross-tenant-verifier-mismatch.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac",
+        "--tenant",
+        "tenant-repro-b",
+        "--identity-hmac-secret",
+        "ghost-ark-repro-identity-dev-only-test-vector-v1"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "tenant_expectation"
+      ],
+      "claim_boundary": "Documented boundary: verifyDecisionReceipt does not check tenant expectations. A cryptographically valid receipt from tenant A must still be rejected by a tenant-B consumer comparing tenant_id_hash.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-015",
+      "description": "Duplicates the first action_taken entry. Receipt v1 preserves array multiplicity and order in the canonical form, so inserting a duplicate changes the signed bytes.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-015.action-taken-multiplicity.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "receipt_id"
+      ],
+      "claim_boundary": "action_taken multiplicity is semantically significant in receipt v1 and is signature-bound; mutation requires a schema migration, not a silent rewrite.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-016",
+      "description": "Attaches the intact, correctly signed envelope from hmac-chained onto the hmac-baseline receipt body (signature transplant).",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-016.wrong-canonical-payload-signature.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "digest"
+      ],
+      "claim_boundary": "A signature is bound to one canonical payload; transplanting a valid envelope onto a different receipt must fail closed.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-017",
+      "description": "Flips one hex character of input_digest, attempting to re-bind the receipt to a different input.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-017.input-digest-mutation.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "receipt_id"
+      ],
+      "claim_boundary": "Input binding is by digest; changing the claimed input must break receipt identity, digest, and signature checks.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-018",
+      "description": "Drops the last retrieved_context_digests entry, attempting to hide one retrieved context item from the signed record.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-018.retrieved-context-digests-mutation.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "receipt_id"
+      ],
+      "claim_boundary": "Retrieved-context provenance is signature-bound; removing a context digest must fail closed.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-019",
+      "description": "Removes the required policy_hash field entirely, attempting to strip the policy binding from the receipt.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-019.policy-hash-removed.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "schema"
+      ],
+      "claim_boundary": "policy_hash is a required schema field: a receipt without a policy binding must fail schema validation, never default to an unbounded policy.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-020",
+      "description": "Replaces the execution_nonce with a different well-formed nonce, attempting to re-bind the receipt to a different invocation (replay-style re-pointing).",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-020.execution-nonce-mutation.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "receipt_id"
+      ],
+      "claim_boundary": "The execution nonce binds one invocation; re-pointing it must break receipt identity, digest, and signature checks. This fixture covers nonce binding inside the signed receipt, not runtime replay prevention, which is enforced by the nonce store.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-021",
+      "description": "Shifts the receipt timestamp by one second while leaving every other field and the signature intact.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-021.timestamp-manipulation.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "receipt_id"
+      ],
+      "claim_boundary": "The timestamp is signature-bound; back- or forward-dating a receipt must fail closed. This does not prove the original timestamp was accurate, only that it cannot be silently rewritten.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-022",
+      "description": "Rewrites request_id to a value containing non-ASCII text (a precomposed é). Both verifiers must canonicalize the non-ASCII bytes identically and reject via the same recomputed receipt id.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-022.unicode-canonicalization-ambiguity.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "receipt_id"
+      ],
+      "claim_boundary": "Non-ASCII string content must hash identically across independent verifier implementations. The differential test asserts the Node and Python verifiers recompute the same expected receipt id for this fixture; canonicalization performs no Unicode normalization, so NFC and NFD spellings are distinct signed bytes.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-023",
+      "description": "Adds an unsigned top-level field to an otherwise valid, correctly signed receipt (unsigned-claim smuggling).",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-023.receipt-extra-field.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "schema"
+      ],
+      "claim_boundary": "Unknown top-level receipt fields are rejected, not silently stripped. Before the strict schema, validation stripped unknown fields and this mutation verified end-to-end, so a reader of the raw JSON could be shown unsigned attacker-controlled content next to a PASS verdict.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-024",
+      "description": "A truncated copy of the valid baseline receipt: the file is not parseable JSON.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-024.malformed-json.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "load",
+        "schema"
+      ],
+      "claim_boundary": "Malformed receipt documents must be rejected at parse time, never partially interpreted or treated as unsigned.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-025",
+      "description": "Removes receipt_signature entirely, presenting an unsigned receipt as if it were verifiable.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-025.missing-signature.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "schema"
+      ],
+      "claim_boundary": "An unsigned receipt is not a receipt: a missing signature envelope must fail schema validation, never degrade to unsigned acceptance.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-026",
+      "description": "Rewrites schema_version to ghost.receipt.v999, an unsupported version, while leaving the rest of the receipt intact.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-026.unsupported-schema-version.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "schema"
+      ],
+      "claim_boundary": "Verifiers fail closed on unknown receipt schema versions instead of guessing forward-compatible semantics.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-027",
+      "description": "A compromised signer flips the final hex character of receipt_id and then re-signs the payload CONTAINING the wrong id with the published dev-only HMAC test vector. The envelope digest and the signature are both valid over exactly the bytes presented, so only the independent receipt_id recomputation can reject this receipt.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-027.signed-receipt-id-inconsistency.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "receipt_id"
+      ],
+      "claim_boundary": "Isolates the receipt_id check under a key-holding adversary. receipt_id is derived from the payload WITHOUT receipt_id, so a signer can validly sign an inconsistent id; digest and signature validity then say nothing about receipt identity. Note the verifier short-circuits: once receipt_id fails, the signature check reports 'skipped' rather than 'invalid'. The passing digest check is the evidence that the signature was genuinely valid over these bytes.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-028",
+      "description": "A compromised signer replaces tenant_id_hash with a genuine HMAC commitment for tenant-repro-b, recomputes receipt_id, and re-signs. Every intrinsic verifier rule passes. Only a consumer supplying its own expected tenant rejects it.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-028.signed-cross-tenant-substitution.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac",
+        "--tenant",
+        "tenant-repro-a",
+        "--identity-hmac-secret",
+        "ghost-ark-repro-identity-dev-only-test-vector-v1"
+      ],
+      "expected_verdict": "FAIL",
+      "expected_failing_checks": [
+        "tenant_expectation"
+      ],
+      "claim_boundary": "Isolates the tenant_expectation check, and is the Provenance Kernel Problem under a key-holding adversary: the receipt is CORRECT by every intrinsic rule and soundness depends entirely on the consumer set. A verifier with no declared tenant expectation cannot reject this and must not be claimed to.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-029",
+      "description": "A compromised signer backdates the receipt timestamp by one year, recomputes receipt_id, and re-signs. Every verifier rule passes, because this verifier implements no freshness policy.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-029.signed-timestamp-backdating.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "PASS",
+      "expected_failing_checks": null,
+      "claim_boundary": "DOCUMENTED NON-DETECTION, not a defect. This verifier does not check freshness, so a validly-signed backdated receipt is indistinguishable from a genuine one under its rules. Rejecting it requires a consumer freshness policy that this repository does not implement. Recorded so the absence is explicit rather than discovered by a reviewer.",
+      "expected_recomputed": null
+    },
+    {
+      "case_id": "MAL-030",
+      "description": "A compromised signer rewrites decision_post to ALLOW and action_taken to ['allow'], recomputes receipt_id, and re-signs. Every verifier rule passes.",
+      "args": [
+        "--receipt",
+        "fixtures/receipts/MAL-030.signed-decision-escalation.receipt.json",
+        "--hmac-secret",
+        "ghost-ark-repro-signing-dev-only-test-vector-v1",
+        "--expected-key-id",
+        "local-dev-hmac"
+      ],
+      "expected_verdict": "PASS",
+      "expected_failing_checks": null,
+      "claim_boundary": "The sharpest statement of what a receipt is NOT. Signing proves signing authorization over the payload; it does not make the payload true. Under a compromised signer a receipt can attest that a REFUSE was an ALLOW and remain cryptographically flawless. No verifier rule detects this and none is claimed to.",
+      "expected_recomputed": null
+    }
+  ],
+  "non_claim": "Passing this conformance suite establishes that a verifier reaches the declared verdicts on these fixtures under the declared options. It does not establish that the verifier is correct on inputs outside the suite, that the specification itself is free of misreadings, that any receipt is true, or anything about model safety, compliance, or AWS behaviour. The suite NARROWS the independent-implementation gap (EXPERIMENTS.md open gap #10) by making it externally closable; it does not close it."
+}

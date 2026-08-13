@@ -1,0 +1,46 @@
+{
+  "name": "@ghost-ark/receipt-conformance",
+  "version": "0.1.0",
+  "description": "Conformance suite for Ghost-Ark decision-receipt verifiers: implement a verifier from SPEC.md alone, then self-check verdicts, failing checks, and canonical identities against 36 committed vectors with zero Ghost-Ark code.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "receipt-conformance": "run-conformance.mjs"
+  },
+  "exports": {
+    ".": "./run-conformance.mjs"
+  },
+  "files": [
+    "run-conformance.mjs",
+    "conformance.json",
+    "SPEC.md",
+    "BLINDNESS_PROTOCOL.md",
+    "fixtures"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "conformance",
+    "test-vectors",
+    "verifier",
+    "receipt",
+    "canonical-json",
+    "rsa-pss",
+    "hmac",
+    "provenance",
+    "independent-implementation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PSUCyberSecurityLab/ghost-ark.git",
+    "directory": "tools/receipt-conformance"
+  },
+  "homepage": "https://github.com/PSUCyberSecurityLab/ghost-ark/tree/main/tools/receipt-conformance#readme",
+  "bugs": {
+    "url": "https://github.com/PSUCyberSecurityLab/ghost-ark/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

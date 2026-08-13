@@ -44,7 +44,6 @@
     "experiment:e13": "ts-node tools/experiments/e13KernelComposition.ts",
     "experiment:e14": "ts-node tools/experiments/e14ThirdPartyVerifier.ts",
     "experiment:e15-frame-probe": "node tools/experiments/e15NpmFrameProbe.mjs",
-    "experiment:e16": "ts-node tools/experiments/e16ConsumerDistinguishability.ts",
     "kernel-probe": "ts-node tools/experiments/kernelProbe.ts",
     "conformance:build": "node tools/receipt-conformance/build-conformance.mjs",
     "conformance:node": "node tools/receipt-conformance/run-conformance.mjs -- node verifiers/node/ghost_receipt_verify.mjs",
@@ -132,10 +131,5 @@
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
-  },
-  "overrides": {
-    "typed-rest-client": {
-      "qs": "6.15.2"
-    }
   }
 }
