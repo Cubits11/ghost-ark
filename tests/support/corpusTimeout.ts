@@ -1,12 +1,13 @@
 /**
  * A per-test time budget derived from the work the test actually does.
  *
- * WHY THIS EXISTS. `vitest.config.ts` sets `testTimeout: 15000`. That is a
- * *per-test* budget applied to every test regardless of cost, and it cannot be
- * right for a test whose runtime scales with a corpus: the cross-language
- * differential suites spawn a fresh interpreter once per fixture, sequentially,
- * so their cost is (fixtures × process startup) and grows every time a fixture
- * is added.
+ * WHY THIS EXISTS. `vitest.config.ts` sets a single `testTimeout` — 15000 when
+ * this file was written, since raised to 60000 to match the Makefile's declared
+ * load-tolerant value. Either way it is a *per-test* budget applied to every
+ * test regardless of cost, and no single number can be right for a test whose
+ * runtime scales with a corpus: the cross-language differential suites spawn a
+ * fresh interpreter once per fixture, sequentially, so their cost is
+ * (fixtures × process startup) and grows every time a fixture is added.
  *
  * Measured 2026-08-12: `tests/differential/pythonVerifierCorpus.test.ts` and
  * `tests/differential/nodeIndependentVerifier.test.ts` passed in isolation
@@ -40,8 +41,13 @@
  */
 export const PER_SPAWN_MS = 2_000;
 
-/** Floor, so a small corpus still gets more than the suite-wide default. */
-export const CORPUS_TIMEOUT_FLOOR_MS = 30_000;
+/**
+ * Floor, held equal to `testTimeout` in `vitest.config.ts`. A derived budget must never
+ * come out BELOW the suite-wide default: that would silently hold corpus-driven tests to
+ * a tighter standard than everything else, which is the opposite of the intent. Above the
+ * floor the budget scales with the declared work.
+ */
+export const CORPUS_TIMEOUT_FLOOR_MS = 60_000;
 
 /**
  * Budget for a test that spawns one subprocess per item over `spawns` items.
