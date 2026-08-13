@@ -44,7 +44,10 @@
     "experiment:e13": "ts-node tools/experiments/e13KernelComposition.ts",
     "experiment:e14": "ts-node tools/experiments/e14ThirdPartyVerifier.ts",
     "experiment:e15-frame-probe": "node tools/experiments/e15NpmFrameProbe.mjs",
+    "experiment:e16": "ts-node tools/experiments/e16ConsumerDistinguishability.ts",
     "kernel-probe": "ts-node tools/experiments/kernelProbe.ts",
+    "conformance:build": "node tools/receipt-conformance/build-conformance.mjs",
+    "conformance:node": "node tools/receipt-conformance/run-conformance.mjs -- node verifiers/node/ghost_receipt_verify.mjs",
     "build:e11-arm": "cargo build --manifest-path tools/experiments-json/Cargo.toml",
     "experiments": "npm run experiment:e1 && npm run experiment:e1b && npm run experiment:e2 && npm run experiment:e3 && npm run experiment:e4 && npm run experiment:e5 && npm run experiment:e6 && npm run experiment:e7 && npm run build:e11-arm && npm run experiment:e11",
     "test:experiments": "vitest run tests/unit/experiments tests/unit/repo-hygiene",
@@ -129,5 +132,10 @@
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "typed-rest-client": {
+      "qs": "6.15.2"
+    }
   }
 }
