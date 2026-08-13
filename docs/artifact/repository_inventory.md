@@ -50,7 +50,7 @@ still reports whatever is true.
 | Surface | Where | Build / run | Notes |
 |---------|-------|-------------|-------|
 | TypeScript (root workspace) | `apps/`, `packages/`, `services/`, `infra/cdk`, `tools/`, `tests/` | `npm ci`, `npm run lint` (`tsc --noEmit`), `npm test` (vitest) | Node 22 local; CI uses Node 22. `package-lock.json` present. Single root `tsconfig.json`. |
-| TypeScript (DAB agent runtime) | `dab/agent-runtime/` | own `package.json` (ESM, Node ≥22), `vitest` | Separate workspace, own lockfile. Not part of the root `npm test`. |
+| TypeScript (DAB agent runtime) | `dab/agent-runtime/` | own `package.json` (ESM, Node ≥22), `vitest` | Separate workspace, own lockfile. Not part of the root `npm test`. **This row said "own lockfile" from the start and it was false until 2026-08-12**: the file at that path was a copy of `package.json`, so `npm audit` there returned a false `0 vulnerabilities` while a critical sat in the manifest. A real lockfile now exists and both CI gates cover it. |
 | Rust (DAB TCB) | `dab/gateway/`, `dab/verifier/` | `cargo build --release` | **No `Cargo.lock`** committed → `cargo build --locked` will fail until a lockfile is generated. |
 | TLA+ specs | `proofs/tla/`, `proofs/dab/` | TLC via `tla2tools.jar` (Java 11+) | See §4. `proofs/dab/*` do not parse (§7.1). |
 | Python (verifier + Glue) | `verifiers/python/ghost_receipt_verify.py`, `services/transform/glue/jobs/*.py` | `python3` (stdlib only for the verifier) | Used by `tests/differential/pythonVerifierCorpus.test.ts` (skips if no `python3`). |

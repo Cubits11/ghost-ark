@@ -217,12 +217,25 @@ jobs:
       - name: lockfile integrity
         run: npx lockfile-lint --path package-lock.json --allowed-hosts npm --validate-https
 
+      # Every lockfile in the tree, not only the root one. `dab/agent-runtime` is outside
+      # the root workspaces, so nothing here ever read it -- and what sat at that path was
+      # a COPY OF package.json rather than a lockfile, which made `npm audit` in that
+      # directory report a false 0 while Dependabot resolved the manifest ranges and found
+      # a critical. A gate that covers one lockfile in a repository with two is not a
+      # supply-chain control; it is a supply-chain control for half the supply chain.
+      - name: lockfile integrity (dab/agent-runtime)
+        run: npx lockfile-lint --path dab/agent-runtime/package-lock.json --allowed-hosts npm --validate-https
+
       # Threshold set to what the repository can actually hold green today. The remaining
       # advisories are devDependency-only and are enumerated in docs/artifact/CI_COVERAGE.md.
       # Raising this to --audit-level=high requires clearing the SBOM toolchain chain; the
       # honest move is a failing threshold we meet, not a passing one we ignore.
       - name: npm audit (critical)
         run: npm audit --audit-level=critical
+
+      # Same threshold, applied where the critical actually was.
+      - name: npm audit (critical, dab/agent-runtime)
+        run: npm audit --audit-level=critical --prefix dab/agent-runtime
 
       # Report the dev-only advisories without failing, so the count is visible in every run
       # and a regression is noticed rather than discovered during a review.

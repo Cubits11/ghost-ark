@@ -12,6 +12,20 @@ Tier: **core**. Last audited 2026-08-06.
 > experiments` (E1, E1-B, E2–E7, E11), `cargo test --locked` on all four Rust
 > crates (13 / 13 / 4 / 0), and the strict-JSON-admission suite (24 tests).
 >
+> **Corrected 2026-08-12, and the correction is the point of this table.** `dab/agent-runtime`
+> sits outside the root npm workspaces, and the file at
+> `dab/agent-runtime/package-lock.json` was **a copy of `package.json`, not a lockfile**.
+> Consequently `npm audit` run in that directory reported `found 0 vulnerabilities` — a
+> false green — while Dependabot, which resolves manifest ranges directly, reported a
+> **critical**: `vitest ^2.1.0` admits 2.1.0–2.1.8, affected by GHSA-9crc-q9x8-hgqq
+> (RCE via the API server) and GHSA-5xrq-8626-4rwp (UI server arbitrary file read/exec).
+> Note that `^2.1.9` would NOT have been sufficient — GHSA-5xrq affects everything below
+> 3.2.6 — so the range was moved to `^4.1.10`, matching the root. A real lockfile now
+> exists at that path, and both CI gates were widened to cover it. The remaining root
+> advisories (5 high, 2 moderate) are bundled inside `aws-cdk-lib` and `npm audit fix`
+> measurably changes nothing (`added 0, removed 0, changed 0`); they need upstream
+> releases, which is why the gate sits at critical.
+>
 > **Never re-run on either date**, carried forward from their last recorded run:
 > the TLC gate (`tools/proofs/run-tlc.sh`), the E10 mutation score, and the
 > semgrep finding count. Rows sourced from a carried-forward run say so. A
@@ -55,8 +69,8 @@ project.
 | **Semgrep** | `p/default p/security-audit p/secrets`, SARIF uploaded to the Security tab, **gated at ERROR severity** by `tools/ci/sarif-gate.mjs` | `ci.yml` | yes, at ERROR (0 findings). WARNING/INFO remain an untriaged backlog — see the semgrep row under NOT verified |
 | **Secret scanning** | gitleaks 8.30.1 CLI, pinned by version and sha256, over **full history** (`--log-opts=--all`, `fetch-depth: 0`); SARIF uploaded; **any** finding fails | `ci.yml` | yes: `main`'s 229-commit history measured clean 2026-08-06 |
 | **Workflow hardening** | `workflowHardening.test.ts`: every action pinned to a 40-hex commit with a version comment, no `inputs.`/`github.event.`/`github.head_ref` interpolated into a `run:` block, every workflow declares a concurrency group, no deploy cancels mid-apply | `ci.yml` (in `npm test`) | **yes: all five checks verified to fail on a reintroduced defect** |
-| **Lockfile integrity** | `lockfile-lint`: every resolved URL must be an HTTPS npm host | `artifacts-verify.yml` | yes |
-| **Dependency advisories** | `npm audit --audit-level=critical` blocks; full report printed non-blocking | `artifacts-verify.yml` | yes (at critical) |
+| **Lockfile integrity** | `lockfile-lint`: every resolved URL must be an HTTPS npm host. Runs over **both** lockfiles — the root one and `dab/agent-runtime/` (added 2026-08-12; see the row below for why the second one was invisible) | `artifacts-verify.yml` | yes |
+| **Dependency advisories** | `npm audit --audit-level=critical` blocks; full report printed non-blocking. Runs over **both** package trees | `artifacts-verify.yml` | yes (at critical) |
 | **Strict JSON admission** | 24 tests pinning the fix that takes E1's five unintended kernel members to 0 (measured 2026-08-02) | `ci.yml` (in `npm test`) | yes: each rule paired with a demonstration that the collapse it prevents is real |
 | **npm provenance attestation** | `release-provenance.yml`: publishes `@ghost-ark/kernel-probe` to npm on `v*` tag push with `--provenance`. Binds tarball to commit SHA and GitHub Actions execution context. Does **not** prove semantic safety, model alignment, truth, or deployment correctness. | `release-provenance.yml` | yes: fails build on test failure or unpinned action |
 
