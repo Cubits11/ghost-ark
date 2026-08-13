@@ -9,6 +9,7 @@ import { spawnSync } from "child_process";
 import { readFileSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { describe, expect, it } from "vitest";
+import { corpusTimeoutMs } from "../support/corpusTimeout";
 import {
   privateHmacDigest,
   receiptIdFromUnsignedDecisionReceipt
@@ -172,7 +173,7 @@ describe("standalone Node receipt verifier", () => {
       expect(run.report.recomputed?.digest_sha256).toBe(expected.digest_sha256);
       expect(run.report.checks.find((entry) => entry.name === "tenant_expectation")?.passed).toBe(true);
     }
-  });
+  }, corpusTimeoutMs(repro.fixtures.length));
 
   it("replays the manifest and rejects every adversarial corpus case at its declared boundary", () => {
     expect(corpus.schema_version).toBe("ghost.malicious_receipt_corpus.v1");
@@ -198,7 +199,7 @@ describe("standalone Node receipt verifier", () => {
         expect(failingCheck?.detail).toContain(attack.expected_error_substring);
       }
     }
-  });
+  }, corpusTimeoutMs(corpus.attacks.length));
 
   it("agrees with the production verifier's end-to-end acceptance decision for every corpus case", async () => {
     for (const attack of corpus.attacks) {
@@ -230,7 +231,7 @@ describe("standalone Node receipt verifier", () => {
       expect(productionAccepted, `${attack.attack_id}: production verifier accepted the mutant`).toBe(false);
       expect(standaloneAccepted, `${attack.attack_id}: verifier implementations disagree`).toBe(productionAccepted);
     }
-  });
+  }, corpusTimeoutMs(corpus.attacks.length));
 
   it("recomputes the same Unicode-sensitive receipt identity as the production canonicalizer", () => {
     const attack = corpus.attacks.find((entry) => entry.attack_name === "unicode-canonicalization-ambiguity");

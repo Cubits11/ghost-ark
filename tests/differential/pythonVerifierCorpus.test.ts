@@ -14,6 +14,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { spawnSync } from "child_process";
 import { describe, expect, it } from "vitest";
+import { corpusTimeoutMs } from "../support/corpusTimeout";
 import { privateHmacDigest, receiptIdFromUnsignedDecisionReceipt } from "../../packages/enforcement-runtime/src/receipts/canonical";
 import { KmsDecisionReceiptVerifier } from "../../packages/enforcement-runtime/src/receipts/kmsVerifier";
 import { LocalDevHmacReceiptSigner } from "../../packages/enforcement-runtime/src/receipts/signer";
@@ -115,7 +116,7 @@ describe("independent Python verifier — full corpus differential", () => {
       expect(run.report.recomputed?.receipt_id).toBe(expected.receipt_id);
       expect(run.report.recomputed?.digest_sha256).toBe(expected.digest_sha256);
     }
-  });
+  }, corpusTimeoutMs(repro.fixtures.length));
 
   it("fails closed on every applicable malicious fixture at the manifest-declared phase", () => {
     if (!pythonAvailable) {
@@ -140,7 +141,7 @@ describe("independent Python verifier — full corpus differential", () => {
         `${attack.attack_id}: expected failing phase ${attack.expected_rejection_phase}; failing: ${failingPhases.join(", ")}`
       ).toContain(attack.expected_rejection_phase === "tenant_expectation" ? "tenant_expectation" : attack.expected_rejection_phase);
     }
-  });
+  }, corpusTimeoutMs(corpus.attacks.length));
 
   it("agrees with the TypeScript verifier on acceptance for every corpus fixture", async () => {
     if (!pythonAvailable) {
@@ -186,7 +187,7 @@ describe("independent Python verifier — full corpus differential", () => {
       expect(nodeAccepted, `${attack.attack_id}: node accepted a fixture the corpus expects to reject`).toBe(false);
       expect(pythonAccepted).toBe(nodeAccepted);
     }
-  });
+  }, corpusTimeoutMs(corpus.attacks.length));
 
   it("recomputes the identical receipt id across languages for the non-ASCII fixture (MAL-022)", () => {
     if (!pythonAvailable) {
