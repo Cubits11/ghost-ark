@@ -137,6 +137,12 @@ const TEST_FILES = [
   "tests/unit/enforcement-runtime/vault/test_memory_suppression.test.ts",
   "tests/unit/enforcement-runtime/vault/test_ttl_filtering.test.ts",
   "tests/unit/experiments/compromisedSigner.test.ts",
+  // Added 2026-08-12 with E16. Reaches the kernel through the E16 harness, which
+  // computes the real receipt digest to MEASURE (not assert) that each pair
+  // collapses before feeding it to the deployed consumers. Same import-graph rule
+  // as E13/E14 below: this list must EQUAL the set of tests that transitively
+  // import the trust kernel, so its presence here is mechanical, not a judgement.
+  "tests/unit/experiments/consumerDistinguishability.test.ts",
   "tests/unit/experiments/kernelCensus.test.ts",
   // Added 2026-08-12 with E13. Not a judgement call: the invariant in
   // mutationScope.test.ts requires this list to EQUAL the set of tests that

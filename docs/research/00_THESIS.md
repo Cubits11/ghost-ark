@@ -60,6 +60,7 @@ Every row is a command. Run them; do not take this document's word for anything.
 | Those rejections are **not tautological** | With every verifier check forced to pass, only the parse failure still rejects | `npm run experiment:e4` |
 | Formal invariants are load-bearing | Each TLA+ spec ships with a mutant that produces a counterexample | `proofs/tla/`, `proofs/dab/artifacts/` |
 | Cryptography is no longer this project's word | A verifier arm delegating canonical JSON and base64 to CPython and SHA-256/HMAC/RSASSA-PSS to OpenSSL agrees on **31/31** fixtures and reproduces **3/3** committed canonical identities | `npm run experiment:e14` |
+| A named, deployed consumer distinguishes a pair the receipt collapses — the thesis made consequential, not just structural | OPA/Rego 1.19.0, CUE v0.17.1, and jq 1.7.1 each reach two decisions on one receipt identity; 8 such cells; discriminator holds; CPython correctly does **not** split the pair it collapses | `npm run experiment:e16` |
 | Non-claim vocabulary is enforced, not promised | 801 files scanned, 0 violations | `npm run scan:claims` |
 
 The full pre-registration, measured numbers, and coverage boundaries:
@@ -118,9 +119,17 @@ Two things E12 does not settle, recorded so the confirmation is not over-read. I
 not equally informative — `unsafe-magnitude-integer` had **zero opportunities** to fire because
 the corpus contains 103 numbers in total — and at the level of independent producers the sample
 has n = 16, below the interval floor, so **no rate can be bounded at all**. Full result and
-coverage boundary in EXPERIMENTS.md §E12; what replaces F2 as the live weakness is recorded in
-§Open Gaps, and it is narrower: **no consumer has been named and shown to distinguish any
-pair.**
+coverage boundary in EXPERIMENTS.md §E12.
+
+**The weakness that replaced F2 — "no consumer has been named and shown to distinguish any
+pair" — is now closed by E16.** OPA/Rego 1.19.0, CUE v0.17.1, and jq 1.7.1 each reach two
+different decisions on `{"rate":0.1}` and `{"rate":0.1000…0555}`, two documents the Ghost-Ark
+receipt canonicalizer maps to one identity (`sha256 1b8466c9…`) — one receipt identity, two
+consumer outcomes, both documents parsed. Every `distinct` intent in this work was a *declared*
+consumer model; E16 makes one *observed*, on deployed, version-pinned engines, by execution.
+That converts the claim from structural to consequential. It does not make it prevalent: E16 is
+an existence result, and E12's 0/64 for real traffic stands beside it unchanged. The live gap
+is now incidence, not existence — see EXPERIMENTS.md §E16 and §Open Gaps.
 
 ## 5. What Is Explicitly Not Claimed
 
