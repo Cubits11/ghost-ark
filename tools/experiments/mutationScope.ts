@@ -148,6 +148,12 @@ const TEST_FILES = [
   "tests/unit/experiments/optionConfusionAndFuzz.test.ts",
   "tests/unit/experiments/randomizedKernel.test.ts",
   "tests/unit/experiments/thirdPartyKernel.test.ts",
+  // Added 2026-08-12 with E14. Reaches the kernel through the E14 harness,
+  // which drives the real verifier as the comparison arm. Same rule as E13
+  // above: the invariant is import-closure equality, not a judgement about
+  // killing power, and adding killers can only raise a score — so every E10
+  // figure recorded before this date is a lower bound with respect to it.
+  "tests/unit/experiments/thirdPartyVerifier.test.ts",
   "tests/unit/policy-compiler/policyCounterexampleEngine.test.ts",
   "tests/unit/policy-compiler/tenantNamespace.test.ts",
   "tests/unit/proofs/receiptProof.test.ts",

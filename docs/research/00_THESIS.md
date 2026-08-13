@@ -59,6 +59,7 @@ Every row is a command. Run them; do not take this document's word for anything.
 | The adversarial corpus is rejected by the real verifier | 28/28 detectable rejected; 26/26 by verifier rules alone; 3/3 unmutated controls PASS; 2 documented boundaries excluded from the rate | `npm run experiment:e3` |
 | Those rejections are **not tautological** | With every verifier check forced to pass, only the parse failure still rejects | `npm run experiment:e4` |
 | Formal invariants are load-bearing | Each TLA+ spec ships with a mutant that produces a counterexample | `proofs/tla/`, `proofs/dab/artifacts/` |
+| Cryptography is no longer this project's word | A verifier arm delegating canonical JSON and base64 to CPython and SHA-256/HMAC/RSASSA-PSS to OpenSSL agrees on **31/31** fixtures and reproduces **3/3** committed canonical identities | `npm run experiment:e14` |
 | Non-claim vocabulary is enforced, not promised | 801 files scanned, 0 violations | `npm run scan:claims` |
 
 The full pre-registration, measured numbers, and coverage boundaries:

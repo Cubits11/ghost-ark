@@ -1517,6 +1517,146 @@ repair-impossibility argument given above, which does not depend on the domain s
 
 ---
 
+## E14 — Does the verdict survive cryptography this project did not write?
+
+**Hypothesis.** The accept/reject decisions this repository reports are properties of the
+receipt rules, not of the author's reading of SHA-256, HMAC, base64url, or RSASSA-PSS.
+
+**Why E5 cannot answer this.** E5 reports 0 disagreements across three verifiers, and its own
+coverage boundary says why that is weaker than it sounds: all three were written by one author
+from one specification, and the Python arm hand-implements EMSA-PSS with the same reading as
+the other two. **Three implementations of one misreading agree perfectly.** No amount of
+internal agreement detects that, which is exactly why open gap #10 exists.
+
+**Design.** `verifiers/thirdparty/ghost_receipt_verify_thirdparty.py` runs the same rule
+sequence with every security-relevant primitive delegated outside this repository:
+
+| decision | delegated to |
+|:---|:---|
+| canonical JSON | CPython `json` (native `sort_keys`, compact separators) |
+| SHA-256 | `openssl dgst -sha256` |
+| HMAC-SHA-256 | `openssl dgst -sha256 -hmac` |
+| RSASSA-PSS | `openssl pkeyutl -verify -pkeyopt rsa_padding_mode:pss` |
+| base64 / base64url | CPython `base64` (native) |
+
+`hashlib` and `hmac` are deliberately **not** imported: they are CPython's own and would still
+be third-party to Ghost-Ark, but OpenSSL buys a second, separately maintained implementation,
+and the point of the arm is to maximise that distance. `thirdPartyVerifier.test.ts` asserts
+both properties against the source text, because an arm that quietly imports the thing it is
+checking is not an arm.
+
+**Provenance: census.** Every fixture is run. Exact counts, no intervals.
+
+**Command:** `npm run experiment:e14`
+
+### Measured result — 2026-08-12
+
+Host: darwin/arm64, CPython 3.14.6, OpenSSL 3.6.2.
+
+| | count |
+|:---|---:|
+| fixtures compared (3 reproducibility + 28 corpus) | **31** |
+| decisions in agreement | **31** |
+| disagreements | **0** |
+| committed canonical identities reproduced by CPython's canonicalizer | **3/3** |
+| PSS treatments accepted by OpenSSL per RSA fixture | **exactly 1** |
+
+### Findings
+
+**F14.1 — The identity layer survives an independent canonicalizer.** CPython's own
+`json.dumps(sort_keys=True, ensure_ascii=False, separators=(",", ":"))` reproduces every
+committed `receipt_id` and canonical digest byte-for-byte. Ghost-Ark's canonicalizer and
+CPython's serializer were written by different people and agree on these fixtures. That is a
+real independence result for the layer the whole thesis is about — and it is scoped to these
+fixtures, not to JSON: E1 and E11 show precisely where such agreement breaks down.
+
+**F14.2 — The cryptographic layer is no longer this project's word.** Every digest, HMAC, and
+PSS verification in the arm is computed by OpenSSL. A shared misreading of PSS, MGF1, salt
+length, or base64url can no longer hide behind three implementations that agree, because a
+different set of authors now decides those questions.
+
+**F14.3 — An external oracle confirms the PSS treatments are not interchangeable.** E6 already
+asserts that an RSA receipt verifies under exactly one of `digest-as-message` /
+`digest-as-mhash`, using this repository's own code. OpenSSL now says the same thing from
+outside it, and identifies which treatment the committed fixture satisfies:
+`kms-style-rsa` verifies under **`digest-as-message` only**. That matches what
+[RECEIPT_REPRODUCIBILITY_PROTOCOL.md](./RECEIPT_REPRODUCIBILITY_PROTOCOL.md) already declares
+about the committed local fixtures, and it is the first time an implementation from outside
+this repository has adjudicated it. The declaration was correct.
+
+**F14.4 — The differential found a missing rule, in the arm, on its first run.** The first
+version of the arm accepted `MAL-007` (envelope `schemaVersion` mutation) and `MAL-008`
+(extra envelope field), which Ghost-Ark rejects. Neither was a Ghost-Ark defect: the arm had
+not implemented envelope strictness. **It is recorded here rather than quietly fixed, because
+"the independent arm was missing a rule" and "the two implementations disagree" produce the
+same disagreement count and mean completely different things.** The rules were added and the
+count went to 0. Anyone reading only the final 31/31 would otherwise conclude the arm had
+agreed from the start.
+
+### What E14 closes, and what it does not
+
+It closes shared-misreading risk for the **cryptographic and encoding layers**. It does **not**
+close open gap #10. The rule sequencing — which checks run, over which fields, in what order —
+is still this project's, and a misreading there would be reproduced faithfully by both arms,
+because both arms implement it from the same reading. Only an implementation written by
+somebody else, from the specification, fixes that, and none exists.
+
+### Coverage boundary
+
+One machine, one CPython, one OpenSSL. Thirty-one fixtures, not a sample of receipts. The arm
+implements the decision-receipt rules only; the evidence-receipt path (`tools/ghost-verify.mjs`)
+is not covered. Agreement is differential evidence over these fixtures, not an audit, not a
+proof that the rules are complete, and not evidence about model safety, compliance, or AWS
+behaviour. A disagreement would be informative; agreement is weak evidence, and is the reason
+the discriminator tests exist — the arm is shown to reject a tampered signature, a wrong
+expected key id, and the PSS treatment the fixture was not signed under.
+
+---
+
+## E15 (frame probe) — is a second real-traffic population reachable?
+
+**Not an experiment.** It measures no incidence and states no rate. Open gap #3 recorded a
+*decision* ("no defensible sampling frame for npm was established, so it was not run rather
+than run badly") without recording a *measurement*, so nobody could tell whether the frame was
+unreachable, expensive, or merely un-attempted. This probe answers that with evidence.
+
+**Command:** `npm run experiment:e15-frame-probe`
+
+### Measured result — 2026-08-12, seed 20260812
+
+| | observed |
+|:---|:---|
+| population | **4,283,913** documents in the npm registry replica |
+| offset access (`skip`) | **refused**, HTTP 400 |
+| key-ordered access (`startkey`) | **supported**, and the response discloses `offset` — the key's rank in the total ordering |
+| eligible fraction | **0 of 40** drawn packages carry a provenance attestation on their latest version |
+
+**F15.1 — The frame is reachable, and the earlier gap text understated what was known.** Because
+`startkey` responses disclose the rank of the key, exact uniform-by-rank sampling is possible
+by binary search on the key space, without enumerating 4.28M packages. A defensible frame
+exists. That is a strictly better position than "no defensible sampling frame was established".
+
+**F15.2 — The binding constraint is eligibility, not the frame.** npm provenance postdates most
+of the registry, so a uniform draw over packages is dominated by the pre-provenance long tail.
+At the eligibility measured here, reaching E12's n = 64 would require on the order of 10⁴
+package fetches against a public registry. The run is therefore **specified and costed rather
+than executed**, which is the same decision as before but now made on a measurement.
+
+**F15.3 — npm would nonetheless be the better population, and this is why.** Rekor stores only
+hashes for `dsse` entries, which is what capped E12's eligibility at about 2%. npm serves the
+full DSSE envelope including the base64 payload, so attestation bytes can be scanned directly.
+A second population would be genuinely independent of Rekor rather than a second view of it.
+
+### Coverage boundary
+
+The eligibility draw uses random-key sampling, which is **not** uniform over packages — a
+package following a large lexicographic gap is oversampled. It is used only for an
+order-of-magnitude estimate, which is robust to that bias, and it is explicitly not the scheme
+a real run would use; the intended scheme is recorded in the emitted report. One registry, one
+day. Nothing here says any package, publisher, or attestation is correct, safe, or defective.
+
+---
+
 ## Retractions
 
 Prior claims in this repository that these experiments contradict. Listed rather than
@@ -1560,9 +1700,15 @@ Honest list of what is missing, ordered by how much it would strengthen the work
    from 16 producers; the clustered denominator is below `MIN_N_FOR_PROPORTION_INTERVAL`
    and the interval is refused. A larger draw, or a second population, is needed before any
    rate statement is defensible.
-3. **No second real-traffic population.** npm provenance attestations expose full DSSE
-   payload bytes and would be genuinely independent of Rekor. No defensible sampling frame
-   for npm was established, so it was not run rather than run badly.
+3. **No second real-traffic population** — but the frame question is now measured rather
+   than asserted. npm provenance attestations expose full DSSE payload bytes and would be
+   genuinely independent of Rekor. **E15's frame probe (2026-08-12) establishes that a
+   defensible frame IS reachable**: `skip` is refused, but `startkey` responses disclose the
+   key's rank, so exact uniform-by-rank sampling is possible by binary search over 4,283,913
+   documents. The binding constraint turned out to be eligibility, not the frame — **0 of 40
+   drawn packages carry a provenance attestation on their latest version**, because npm
+   provenance postdates most of the registry. Reaching E12's n = 64 would take on the order of
+   10^4 fetches against a public registry. Still not run; now specified and costed.
 4. ~~**No compromised-signer fixtures.**~~ CLOSED by E4-B. Remaining: no RSA/KMS
    compromised-signer coverage (public key only), and no record-receipt (`rct_`) fixtures,
    which leaves the `tenant` check unisolated.
@@ -1578,6 +1724,13 @@ Honest list of what is missing, ordered by how much it would strengthen the work
    repository — policy evaluation, runtime, vault, retrieval, gateway, the CDK stack — has no
    measured test strength at all. A repo-wide mutation score is not reported because it has
    not been run.
-10. **No third-party reimplementation.** E5 reports agreement across three verifiers written
-   by the same author from the same specification; they can share a misreading. Only a
-   genuinely independent implementation fixes this, and none exists.
+10. **No third-party reimplementation** — narrowed by E14, not closed. E5 reports agreement
+   across three verifiers written by the same author from the same specification; they can
+   share a misreading, and the Python arm hand-implements EMSA-PSS with the same reading as
+   the other two. **E14 removes this project's code from every cryptographic and encoding
+   decision** — canonical JSON and base64 by CPython's own libraries, SHA-256, HMAC and
+   RSASSA-PSS by the OpenSSL CLI — and reports 31/31 agreement with 3/3 canonical identities
+   reproduced. A shared misreading of PSS or base64url can no longer hide. **What remains is
+   the part E14 cannot reach**: the rule sequencing is still this project's, and both arms
+   implement it from the same reading. Only an implementation written by somebody else, from
+   the specification, fixes that, and none exists.
