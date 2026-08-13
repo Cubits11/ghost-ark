@@ -182,7 +182,7 @@ on the first thing a reviewer checks.
 
 - npm run lint passes
 
-- npm test passes: 165 test files, 1274 tests (1 file / 9 tests skipped), measured 2026-08-11.
+- npm test passes: 172 test files, 1434 tests (1 file / 9 tests skipped), re-measured 2026-08-12 (supersedes 165 / 1274 of 2026-08-11).
   Commit-relative by construction — re-measure, and treat only a *decrease* as suspicious.
   **This line read "162 files, 1253 tests, passes" on 2026-08-04 while `npm test` was
   actually RED**: `publicInterface.test.ts` exceeded the 15s timeout and failed

@@ -1,0 +1,458 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1168 924" width="1168" height="924" role="img" aria-label="Every cell of the kernel census: 31 pathology classes × 5 pipelines">
+  <style>
+    :root{
+      --ink:#0f172a; --mut:#5b6676; --faint:#8b95a5; --line:#d8dee8; --edge:#e7ecf3;
+      --pane:#f7f9fc; --pane2:#eef2f8; --card:#ffffff;
+      --acc:#4f46e5; --pos:#0d9488; --warn:#b8690c; --dngr:#c02626; --vio:#7c3aed; --steel:#3b6ea5;
+      --accSoft:#e8e7fd; --posSoft:#d8f2ee; --warnSoft:#fbecd8; --dngrSoft:#fbe0e0; --vioSoft:#eee6fd; --steelSoft:#e0ebf7;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --ink:#e6edf3; --mut:#9aa7b4; --faint:#6e7d8d; --line:#303844; --edge:#232b36;
+        --pane:#11161d; --pane2:#161d26; --card:#0d1117;
+        --acc:#8b93f8; --pos:#2dd4bf; --warn:#e8a33d; --dngr:#f87171; --vio:#a78bfa; --steel:#6ea8dc;
+        --accSoft:#232449; --posSoft:#123c3a; --warnSoft:#3a2a12; --dngrSoft:#3d1d1d; --vioSoft:#2b2247; --steelSoft:#16283c;
+      }
+    }
+    .s{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
+    .m{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+    .ink{fill:var(--ink)} .mut{fill:var(--mut)} .faint{fill:var(--faint)}
+    .acc{fill:var(--acc)} .pos{fill:var(--pos)} .warn{fill:var(--warn)}
+    .dngr{fill:var(--dngr)} .vio{fill:var(--vio)} .steel{fill:var(--steel)}
+    .t{font-weight:700;letter-spacing:-0.2px}
+    .k{font-weight:600;letter-spacing:0.9px;text-transform:uppercase}
+  </style>
+  <rect x="0.5" y="0.5" width="1167" height="923" rx="14" fill="var(--card)" stroke="var(--edge)" stroke-width="1"/>
+  <text x="28" y="38" class="s acc-k mut k" font-size="10.5">Figure 2 · experiment E1</text>
+  <text x="28" y="64" class="s ink t" font-size="19">Every cell of the kernel census: 31 pathology classes × 5 pipelines</text>
+<text x="28" y="88" class="s mut" font-size="12">Read a column downward for one pipeline's behaviour; a row across for how five pipelines disagree about one input pair.</text>
+<rect x="28" y="104" width="10" height="10" rx="2.5" fill="var(--pos)"/>
+<text x="44" y="113" class="s mut" font-size="10.5">sound</text>
+<rect x="76.5" y="104" width="10" height="10" rx="2.5" fill="var(--dngr)"/>
+<text x="92.5" y="113" class="s mut" font-size="10.5">unintended kernel</text>
+<rect x="198.2" y="104" width="10" height="10" rx="2.5" fill="var(--warn)"/>
+<text x="214.2" y="113" class="s mut" font-size="10.5">over-discrimination</text>
+<rect x="332.1" y="104" width="10" height="10" rx="2.5" fill="var(--steel)"/>
+<text x="348.1" y="113" class="s mut" font-size="10.5">fail-closed</text>
+<rect x="417.2" y="104" width="10" height="10" rx="2.5" fill="var(--vio)"/>
+<text x="433.2" y="113" class="s mut" font-size="10.5">sound-by-rejection</text>
+<text x="428" y="128" class="s ink t" font-size="10.8" text-anchor="middle">ghost ark receipt</text>
+<text x="428" y="142" class="s ink t" font-size="10.8" text-anchor="middle">schema</text>
+<text x="428" y="162" class="s faint k" font-size="9.5" text-anchor="middle">this repository</text>
+<text x="580" y="128" class="s ink t" font-size="10.8" text-anchor="middle">ghost ark independent</text>
+<text x="580" y="142" class="s ink t" font-size="10.8" text-anchor="middle">verifier</text>
+<text x="580" y="162" class="s faint k" font-size="9.5" text-anchor="middle">this repository</text>
+<text x="732" y="128" class="s ink t" font-size="10.8" text-anchor="middle">ghost ark strict</text>
+<text x="732" y="142" class="s ink t" font-size="10.8" text-anchor="middle">admission</text>
+<text x="732" y="162" class="s faint k" font-size="9.5" text-anchor="middle">mitigation</text>
+<rect x="659" y="174" width="146" height="626" rx="6" fill="var(--posSoft)" opacity="0.55"/>
+<text x="884" y="128" class="s ink t" font-size="10.8" text-anchor="middle">naive sorted</text>
+<text x="884" y="142" class="s ink t" font-size="10.8" text-anchor="middle">stringify</text>
+<text x="884" y="162" class="s faint k" font-size="9.5" text-anchor="middle">control</text>
+<text x="1036" y="128" class="s ink t" font-size="10.8" text-anchor="middle">python json sorted</text>
+<text x="1036" y="162" class="s faint k" font-size="9.5" text-anchor="middle">independent parser</text>
+<rect x="28" y="181" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="195.5" class="m ink" font-size="11">duplicate-key-last-wins</text>
+<text x="338" y="195.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="184" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="428" y="196" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="516" y="184" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="580" y="196" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="668" y="184" width="128" height="15" rx="4" fill="var(--vioSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="196" class="s mut" font-size="9.4" text-anchor="middle">sound-by-rejection</text>
+<rect x="820" y="184" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="884" y="196" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="972" y="184" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="1036" y="196" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<text x="28" y="215.5" class="m ink" font-size="11">integer-precision-loss</text>
+<text x="338" y="215.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="204" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="428" y="216" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="516" y="204" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="580" y="216" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="668" y="204" width="128" height="15" rx="4" fill="var(--steelSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="216" class="s mut" font-size="9.4" text-anchor="middle">fail-closed</text>
+<rect x="820" y="204" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="884" y="216" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="972" y="204" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="216" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="28" y="221" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="235.5" class="m ink" font-size="11">decimal-literal-collapse</text>
+<text x="338" y="235.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="224" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="428" y="236" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="516" y="224" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="580" y="236" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="668" y="224" width="128" height="15" rx="4" fill="var(--vioSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="236" class="s mut" font-size="9.4" text-anchor="middle">sound-by-rejection</text>
+<rect x="820" y="224" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="884" y="236" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="972" y="224" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="1036" y="236" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<text x="28" y="255.5" class="m ink" font-size="11">non-finite-overflow</text>
+<text x="338" y="255.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="244" width="128" height="15" rx="4" fill="var(--steelSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="256" class="s mut" font-size="9.4" text-anchor="middle">fail-closed</text>
+<rect x="516" y="244" width="128" height="15" rx="4" fill="var(--steelSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="256" class="s mut" font-size="9.4" text-anchor="middle">fail-closed</text>
+<rect x="668" y="244" width="128" height="15" rx="4" fill="var(--steelSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="256" class="s mut" font-size="9.4" text-anchor="middle">fail-closed</text>
+<rect x="820" y="244" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="884" y="256" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="972" y="244" width="128" height="15" rx="4" fill="var(--steelSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="256" class="s mut" font-size="9.4" text-anchor="middle">fail-closed</text>
+<rect x="28" y="261" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="275.5" class="m ink" font-size="11">lone-surrogate-escape</text>
+<text x="338" y="275.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="264" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="276" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="264" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="276" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="264" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="276" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="264" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="276" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="264" width="128" height="15" rx="4" fill="var(--vioSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="276" class="s mut" font-size="9.4" text-anchor="middle">sound-by-rejection</text>
+<text x="28" y="295.5" class="m ink" font-size="11">unicode-nfc-vs-nfd</text>
+<text x="338" y="295.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="284" width="128" height="15" rx="4" fill="var(--warnSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="296" class="s mut" font-size="9.4" text-anchor="middle">over-discrimination</text>
+<rect x="516" y="284" width="128" height="15" rx="4" fill="var(--warnSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="296" class="s mut" font-size="9.4" text-anchor="middle">over-discrimination</text>
+<rect x="668" y="284" width="128" height="15" rx="4" fill="var(--warnSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="296" class="s mut" font-size="9.4" text-anchor="middle">over-discrimination</text>
+<rect x="820" y="284" width="128" height="15" rx="4" fill="var(--warnSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="296" class="s mut" font-size="9.4" text-anchor="middle">over-discrimination</text>
+<rect x="972" y="284" width="128" height="15" rx="4" fill="var(--warnSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="296" class="s mut" font-size="9.4" text-anchor="middle">over-discrimination</text>
+<rect x="28" y="301" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="315.5" class="m ink" font-size="11">object-key-order</text>
+<text x="338" y="315.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="304" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="316" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="304" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="316" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="304" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="316" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="304" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="316" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="304" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="316" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="335.5" class="m ink" font-size="11">insignificant-whitespace</text>
+<text x="338" y="335.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="324" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="336" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="324" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="336" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="324" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="336" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="324" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="336" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="324" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="336" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="28" y="341" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="355.5" class="m ink" font-size="11">escaped-vs-literal-char</text>
+<text x="338" y="355.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="344" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="356" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="344" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="356" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="344" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="356" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="344" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="356" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="344" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="356" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="375.5" class="m ink" font-size="11">numeric-exponent-form</text>
+<text x="338" y="375.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="364" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="376" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="364" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="376" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="364" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="376" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="364" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="376" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="364" width="128" height="15" rx="4" fill="var(--warnSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="376" class="s mut" font-size="9.4" text-anchor="middle">over-discrimination</text>
+<rect x="28" y="381" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="395.5" class="m ink" font-size="11">negative-zero</text>
+<text x="338" y="395.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="384" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="396" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="384" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="396" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="384" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="396" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="384" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="396" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="384" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="396" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="415.5" class="m ink" font-size="11">string-vs-number-type</text>
+<text x="338" y="415.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="404" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="416" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="404" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="416" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="404" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="416" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="404" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="416" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="404" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="416" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="28" y="421" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="435.5" class="m ink" font-size="11">nested-duplicate-key-in-array</text>
+<text x="338" y="435.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="424" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="428" y="436" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="516" y="424" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="580" y="436" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="668" y="424" width="128" height="15" rx="4" fill="var(--vioSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="436" class="s mut" font-size="9.4" text-anchor="middle">sound-by-rejection</text>
+<rect x="820" y="424" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="884" y="436" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="972" y="424" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="1036" y="436" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<text x="28" y="455.5" class="m ink" font-size="11">duplicate-empty-key</text>
+<text x="338" y="455.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="444" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="428" y="456" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="516" y="444" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="580" y="456" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="668" y="444" width="128" height="15" rx="4" fill="var(--vioSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="456" class="s mut" font-size="9.4" text-anchor="middle">sound-by-rejection</text>
+<rect x="820" y="444" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="884" y="456" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="972" y="444" width="128" height="15" rx="4" fill="var(--dngrSoft)" stroke="var(--dngr)" stroke-width="1.1"/>
+<text x="1036" y="456" class="s ink" font-size="9.4" text-anchor="middle">unintended kernel</text>
+<rect x="28" y="461" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="475.5" class="m ink" font-size="11">proto-literal-key</text>
+<text x="338" y="475.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="464" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="476" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="464" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="476" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="464" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="476" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="464" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="476" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="464" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="476" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="495.5" class="m ink" font-size="11">array-element-order</text>
+<text x="338" y="495.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="484" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="496" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="484" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="496" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="484" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="496" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="484" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="496" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="484" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="496" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="28" y="501" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="515.5" class="m ink" font-size="11">null-vs-absent-key</text>
+<text x="338" y="515.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="504" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="516" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="504" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="516" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="504" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="516" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="504" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="516" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="504" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="516" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="535.5" class="m ink" font-size="11">false-vs-zero</text>
+<text x="338" y="535.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="524" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="536" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="524" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="536" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="524" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="536" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="524" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="536" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="524" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="536" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="28" y="541" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="555.5" class="m ink" font-size="11">empty-string-vs-null</text>
+<text x="338" y="555.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="544" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="556" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="544" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="556" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="544" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="556" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="544" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="556" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="544" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="556" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="575.5" class="m ink" font-size="11">float-vs-integer-same-value</text>
+<text x="338" y="575.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="564" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="576" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="564" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="576" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="564" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="576" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="564" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="576" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="564" width="128" height="15" rx="4" fill="var(--warnSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="576" class="s mut" font-size="9.4" text-anchor="middle">over-discrimination</text>
+<rect x="28" y="581" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="595.5" class="m ink" font-size="11">trailing-zero-fraction</text>
+<text x="338" y="595.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="584" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="596" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="584" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="596" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="584" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="596" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="584" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="596" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="584" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="596" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="615.5" class="m ink" font-size="11">plus-signed-exponent</text>
+<text x="338" y="615.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="604" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="616" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="604" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="616" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="604" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="616" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="604" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="616" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="604" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="616" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="28" y="621" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="635.5" class="m ink" font-size="11">uppercase-exponent-marker</text>
+<text x="338" y="635.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="624" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="636" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="624" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="636" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="624" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="636" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="624" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="636" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="624" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="636" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="655.5" class="m ink" font-size="11">escaped-solidus</text>
+<text x="338" y="655.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="644" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="656" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="644" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="656" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="644" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="656" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="644" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="656" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="644" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="656" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="28" y="661" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="675.5" class="m ink" font-size="11">escape-hex-case</text>
+<text x="338" y="675.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="664" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="676" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="664" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="676" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="664" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="676" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="664" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="676" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="664" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="676" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="695.5" class="m ink" font-size="11">surrogate-pair-vs-literal-astral</text>
+<text x="338" y="695.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="684" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="696" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="684" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="696" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="684" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="696" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="684" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="696" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="684" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="696" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="28" y="701" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="715.5" class="m ink" font-size="11">key-order-non-ascii</text>
+<text x="338" y="715.5" class="s faint k" font-size="9.5" text-anchor="end">equivalent</text>
+<rect x="364" y="704" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="716" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="704" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="716" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="704" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="716" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="704" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="716" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="704" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="716" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="735.5" class="m ink" font-size="11">safe-integer-neighbours</text>
+<text x="338" y="735.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="724" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="736" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="724" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="736" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="724" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="736" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="724" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="736" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="724" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="736" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="28" y="741" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="755.5" class="m ink" font-size="11">deep-nesting-depth</text>
+<text x="338" y="755.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="744" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="756" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="744" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="756" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="744" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="756" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="744" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="756" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="744" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="756" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<text x="28" y="775.5" class="m ink" font-size="11">large-document-single-byte</text>
+<text x="338" y="775.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="764" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="776" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="516" y="764" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="776" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="668" y="764" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="776" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="820" y="764" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="776" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="972" y="764" width="128" height="15" rx="4" fill="var(--posSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="776" class="s mut" font-size="9.4" text-anchor="middle">sound</text>
+<rect x="28" y="781" width="1112" height="20" rx="0" fill="var(--pane)" opacity="0.55"/>
+<text x="28" y="795.5" class="m ink" font-size="11">leading-zero-integer</text>
+<text x="338" y="795.5" class="s faint k" font-size="9.5" text-anchor="end">distinct</text>
+<rect x="364" y="784" width="128" height="15" rx="4" fill="var(--vioSoft)" stroke="none" stroke-width="1.1"/>
+<text x="428" y="796" class="s mut" font-size="9.4" text-anchor="middle">sound-by-rejection</text>
+<rect x="516" y="784" width="128" height="15" rx="4" fill="var(--vioSoft)" stroke="none" stroke-width="1.1"/>
+<text x="580" y="796" class="s mut" font-size="9.4" text-anchor="middle">sound-by-rejection</text>
+<rect x="668" y="784" width="128" height="15" rx="4" fill="var(--vioSoft)" stroke="none" stroke-width="1.1"/>
+<text x="732" y="796" class="s mut" font-size="9.4" text-anchor="middle">sound-by-rejection</text>
+<rect x="820" y="784" width="128" height="15" rx="4" fill="var(--vioSoft)" stroke="none" stroke-width="1.1"/>
+<text x="884" y="796" class="s mut" font-size="9.4" text-anchor="middle">sound-by-rejection</text>
+<rect x="972" y="784" width="128" height="15" rx="4" fill="var(--vioSoft)" stroke="none" stroke-width="1.1"/>
+<text x="1036" y="796" class="s mut" font-size="9.4" text-anchor="middle">sound-by-rejection</text>
+<line x1="28" y1="820" x2="1140" y2="820" stroke="var(--line)" stroke-width="1" opacity="0.7"/>
+<text x="428" y="846" class="s dngr t" font-size="21" text-anchor="middle">5</text>
+<text x="428" y="862" class="s faint" font-size="9.5" text-anchor="middle">unintended kernel</text>
+<text x="580" y="846" class="s dngr t" font-size="21" text-anchor="middle">5</text>
+<text x="580" y="862" class="s faint" font-size="9.5" text-anchor="middle">unintended kernel</text>
+<text x="732" y="846" class="s pos t" font-size="21" text-anchor="middle">0</text>
+<text x="732" y="862" class="s faint" font-size="9.5" text-anchor="middle">unintended kernel</text>
+<text x="884" y="846" class="s dngr t" font-size="21" text-anchor="middle">6</text>
+<text x="884" y="862" class="s faint" font-size="9.5" text-anchor="middle">unintended kernel</text>
+<text x="1036" y="846" class="s dngr t" font-size="21" text-anchor="middle">4</text>
+<text x="1036" y="862" class="s faint" font-size="9.5" text-anchor="middle">unintended kernel</text>
+<text x="28" y="846" class="s ink t" font-size="12.5">Collapses per pipeline</text>
+<text x="28" y="864" class="s mut" font-size="10.8">4 classes collapse in every deciding arm</text>
+<text x="28" y="882" class="s mut" font-size="11">The mitigation arm reaches zero without a single rejection-asymmetry — a fix, not a trade.</text>
+<line x1="28" y1="880" x2="1140" y2="880" stroke="var(--line)" stroke-width="1" opacity="0.6"/>
+  <text x="28" y="902" class="m faint" font-size="10.5">npm run experiment:e1 -- --json · provenance: census (exact counts, no intervals) · measured 2026-08-12</text>
+</svg>

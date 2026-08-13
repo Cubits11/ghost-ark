@@ -20,7 +20,7 @@ Numbers currently bound (measured 2026-08-02, repository HEAD):
 | Verification cost (p50 + IQR, baseline ratios) | `npm run experiment:e2` on Apple M1 / darwin arm64 / Node v22.22.3 |
 | Corpus detection (`\evthree*`) | `npm run experiment:e3`; load-bearing verdict from `npm run experiment:e4` |
 | TLC distinct-state counts, baselines **and** mutants | `artifacts/proofs/proofs_summary.json` + recorded logs under `artifacts/proofs/logs/` and `proofs/dab/artifacts/` (tla2tools v1.8.0) |
-| Test counts (1,274 / 165) — commit-relative, see `main.tex` macro comment | `npm test` at HEAD |
+| Test counts (1,434 / 172) — commit-relative, see `main.tex` macro comment | `npm test` at HEAD |
 | Claim-gate file count (838) — commit-relative, like the test count | `npm run scan:claims` at HEAD |
 | Model-internal only (`\globaladvantage`, `\benchtrials`) | `dab/bench/formal_games.ts` — a calculation over its own declared attacker model, **not** a measurement of this system |
 

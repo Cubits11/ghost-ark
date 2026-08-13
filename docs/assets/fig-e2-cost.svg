@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 550" width="1160" height="550" role="img" aria-label="Verification cost: the asymmetric signature dominates, canonicalization does not">
+  <style>
+    :root{
+      --ink:#0f172a; --mut:#5b6676; --faint:#8b95a5; --line:#d8dee8; --edge:#e7ecf3;
+      --pane:#f7f9fc; --pane2:#eef2f8; --card:#ffffff;
+      --acc:#4f46e5; --pos:#0d9488; --warn:#b8690c; --dngr:#c02626; --vio:#7c3aed; --steel:#3b6ea5;
+      --accSoft:#e8e7fd; --posSoft:#d8f2ee; --warnSoft:#fbecd8; --dngrSoft:#fbe0e0; --vioSoft:#eee6fd; --steelSoft:#e0ebf7;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --ink:#e6edf3; --mut:#9aa7b4; --faint:#6e7d8d; --line:#303844; --edge:#232b36;
+        --pane:#11161d; --pane2:#161d26; --card:#0d1117;
+        --acc:#8b93f8; --pos:#2dd4bf; --warn:#e8a33d; --dngr:#f87171; --vio:#a78bfa; --steel:#6ea8dc;
+        --accSoft:#232449; --posSoft:#123c3a; --warnSoft:#3a2a12; --dngrSoft:#3d1d1d; --vioSoft:#2b2247; --steelSoft:#16283c;
+      }
+    }
+    .s{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
+    .m{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+    .ink{fill:var(--ink)} .mut{fill:var(--mut)} .faint{fill:var(--faint)}
+    .acc{fill:var(--acc)} .pos{fill:var(--pos)} .warn{fill:var(--warn)}
+    .dngr{fill:var(--dngr)} .vio{fill:var(--vio)} .steel{fill:var(--steel)}
+    .t{font-weight:700;letter-spacing:-0.2px}
+    .k{font-weight:600;letter-spacing:0.9px;text-transform:uppercase}
+  </style>
+  <rect x="0.5" y="0.5" width="1159" height="549" rx="14" fill="var(--card)" stroke="var(--edge)" stroke-width="1"/>
+  <text x="28" y="38" class="s acc-k mut k" font-size="10.5">Figure 3 · experiment E2</text>
+  <text x="28" y="64" class="s ink t" font-size="19">Verification cost: the asymmetric signature dominates, canonicalization does not</text>
+<text x="28" y="92" class="s mut" font-size="12">Bars are p50 on a logarithmic microsecond scale; the lighter span is the inter-quartile range. A single dominant cost is a design fact, not a benchmark flourish.</text>
+<line x1="300" y1="134" x2="300" y2="418" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
+<text x="300" y="126" class="m faint" font-size="9.5" text-anchor="middle">1µs</text>
+<line x1="386.5" y1="134" x2="386.5" y2="418" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
+<text x="386.5" y="126" class="m faint" font-size="9.5" text-anchor="middle">2µs</text>
+<line x1="500.85" y1="134" x2="500.85" y2="418" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
+<text x="500.85" y="126" class="m faint" font-size="9.5" text-anchor="middle">5µs</text>
+<line x1="587.35" y1="134" x2="587.35" y2="418" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
+<text x="587.35" y="126" class="m faint" font-size="9.5" text-anchor="middle">10µs</text>
+<line x1="673.85" y1="134" x2="673.85" y2="418" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
+<text x="673.85" y="126" class="m faint" font-size="9.5" text-anchor="middle">20µs</text>
+<line x1="788.19" y1="134" x2="788.19" y2="418" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
+<text x="788.19" y="126" class="m faint" font-size="9.5" text-anchor="middle">50µs</text>
+<line x1="874.69" y1="134" x2="874.69" y2="418" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
+<text x="874.69" y="126" class="m faint" font-size="9.5" text-anchor="middle">100µs</text>
+<line x1="961.19" y1="134" x2="961.19" y2="418" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
+<text x="961.19" y="126" class="m faint" font-size="9.5" text-anchor="middle">200µs</text>
+<text x="28" y="170" class="m ink t" font-size="12.5">json-parse-only</text>
+<text x="28" y="185" class="s faint" font-size="9.8">declared baseline — what any consumer pays merely to read the document</text>
+<rect x="377.11" y="158" width="8.45" height="22" rx="3" fill="var(--mut)" opacity="0.22"/>
+<rect x="300" y="162" width="81.41" height="14" rx="3" fill="var(--mut)" opacity="0.45"/>
+<text x="393.41" y="173" class="m ink t" font-size="12">1.92</text>
+<text x="1120" y="173" class="m mut" font-size="12.5" text-anchor="end">1.00×</text>
+<text x="28" y="216" class="m ink" font-size="12.5">canonicalize-only</text>
+<text x="28" y="231" class="s faint" font-size="9.8">none cryptography</text>
+<rect x="509.87" y="204" width="42.32" height="22" rx="3" fill="var(--steel)" opacity="0.22"/>
+<rect x="300" y="208" width="232.82" height="14" rx="3" fill="var(--steel)" opacity="0.92"/>
+<text x="544.82" y="219" class="m ink t" font-size="12">6.46</text>
+<text x="1120" y="219" class="m mut t" font-size="12.5" text-anchor="end">3.37×</text>
+<text x="28" y="262" class="m ink" font-size="12.5">canonicalize-and-digest</text>
+<text x="28" y="277" class="s faint" font-size="9.8">hash cryptography</text>
+<rect x="550.44" y="250" width="6.22" height="22" rx="3" fill="var(--steel)" opacity="0.22"/>
+<rect x="300" y="254" width="253.59" height="14" rx="3" fill="var(--steel)" opacity="0.92"/>
+<text x="565.59" y="265" class="m ink t" font-size="12">7.63</text>
+<text x="1120" y="265" class="m mut t" font-size="12.5" text-anchor="end">3.98×</text>
+<text x="28" y="308" class="m ink" font-size="12.5">hmac-verify</text>
+<text x="28" y="323" class="s faint" font-size="9.8">symmetric cryptography</text>
+<rect x="569.54" y="296" width="24.96" height="22" rx="3" fill="var(--warn)" opacity="0.22"/>
+<rect x="300" y="300" width="282.64" height="14" rx="3" fill="var(--warn)" opacity="0.92"/>
+<text x="594.64" y="311" class="m ink t" font-size="12">9.63</text>
+<text x="1120" y="311" class="m mut t" font-size="12.5" text-anchor="end">5.02×</text>
+<text x="28" y="354" class="m ink" font-size="12.5">verifier-full-hmac</text>
+<text x="28" y="369" class="s faint" font-size="9.8">symmetric cryptography</text>
+<rect x="677.32" y="342" width="28.57" height="22" rx="3" fill="var(--warn)" opacity="0.22"/>
+<rect x="300" y="346" width="392.42" height="14" rx="3" fill="var(--warn)" opacity="0.92"/>
+<text x="704.42" y="357" class="m ink t" font-size="12">23.21</text>
+<text x="1120" y="357" class="m mut t" font-size="12.5" text-anchor="end">12.11×</text>
+<text x="28" y="400" class="m ink" font-size="12.5">verifier-full-rsa-pss</text>
+<text x="28" y="415" class="s faint" font-size="9.8">asymmetric cryptography</text>
+<rect x="899.53" y="388" width="8.37" height="22" rx="3" fill="var(--dngr)" opacity="0.22"/>
+<rect x="300" y="392" width="603.78" height="14" rx="3" fill="var(--dngr)" opacity="0.92"/>
+<text x="915.78" y="403" class="m ink t" font-size="12">126.25</text>
+<text x="1120" y="403" class="m dngr t" font-size="12.5" text-anchor="end">65.89×</text>
+<line x1="28" y1="434" x2="1132" y2="434" stroke="var(--line)" stroke-width="1" opacity="0.7"/>
+<text x="28" y="458" class="s ink t" font-size="12">The harness audits itself.</text>
+<text x="178" y="458" class="s mut" font-size="11.5">E2 declares four subset orderings — a superset arm cannot be cheaper than its subset — and checks them: 4/4 hold.</text>
+<text x="28" y="476" class="s mut" font-size="11.5">An earlier version of this harness caused an inversion with an O(n) sink. The self-audit found it, and the harness reports an inversion rather than publishing an impossible number.</text>
+<text x="28" y="498" class="s faint" font-size="11">Coverage boundary: one host, one process, no concurrency, no adversarial input sizing, no AWS or KMS network path. Not a throughput measurement.</text>
+<line x1="28" y1="506" x2="1132" y2="506" stroke="var(--line)" stroke-width="1" opacity="0.6"/>
+  <text x="28" y="528" class="m faint" font-size="10.5">npm run experiment:e2 · 5,000 iterations after 500 discarded warmups · Apple M1, darwin/arm64, 8 CPU, Node v22.22.3 · measured 2026-08-02</text>
+</svg>

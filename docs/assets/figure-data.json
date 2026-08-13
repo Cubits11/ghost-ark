@@ -1,0 +1,664 @@
+{
+  "_readme": "Measured inputs for the README figures. Every block names the command that produced it and the date it was run. tools/figures/render-readme-figures.mjs reads ONLY this file, so a figure cannot drift from the number it draws. To refresh: re-run the command, update the block, re-run `npm run figures`.",
+  "_non_claim": "These are measurements of identifiability structure and test strength. They are not evidence of model safety, semantic correctness, compliance, or live cloud behaviour.",
+  "e1": {
+    "source_command": "npm run experiment:e1 -- --json",
+    "measured_on": "2026-08-12",
+    "provenance": "census",
+    "arms": [
+      "ghost-ark-receipt-schema",
+      "ghost-ark-independent-verifier",
+      "ghost-ark-strict-admission",
+      "naive-sorted-stringify",
+      "python-json-sorted"
+    ],
+    "pathologies": [
+      "duplicate-key-last-wins",
+      "integer-precision-loss",
+      "decimal-literal-collapse",
+      "non-finite-overflow",
+      "lone-surrogate-escape",
+      "unicode-nfc-vs-nfd",
+      "object-key-order",
+      "insignificant-whitespace",
+      "escaped-vs-literal-char",
+      "numeric-exponent-form",
+      "negative-zero",
+      "string-vs-number-type",
+      "nested-duplicate-key-in-array",
+      "duplicate-empty-key",
+      "proto-literal-key",
+      "array-element-order",
+      "null-vs-absent-key",
+      "false-vs-zero",
+      "empty-string-vs-null",
+      "float-vs-integer-same-value",
+      "trailing-zero-fraction",
+      "plus-signed-exponent",
+      "uppercase-exponent-marker",
+      "escaped-solidus",
+      "escape-hex-case",
+      "surrogate-pair-vs-literal-astral",
+      "key-order-non-ascii",
+      "safe-integer-neighbours",
+      "deep-nesting-depth",
+      "large-document-single-byte",
+      "leading-zero-integer"
+    ],
+    "intents": {
+      "duplicate-key-last-wins": "distinct",
+      "integer-precision-loss": "distinct",
+      "decimal-literal-collapse": "distinct",
+      "non-finite-overflow": "distinct",
+      "lone-surrogate-escape": "distinct",
+      "unicode-nfc-vs-nfd": "equivalent",
+      "object-key-order": "equivalent",
+      "insignificant-whitespace": "equivalent",
+      "escaped-vs-literal-char": "equivalent",
+      "numeric-exponent-form": "equivalent",
+      "negative-zero": "equivalent",
+      "string-vs-number-type": "distinct",
+      "nested-duplicate-key-in-array": "distinct",
+      "duplicate-empty-key": "distinct",
+      "proto-literal-key": "distinct",
+      "array-element-order": "distinct",
+      "null-vs-absent-key": "distinct",
+      "false-vs-zero": "distinct",
+      "empty-string-vs-null": "distinct",
+      "float-vs-integer-same-value": "equivalent",
+      "trailing-zero-fraction": "equivalent",
+      "plus-signed-exponent": "equivalent",
+      "uppercase-exponent-marker": "equivalent",
+      "escaped-solidus": "equivalent",
+      "escape-hex-case": "equivalent",
+      "surrogate-pair-vs-literal-astral": "equivalent",
+      "key-order-non-ascii": "equivalent",
+      "safe-integer-neighbours": "distinct",
+      "deep-nesting-depth": "distinct",
+      "large-document-single-byte": "distinct",
+      "leading-zero-integer": "distinct"
+    },
+    "matrix": [
+      [
+        "unintended-kernel",
+        "unintended-kernel",
+        "sound-by-rejection",
+        "unintended-kernel",
+        "unintended-kernel"
+      ],
+      [
+        "unintended-kernel",
+        "unintended-kernel",
+        "fail-closed",
+        "unintended-kernel",
+        "sound"
+      ],
+      [
+        "unintended-kernel",
+        "unintended-kernel",
+        "sound-by-rejection",
+        "unintended-kernel",
+        "unintended-kernel"
+      ],
+      [
+        "fail-closed",
+        "fail-closed",
+        "fail-closed",
+        "unintended-kernel",
+        "fail-closed"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound-by-rejection"
+      ],
+      [
+        "over-discrimination",
+        "over-discrimination",
+        "over-discrimination",
+        "over-discrimination",
+        "over-discrimination"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "over-discrimination"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "unintended-kernel",
+        "unintended-kernel",
+        "sound-by-rejection",
+        "unintended-kernel",
+        "unintended-kernel"
+      ],
+      [
+        "unintended-kernel",
+        "unintended-kernel",
+        "sound-by-rejection",
+        "unintended-kernel",
+        "unintended-kernel"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "over-discrimination"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound",
+        "sound",
+        "sound",
+        "sound",
+        "sound"
+      ],
+      [
+        "sound-by-rejection",
+        "sound-by-rejection",
+        "sound-by-rejection",
+        "sound-by-rejection",
+        "sound-by-rejection"
+      ]
+    ],
+    "universal_unintended_kernel": [
+      "duplicate-key-last-wins",
+      "decimal-literal-collapse",
+      "nested-duplicate-key-in-array",
+      "duplicate-empty-key"
+    ]
+  },
+  "e2": {
+    "source_command": "npm run experiment:e2",
+    "measured_on": "2026-08-02",
+    "provenance": "census",
+    "host": "Apple M1, darwin/arm64, 8 CPU, Node v22.22.3",
+    "iterations": 5000,
+    "warmup": 500,
+    "payload_bytes": 1552,
+    "arms": [
+      {
+        "op": "json-parse-only",
+        "crypto": "none",
+        "p50": 1.92,
+        "iqr": 0.13,
+        "p95": 2.04,
+        "ratio": 1.0,
+        "baseline": true
+      },
+      {
+        "op": "canonicalize-only",
+        "crypto": "none",
+        "p50": 6.46,
+        "iqr": 2.17,
+        "p95": 10.29,
+        "ratio": 3.37
+      },
+      {
+        "op": "canonicalize-and-digest",
+        "crypto": "hash",
+        "p50": 7.63,
+        "iqr": 0.38,
+        "p95": 8.63,
+        "ratio": 3.98
+      },
+      {
+        "op": "hmac-verify",
+        "crypto": "symmetric",
+        "p50": 9.63,
+        "iqr": 1.92,
+        "p95": 15.0,
+        "ratio": 5.02
+      },
+      {
+        "op": "verifier-full-hmac",
+        "crypto": "symmetric",
+        "p50": 23.21,
+        "iqr": 5.29,
+        "p95": 31.13,
+        "ratio": 12.11
+      },
+      {
+        "op": "verifier-full-rsa-pss",
+        "crypto": "asymmetric",
+        "p50": 126.25,
+        "iqr": 8.46,
+        "p95": 193.46,
+        "ratio": 65.89
+      }
+    ]
+  },
+  "e10": {
+    "source_command": "bash tools/experiments/run-e10-sweep.sh <file> && npm run mutation:summarize",
+    "measured_on": "2026-08-12",
+    "provenance": "census",
+    "threshold": 80,
+    "aggregate_covered": 85.8,
+    "aggregate_total": 83.6,
+    "aggregate_note": "Sweep aggregate measured BEFORE the second remediation round; the two remediated rows below are therefore not reflected in it.",
+    "files": [
+      {
+        "file": "receipts/emission.ts",
+        "covered": 98.1
+      },
+      {
+        "file": "receipts/signer.ts",
+        "covered": 98.1,
+        "before": 73.2
+      },
+      {
+        "file": "receipts/chain.ts",
+        "covered": 95.4
+      },
+      {
+        "file": "receipts/kmsSigner.ts",
+        "covered": 96.4,
+        "before": 68.2
+      },
+      {
+        "file": "receipts/kmsVerifier.ts",
+        "covered": 93.9
+      },
+      {
+        "file": "receipt-schema/hashCanonicalization.ts",
+        "covered": 88.2
+      },
+      {
+        "file": "receipt-schema/strictJsonAdmission.ts",
+        "covered": 87.8,
+        "before": 81.4
+      },
+      {
+        "file": "receipts/canonical.ts",
+        "covered": 86.7
+      },
+      {
+        "file": "receipts/keyManifest.ts",
+        "covered": 83.6
+      },
+      {
+        "file": "receipts/verifier.ts",
+        "covered": 73.6
+      }
+    ]
+  },
+  "e12": {
+    "source_command": "npm run experiment:e12",
+    "measured_on": "2026-08-12",
+    "provenance": "sampled",
+    "corpus": "sigstore-rekor",
+    "seed": 20260812,
+    "frame": 2438317323,
+    "shards": 3,
+    "draws": 3000,
+    "resolved": 3000,
+    "unresolved": 0,
+    "eligible": 64,
+    "absent_by_type": 2931,
+    "absent_though_typed": 5,
+    "digest_mismatch": 0,
+    "findings": 0,
+    "classes": 8,
+    "wilson_low": 3.469446951953614e-18,
+    "wilson_high": 0.05662405981787651,
+    "producers": 16,
+    "producer_interval_refused": "n = 16 is below MIN_N_FOR_PROPORTION_INTERVAL = 30; any interval here would be too wide to support a claim.",
+    "bytes": 1056499,
+    "members": 18528,
+    "strings": 33982,
+    "numbers": 103,
+    "controls": 7,
+    "controls_all_detected": true,
+    "kinds": {
+      "hashedrekord": 901,
+      "dsse": 2030,
+      "intoto": 69
+    }
+  },
+  "proofs": {
+    "source_command": "make proof",
+    "measured_on": "2026-08-12",
+    "tool": "tla2tools v1.7.4",
+    "state_count_note": "Baseline state counts are a model property and reproduce exactly. MUTANT state counts are withdrawn under retraction R11: a mutant halts at the first counterexample and TLC runs -workers auto, so the count varies run to run. The VIOLATION_REPRODUCED verdict is stable; only the count is withdrawn.",
+    "results": [
+      {
+        "module": "ProvenanceLattice",
+        "expect": "clean",
+        "status": "CLEAN",
+        "met": true,
+        "distinct_states": 403949,
+        "label": "tla"
+      },
+      {
+        "module": "ProvenanceLatticeMutant",
+        "expect": "violation",
+        "status": "VIOLATION_REPRODUCED",
+        "met": true,
+        "distinct_states": 61,
+        "label": "tla"
+      },
+      {
+        "module": "SpeculativeCollapse",
+        "expect": "clean",
+        "status": "CLEAN",
+        "met": true,
+        "distinct_states": 529,
+        "label": "tla"
+      },
+      {
+        "module": "SpeculativeCollapseMutant",
+        "expect": "violation",
+        "status": "VIOLATION_REPRODUCED",
+        "met": true,
+        "distinct_states": 253,
+        "label": "tla"
+      },
+      {
+        "module": "TransportBoundary",
+        "expect": "clean",
+        "status": "CLEAN",
+        "met": true,
+        "distinct_states": 64,
+        "label": "tla"
+      },
+      {
+        "module": "TransportBoundaryMutant",
+        "expect": "violation",
+        "status": "VIOLATION_REPRODUCED",
+        "met": true,
+        "distinct_states": 23,
+        "label": "tla"
+      },
+      {
+        "module": "TenantIsolation",
+        "expect": "clean",
+        "status": "CLEAN",
+        "met": true,
+        "distinct_states": 149796,
+        "label": "tla"
+      },
+      {
+        "module": "TenantIsolationMutant",
+        "expect": "violation",
+        "status": "VIOLATION_REPRODUCED",
+        "met": true,
+        "distinct_states": 114,
+        "label": "tla"
+      },
+      {
+        "module": "DAB_NonceLedger",
+        "expect": "clean",
+        "status": "CLEAN",
+        "met": true,
+        "distinct_states": 1321,
+        "label": "dab"
+      },
+      {
+        "module": "DAB_NonceLedger_Mutant",
+        "expect": "violation",
+        "status": "VIOLATION_REPRODUCED",
+        "met": true,
+        "distinct_states": 286,
+        "label": "dab"
+      },
+      {
+        "module": "DAB_ExecutionBoundary",
+        "expect": "clean",
+        "status": "CLEAN",
+        "met": true,
+        "distinct_states": 51106,
+        "label": "dab"
+      }
+    ]
+  },
+  "repo": {
+    "source_command": "git ls-files",
+    "measured_on": "2026-08-12",
+    "tracked_files": 972,
+    "languages": [
+      {
+        "lang": "TypeScript",
+        "ext": "ts/tsx",
+        "files": 501,
+        "lines": 74813
+      },
+      {
+        "lang": "Markdown",
+        "ext": "md",
+        "files": 153,
+        "lines": 21967
+      },
+      {
+        "lang": "JavaScript (ESM)",
+        "ext": "mjs",
+        "files": 15,
+        "lines": 6599
+      },
+      {
+        "lang": "Rust",
+        "ext": "rs",
+        "files": 17,
+        "lines": 2951
+      },
+      {
+        "lang": "Shell",
+        "ext": "sh",
+        "files": 19,
+        "lines": 1912
+      },
+      {
+        "lang": "Python",
+        "ext": "py",
+        "files": 6,
+        "lines": 1265
+      },
+      {
+        "lang": "TLA+",
+        "ext": "tla",
+        "files": 15,
+        "lines": 865
+      }
+    ],
+    "directories": [
+      {
+        "dir": "tests",
+        "lines": 24408,
+        "role": "unit, integration, differential, security, repo-hygiene"
+      },
+      {
+        "dir": "packages",
+        "lines": 19906,
+        "role": "receipt schema, canonicalization, enforcement runtime"
+      },
+      {
+        "dir": "tools",
+        "lines": 18952,
+        "role": "experiment harnesses, verifiers, scanners, kernel-probe"
+      },
+      {
+        "dir": "dab",
+        "lines": 6797,
+        "role": "Rust speculative-execution gateway + verifier"
+      },
+      {
+        "dir": "apps",
+        "lines": 3401,
+        "role": "API handlers and console surfaces"
+      },
+      {
+        "dir": "verifiers",
+        "lines": 2629,
+        "role": "independent Node and Python receipt verifiers"
+      },
+      {
+        "dir": "infra",
+        "lines": 1288,
+        "role": "CDK stacks and Terraform bootstrap"
+      },
+      {
+        "dir": "services",
+        "lines": 1032,
+        "role": "ingest, transform, governance, signing, ledger"
+      },
+      {
+        "dir": "proofs",
+        "lines": 865,
+        "role": "TLA+ specifications and their mutants"
+      },
+      {
+        "dir": "scripts",
+        "lines": 682,
+        "role": "bootstrap, demo, and proof runners"
+      }
+    ]
+  },
+  "suite": {
+    "source_command": "npm test",
+    "measured_on": "2026-08-12",
+    "tests_passed": 1425,
+    "tests_skipped": 9,
+    "tests_total": 1434,
+    "files_passed": 171,
+    "files_skipped": 1,
+    "files_total": 172,
+    "duration_s": 63.59,
+    "claim_scan_files": 860,
+    "claim_scan_violations": 0
+  }
+}

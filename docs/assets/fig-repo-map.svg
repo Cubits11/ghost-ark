@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 596" width="1160" height="596" role="img" aria-label="What is in this repository: 972 tracked files">
+  <style>
+    :root{
+      --ink:#0f172a; --mut:#5b6676; --faint:#8b95a5; --line:#d8dee8; --edge:#e7ecf3;
+      --pane:#f7f9fc; --pane2:#eef2f8; --card:#ffffff;
+      --acc:#4f46e5; --pos:#0d9488; --warn:#b8690c; --dngr:#c02626; --vio:#7c3aed; --steel:#3b6ea5;
+      --accSoft:#e8e7fd; --posSoft:#d8f2ee; --warnSoft:#fbecd8; --dngrSoft:#fbe0e0; --vioSoft:#eee6fd; --steelSoft:#e0ebf7;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --ink:#e6edf3; --mut:#9aa7b4; --faint:#6e7d8d; --line:#303844; --edge:#232b36;
+        --pane:#11161d; --pane2:#161d26; --card:#0d1117;
+        --acc:#8b93f8; --pos:#2dd4bf; --warn:#e8a33d; --dngr:#f87171; --vio:#a78bfa; --steel:#6ea8dc;
+        --accSoft:#232449; --posSoft:#123c3a; --warnSoft:#3a2a12; --dngrSoft:#3d1d1d; --vioSoft:#2b2247; --steelSoft:#16283c;
+      }
+    }
+    .s{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
+    .m{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+    .ink{fill:var(--ink)} .mut{fill:var(--mut)} .faint{fill:var(--faint)}
+    .acc{fill:var(--acc)} .pos{fill:var(--pos)} .warn{fill:var(--warn)}
+    .dngr{fill:var(--dngr)} .vio{fill:var(--vio)} .steel{fill:var(--steel)}
+    .t{font-weight:700;letter-spacing:-0.2px}
+    .k{font-weight:600;letter-spacing:0.9px;text-transform:uppercase}
+  </style>
+  <rect x="0.5" y="0.5" width="1159" height="595" rx="14" fill="var(--card)" stroke="var(--edge)" stroke-width="1"/>
+  <text x="28" y="38" class="s acc-k mut k" font-size="10.5">Figure 8 · repository composition</text>
+  <text x="28" y="64" class="s ink t" font-size="19">What is in this repository: 972 tracked files</text>
+<text x="28" y="92" class="s mut" font-size="12">Area is lines of code. The test tree is the largest single directory in the repository, which is the intended shape for an artifact whose defence is “do not trust the author, run the tests”.</text>
+<rect x="29.5" y="117.5" width="382.56" height="163.26" rx="7" fill="var(--accSoft)" stroke="var(--acc)" stroke-width="1"/>
+<text x="42" y="140" class="m ink t" font-size="13">tests/</text>
+<text x="42" y="156" class="s mut" font-size="10.5">24,408 lines</text>
+<text x="42" y="172" class="s faint" font-size="9.5">unit, integration, differential, security, repo-hygiene</text>
+<rect x="415.06" y="117.5" width="311.44" height="163.26" rx="7" fill="var(--steelSoft)" stroke="var(--steel)" stroke-width="1"/>
+<text x="427.56" y="140" class="m ink t" font-size="13">packages/</text>
+<text x="427.56" y="156" class="s mut" font-size="10.5">19,906 lines</text>
+<text x="427.56" y="172" class="s faint" font-size="9.5">receipt schema, canonicalization, enforcement runtime</text>
+<rect x="29.5" y="283.76" width="697" height="68.11" rx="7" fill="var(--vioSoft)" stroke="var(--vio)" stroke-width="1"/>
+<text x="42" y="306.26" class="m ink t" font-size="13">tools/</text>
+<text x="42" y="322.26" class="s mut" font-size="10.5">18,952 lines</text>
+<text x="42" y="338.26" class="s faint" font-size="9.5">experiment harnesses, verifiers, scanners, kernel-probe</text>
+<rect x="29.5" y="354.87" width="282.01" height="59.63" rx="7" fill="var(--posSoft)" stroke="var(--pos)" stroke-width="1"/>
+<text x="42" y="377.37" class="m ink t" font-size="13">dab/</text>
+<text x="42" y="393.37" class="s mut" font-size="10.5">6,797 lines</text>
+<text x="42" y="409.37" class="s faint" font-size="9.5">Rust speculative-execution gateway + verifier</text>
+<rect x="314.51" y="354.87" width="139.61" height="59.63" rx="7" fill="var(--warnSoft)" stroke="var(--warn)" stroke-width="1"/>
+<text x="327.01" y="377.37" class="m ink t" font-size="13">apps/</text>
+<text x="327.01" y="393.37" class="s mut" font-size="10.5">3,401 lines</text>
+<rect x="457.11" y="354.87" width="107.24" height="59.63" rx="7" fill="var(--steelSoft)" stroke="var(--steel)" stroke-width="1"/>
+<text x="469.61" y="377.37" class="m ink t" font-size="13">verifiers/</text>
+<text x="469.61" y="393.37" class="s mut" font-size="10.5">2,629 lines</text>
+<rect x="567.35" y="354.87" width="51.01" height="59.63" rx="7" fill="var(--accSoft)" stroke="var(--acc)" stroke-width="1"/>
+<text x="592.86" y="388.68" class="m mut" font-size="9" text-anchor="middle">infra</text>
+<rect x="621.36" y="354.87" width="40.27" height="59.63" rx="7" fill="var(--vioSoft)" stroke="var(--vio)" stroke-width="1"/>
+<text x="641.5" y="388.68" class="m mut" font-size="9" text-anchor="middle">services</text>
+<rect x="664.63" y="354.87" width="33.27" height="59.63" rx="7" fill="var(--posSoft)" stroke="var(--pos)" stroke-width="1"/>
+<text x="681.27" y="388.68" class="m mut" font-size="9" text-anchor="middle">proofs</text>
+<rect x="700.9" y="354.87" width="25.6" height="59.63" rx="7" fill="var(--warnSoft)" stroke="var(--warn)" stroke-width="1"/>
+<text x="764" y="124" class="s mut k" font-size="11">Languages, and what guards each</text>
+<text x="764" y="156" class="s ink t" font-size="11.5">TypeScript</text>
+<text x="1120" y="156" class="m mut" font-size="11" text-anchor="end">74,813</text>
+<rect x="764" y="162" width="356" height="7" rx="3.5" fill="var(--pane2)"/>
+<rect x="764" y="162" width="356" height="7" rx="3.5" fill="var(--acc)" opacity="0.85"/>
+<text x="764" y="180" class="m faint" font-size="9.5">501 files</text>
+<text x="764" y="194" class="s ink t" font-size="11.5">Markdown</text>
+<text x="1120" y="194" class="m mut" font-size="11" text-anchor="end">21,967</text>
+<rect x="764" y="200" width="356" height="7" rx="3.5" fill="var(--pane2)"/>
+<rect x="764" y="200" width="104.53" height="7" rx="3.5" fill="var(--acc)" opacity="0.85"/>
+<text x="764" y="218" class="m faint" font-size="9.5">153 files</text>
+<text x="764" y="232" class="s ink t" font-size="11.5">JavaScript (ESM)</text>
+<text x="1120" y="232" class="m mut" font-size="11" text-anchor="end">6,599</text>
+<rect x="764" y="238" width="356" height="7" rx="3.5" fill="var(--pane2)"/>
+<rect x="764" y="238" width="31.4" height="7" rx="3.5" fill="var(--acc)" opacity="0.85"/>
+<text x="764" y="256" class="m faint" font-size="9.5">15 files</text>
+<text x="764" y="270" class="s ink t" font-size="11.5">Rust</text>
+<text x="1120" y="270" class="m mut" font-size="11" text-anchor="end">2,951</text>
+<rect x="764" y="276" width="356" height="7" rx="3.5" fill="var(--pane2)"/>
+<rect x="764" y="276" width="14.04" height="7" rx="3.5" fill="var(--acc)" opacity="0.85"/>
+<text x="764" y="294" class="m faint" font-size="9.5">17 files</text>
+<text x="764" y="308" class="s ink t" font-size="11.5">Shell</text>
+<text x="1120" y="308" class="m mut" font-size="11" text-anchor="end">1,912</text>
+<rect x="764" y="314" width="356" height="7" rx="3.5" fill="var(--pane2)"/>
+<rect x="764" y="314" width="9.1" height="7" rx="3.5" fill="var(--acc)" opacity="0.85"/>
+<text x="764" y="332" class="m faint" font-size="9.5">19 files</text>
+<text x="764" y="346" class="s ink t" font-size="11.5">Python</text>
+<text x="1120" y="346" class="m mut" font-size="11" text-anchor="end">1,265</text>
+<rect x="764" y="352" width="356" height="7" rx="3.5" fill="var(--pane2)"/>
+<rect x="764" y="352" width="6.02" height="7" rx="3.5" fill="var(--acc)" opacity="0.85"/>
+<text x="764" y="370" class="m faint" font-size="9.5">6 files</text>
+<text x="764" y="384" class="s ink t" font-size="11.5">TLA+</text>
+<text x="1120" y="384" class="m mut" font-size="11" text-anchor="end">865</text>
+<rect x="764" y="390" width="356" height="7" rx="3.5" fill="var(--pane2)"/>
+<rect x="764" y="390" width="4.12" height="7" rx="3.5" fill="var(--acc)" opacity="0.85"/>
+<text x="764" y="408" class="m faint" font-size="9.5">15 files</text>
+<line x1="28" y1="440" x2="1132" y2="440" stroke="var(--line)" stroke-width="1" opacity="0.7"/>
+<text x="28" y="472" class="m ink t" font-size="20">1,425</text>
+<text x="28" y="490" class="s mut" font-size="10">tests passing</text>
+<text x="216" y="472" class="m ink t" font-size="20">9</text>
+<text x="216" y="490" class="s mut" font-size="10">skipped</text>
+<text x="404" y="472" class="m ink t" font-size="20">172</text>
+<text x="404" y="490" class="s mut" font-size="10">test files</text>
+<text x="592" y="472" class="m ink t" font-size="20">63.59s</text>
+<text x="592" y="490" class="s mut" font-size="10">suite wall clock</text>
+<text x="780" y="472" class="m ink t" font-size="20">860</text>
+<text x="780" y="490" class="s mut" font-size="10">files claim-scanned</text>
+<text x="968" y="472" class="m pos t" font-size="20">0</text>
+<text x="968" y="490" class="s mut" font-size="10">claim violations</text>
+<text x="28" y="512" class="s faint" font-size="10.5">npm test and npm run scan:claims, measured 2026-08-12. The claim scanner fails the build on forbidden assurance vocabulary; it is a control, not a style guide.</text>
+<line x1="28" y1="552" x2="1132" y2="552" stroke="var(--line)" stroke-width="1" opacity="0.6"/>
+  <text x="28" y="574" class="m faint" font-size="10.5">git ls-files · measured 2026-08-12 · guard status per artifact: docs/artifact/CI_COVERAGE.md</text>
+</svg>

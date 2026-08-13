@@ -85,6 +85,7 @@
     "spine:h:local": "npx vitest run tests/unit/research-frontier/humanReview.test.ts",
     "spine:compliance:local": "npx vitest run tests/unit/research-frontier/complianceControlMapping.test.ts",
     "checklist:local": "npm run spine:c:local && npm run spine:d:local && npm run spine:e:local && npm run spine:f:local && npm run spine:g:local && npm run spine:h:local && npm run spine:compliance:local",
+    "figures": "node tools/figures/render-readme-figures.mjs",
     "kernel-probe:build": "node tools/kernel-probe/build-standalone.mjs",
     "kernel-probe:standalone": "node tools/kernel-probe/kernel-probe.mjs"
   },

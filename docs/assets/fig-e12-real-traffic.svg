@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 500" width="1160" height="500" role="img" aria-label="The measurement that argued against us: zero pathologies in real supply-chain traffic">
+  <style>
+    :root{
+      --ink:#0f172a; --mut:#5b6676; --faint:#8b95a5; --line:#d8dee8; --edge:#e7ecf3;
+      --pane:#f7f9fc; --pane2:#eef2f8; --card:#ffffff;
+      --acc:#4f46e5; --pos:#0d9488; --warn:#b8690c; --dngr:#c02626; --vio:#7c3aed; --steel:#3b6ea5;
+      --accSoft:#e8e7fd; --posSoft:#d8f2ee; --warnSoft:#fbecd8; --dngrSoft:#fbe0e0; --vioSoft:#eee6fd; --steelSoft:#e0ebf7;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --ink:#e6edf3; --mut:#9aa7b4; --faint:#6e7d8d; --line:#303844; --edge:#232b36;
+        --pane:#11161d; --pane2:#161d26; --card:#0d1117;
+        --acc:#8b93f8; --pos:#2dd4bf; --warn:#e8a33d; --dngr:#f87171; --vio:#a78bfa; --steel:#6ea8dc;
+        --accSoft:#232449; --posSoft:#123c3a; --warnSoft:#3a2a12; --dngrSoft:#3d1d1d; --vioSoft:#2b2247; --steelSoft:#16283c;
+      }
+    }
+    .s{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
+    .m{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+    .ink{fill:var(--ink)} .mut{fill:var(--mut)} .faint{fill:var(--faint)}
+    .acc{fill:var(--acc)} .pos{fill:var(--pos)} .warn{fill:var(--warn)}
+    .dngr{fill:var(--dngr)} .vio{fill:var(--vio)} .steel{fill:var(--steel)}
+    .t{font-weight:700;letter-spacing:-0.2px}
+    .k{font-weight:600;letter-spacing:0.9px;text-transform:uppercase}
+  </style>
+  <rect x="0.5" y="0.5" width="1159" height="499" rx="14" fill="var(--card)" stroke="var(--edge)" stroke-width="1"/>
+  <text x="28" y="38" class="s acc-k mut k" font-size="10.5">Figure 4 · experiment E12 · falsifier F2</text>
+  <text x="28" y="64" class="s ink t" font-size="19">The measurement that argued against us: zero pathologies in real supply-chain traffic</text>
+<text x="28" y="92" class="s mut" font-size="12.5">F2 predicted the pathology alphabet would prove to be an artifact of what the author chose to look at. It was tested directly. It was confirmed.</text>
+<rect x="28" y="128" width="250" height="74" rx="10" fill="var(--steelSoft)" stroke="var(--steel)" stroke-width="1.1"/>
+<text x="46" y="162" class="m ink t" font-size="22">2,438,317,323</text>
+<text x="46" y="180" class="s ink t" font-size="11">global log index</text>
+<text x="46" y="194" class="s mut" font-size="9.5">frozen sampling frame across 3 shards</text>
+<line x1="286" y1="165" x2="304" y2="165" stroke="var(--mut)" stroke-width="1.4"/>
+<path d="M302,161 L308,165 L302,169 z" fill="var(--mut)"/>
+<rect x="312" y="128" width="250" height="74" rx="10" fill="var(--steelSoft)" stroke="var(--steel)" stroke-width="1.1"/>
+<text x="330" y="162" class="m ink t" font-size="22">3,000</text>
+<text x="330" y="180" class="s ink t" font-size="11">uniform random draws</text>
+<text x="330" y="194" class="s mut" font-size="9.5">3000 resolved, 0 unresolved</text>
+<line x1="570" y1="165" x2="588" y2="165" stroke="var(--mut)" stroke-width="1.4"/>
+<path d="M586,161 L592,165 L586,169 z" fill="var(--mut)"/>
+<rect x="596" y="128" width="250" height="74" rx="10" fill="var(--accSoft)" stroke="var(--acc)" stroke-width="1.1"/>
+<text x="614" y="162" class="m ink t" font-size="22">64</text>
+<text x="614" y="180" class="s ink t" font-size="11">eligible payloads</text>
+<text x="614" y="194" class="s mut" font-size="9.5">2,931 store only hashes, 5 absent though typed</text>
+<line x1="854" y1="165" x2="872" y2="165" stroke="var(--mut)" stroke-width="1.4"/>
+<path d="M870,161 L876,165 L870,169 z" fill="var(--mut)"/>
+<rect x="880" y="128" width="250" height="74" rx="10" fill="var(--posSoft)" stroke="var(--pos)" stroke-width="1.1"/>
+<text x="898" y="162" class="m ink t" font-size="30">0</text>
+<text x="898" y="180" class="s ink t" font-size="11">pathologies found</text>
+<text x="898" y="194" class="s mut" font-size="9.5">across 8 pre-registered classes</text>
+<text x="28" y="242" class="s mut k" font-size="11">What was actually scanned</text>
+<text x="28" y="272" class="m ink t" font-size="17">1,056,499</text>
+<text x="28" y="288" class="s mut" font-size="10">payload bytes</text>
+<text x="216" y="272" class="m ink t" font-size="17">18,528</text>
+<text x="216" y="288" class="s mut" font-size="10">object members</text>
+<text x="404" y="272" class="m ink t" font-size="17">33,982</text>
+<text x="404" y="288" class="s mut" font-size="10">strings</text>
+<text x="592" y="272" class="m ink t" font-size="17">103</text>
+<text x="592" y="288" class="s mut" font-size="10">numbers</text>
+<text x="780" y="272" class="m ink t" font-size="17">7/7</text>
+<text x="780" y="288" class="s mut" font-size="10">detector controls fired</text>
+<text x="968" y="272" class="m ink t" font-size="17">64/64</text>
+<text x="968" y="288" class="s mut" font-size="10">digests verified against the log</text>
+<rect x="28" y="312" width="1104" height="132" rx="10" fill="var(--pane)" stroke="var(--line)" stroke-width="1"/>
+<text x="48" y="338" class="s ink t" font-size="12.5">A zero is not a small number. It is a bound — and here, two different bounds.</text>
+<text x="48" y="362" class="s mut" font-size="10.5">95% Wilson interval, per eligible payload</text>
+<rect x="48" y="370" width="520" height="12" rx="6" fill="var(--pane2)" stroke="var(--line)" stroke-width="1"/>
+<rect x="48" y="370" width="117.78" height="12" rx="6" fill="var(--pos)" opacity="0.35"/>
+<line x1="48" y1="366" x2="48" y2="390" stroke="var(--pos)" stroke-width="2"/>
+<text x="48" y="404" class="m ink t" font-size="11">0</text>
+<text x="165.78" y="404" class="m ink t" font-size="11" text-anchor="middle">5.66%</text>
+<text x="584" y="380" class="m mut" font-size="11.5">n = 64</text>
+<text x="700" y="362" class="s mut" font-size="10.5">At the level of independent producers</text>
+<rect x="700" y="370" width="380" height="12" rx="6" fill="var(--warnSoft)" stroke="var(--warn)" stroke-width="1"/>
+<text x="712" y="380" class="s warn t" font-size="10.5">interval refused</text>
+<text x="700" y="404" class="s mut" font-size="10.5">n = 16 producers — below the interval floor of 30.</text>
+<text x="700" y="420" class="s mut" font-size="10.5">Any interval here would be too wide to support a claim.</text>
+<text x="48" y="420" class="s faint" font-size="10.5">So the per-payload zero is a real bound, and the producer-level zero bounds nothing at all.</text>
+<line x1="28" y1="456" x2="1132" y2="456" stroke="var(--line)" stroke-width="1" opacity="0.6"/>
+  <text x="28" y="478" class="m faint" font-size="10.5">npm run experiment:e12 · corpus sigstore-rekor · seed 20260812 · provenance: sampled · measured 2026-08-12</text>
+</svg>

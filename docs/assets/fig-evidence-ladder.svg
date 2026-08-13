@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 679" width="1160" height="679" role="img" aria-label="The evidence ladder: what each result is entitled to claim">
+  <style>
+    :root{
+      --ink:#0f172a; --mut:#5b6676; --faint:#8b95a5; --line:#d8dee8; --edge:#e7ecf3;
+      --pane:#f7f9fc; --pane2:#eef2f8; --card:#ffffff;
+      --acc:#4f46e5; --pos:#0d9488; --warn:#b8690c; --dngr:#c02626; --vio:#7c3aed; --steel:#3b6ea5;
+      --accSoft:#e8e7fd; --posSoft:#d8f2ee; --warnSoft:#fbecd8; --dngrSoft:#fbe0e0; --vioSoft:#eee6fd; --steelSoft:#e0ebf7;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --ink:#e6edf3; --mut:#9aa7b4; --faint:#6e7d8d; --line:#303844; --edge:#232b36;
+        --pane:#11161d; --pane2:#161d26; --card:#0d1117;
+        --acc:#8b93f8; --pos:#2dd4bf; --warn:#e8a33d; --dngr:#f87171; --vio:#a78bfa; --steel:#6ea8dc;
+        --accSoft:#232449; --posSoft:#123c3a; --warnSoft:#3a2a12; --dngrSoft:#3d1d1d; --vioSoft:#2b2247; --steelSoft:#16283c;
+      }
+    }
+    .s{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
+    .m{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+    .ink{fill:var(--ink)} .mut{fill:var(--mut)} .faint{fill:var(--faint)}
+    .acc{fill:var(--acc)} .pos{fill:var(--pos)} .warn{fill:var(--warn)}
+    .dngr{fill:var(--dngr)} .vio{fill:var(--vio)} .steel{fill:var(--steel)}
+    .t{font-weight:700;letter-spacing:-0.2px}
+    .k{font-weight:600;letter-spacing:0.9px;text-transform:uppercase}
+  </style>
+  <rect x="0.5" y="0.5" width="1159" height="678" rx="14" fill="var(--card)" stroke="var(--edge)" stroke-width="1"/>
+  <text x="28" y="38" class="s acc-k mut k" font-size="10.5">Figure 7 · epistemic status</text>
+  <text x="28" y="64" class="s ink t" font-size="19">The evidence ladder: what each result is entitled to claim</text>
+<text x="28" y="92" class="s mut" font-size="12">Results are ordered by how much of the world they survive contact with. Nothing here is promoted a rung by argument; a rung is bought by a run.</text>
+<rect x="28" y="116" width="1104" height="63" rx="9" fill="var(--posSoft)" opacity="0.5"/>
+<rect x="28" y="116" width="4" height="63" rx="2" fill="var(--pos)"/>
+<text x="48" y="140" class="s ink t" font-size="13.5">Real third-party traffic</text>
+<text x="262.8" y="140" class="s mut" font-size="11">a random sample of production data nobody here produced</text>
+<rect x="52" y="150" width="4" height="4" rx="2" fill="var(--pos)"/>
+<text x="66" y="154" class="s ink" font-size="11.2">E12 — Sigstore Rekor, 3,000 draws, 64 payloads: 0 pathologies. This rung ARGUES AGAINST the thesis and is reported as found.</text>
+<rect x="28" y="187" width="1104" height="97" rx="9" fill="var(--steelSoft)" opacity="0.5"/>
+<rect x="28" y="187" width="4" height="97" rx="2" fill="var(--steel)"/>
+<text x="48" y="211" class="s ink t" font-size="13.5">Independent implementations</text>
+<text x="287.4" y="211" class="s mut" font-size="11">code written outside this repository, by people who never saw the alphabet</text>
+<rect x="52" y="221" width="4" height="4" rx="2" fill="var(--steel)"/>
+<text x="66" y="225" class="s ink" font-size="11.2">E11 — Rust serde_json, Ruby, CPython, jq: all four collapse duplicate keys; none collapses 2⁵³</text>
+<rect x="52" y="238" width="4" height="4" rx="2" fill="var(--steel)"/>
+<text x="66" y="242" class="s ink" font-size="11.2">E13 — 9 real hops composed pairwise; an upstream normalization disables a downstream fail-closed refusal</text>
+<rect x="52" y="255" width="4" height="4" rx="2" fill="var(--steel)"/>
+<text x="66" y="259" class="s ink" font-size="11.2">E14 — verification with OpenSSL and CPython in the security path: 31/31 decisions agree, 3/3 identities reproduced</text>
+<rect x="28" y="292" width="1104" height="63" rx="9" fill="var(--vioSoft)" opacity="0.5"/>
+<rect x="28" y="292" width="4" height="63" rx="2" fill="var(--vio)"/>
+<text x="48" y="316" class="s ink t" font-size="13.5">Sampled from a declared generator</text>
+<text x="336.6" y="316" class="s mut" font-size="11">earns confidence intervals, because the sampling frame is written down</text>
+<rect x="52" y="326" width="4" height="4" rx="2" fill="var(--vio)"/>
+<text x="66" y="330" class="s ink" font-size="11.2">E1-B — 52.5% [49.0, 56.1] unguarded vs 0.0% [0.0, 0.5] guarded; disjoint intervals, shared denominator</text>
+<rect x="28" y="363" width="1104" height="80" rx="9" fill="var(--accSoft)" opacity="0.5"/>
+<rect x="28" y="363" width="4" height="80" rx="2" fill="var(--acc)"/>
+<text x="48" y="387" class="s ink t" font-size="13.5">Census over a curated alphabet</text>
+<text x="312" y="387" class="s mut" font-size="11">exact counts, no intervals — a census is not a sample and may not pretend to be one</text>
+<rect x="52" y="397" width="4" height="4" rx="2" fill="var(--acc)"/>
+<text x="66" y="401" class="s ink" font-size="11.2">E1 — 31 classes × 5 pipelines · E3 — 26/26 verifier-intrinsic · E4 — tautology verdict PASS</text>
+<rect x="52" y="414" width="4" height="4" rx="2" fill="var(--acc)"/>
+<text x="66" y="418" class="s ink" font-size="11.2">E5 · E6 · E7 · E10 · TLA+ baselines and mutants</text>
+<rect x="28" y="451" width="1104" height="63" rx="9" fill="var(--warnSoft)" opacity="0.5"/>
+<rect x="28" y="451" width="4" height="63" rx="2" fill="var(--warn)"/>
+<text x="48" y="475" class="s ink t" font-size="13.5">Local-only and synth-only</text>
+<text x="271" y="475" class="s mut" font-size="11">the machinery runs; the cloud behaviour it models is unobserved</text>
+<rect x="52" y="485" width="4" height="4" rx="2" fill="var(--warn)"/>
+<text x="66" y="489" class="s ink" font-size="11.2">The entire AWS evidence plane. CDK synthesis creates no infrastructure and proves no runtime behaviour.</text>
+<rect x="28" y="522" width="1104" height="97" rx="9" fill="var(--dngrSoft)" opacity="0.5"/>
+<rect x="28" y="522" width="4" height="97" rx="2" fill="var(--dngr)"/>
+<text x="48" y="546" class="s ink t" font-size="13.5">Not established</text>
+<text x="189" y="546" class="s mut" font-size="11">stated here rather than left for a reviewer to discover</text>
+<rect x="52" y="556" width="4" height="4" rx="2" fill="var(--dngr)"/>
+<text x="66" y="560" class="s ink" font-size="11.2">No named consumer has been shown to distinguish any pair — the largest open weakness</text>
+<rect x="52" y="573" width="4" height="4" rx="2" fill="var(--dngr)"/>
+<text x="66" y="577" class="s ink" font-size="11.2">No independently AUTHORED verifier: E14 replaced the cryptography, not the rule sequencing</text>
+<rect x="52" y="590" width="4" height="4" rx="2" fill="var(--dngr)"/>
+<text x="66" y="594" class="s ink" font-size="11.2">No live AWS evidence bundle · no second real-traffic population (E15: frame reachable, eligibility 0/40)</text>
+<line x1="28" y1="635" x2="1132" y2="635" stroke="var(--line)" stroke-width="1" opacity="0.6"/>
+  <text x="28" y="657" class="m faint" font-size="10.5">docs/artifact/CI_COVERAGE.md · docs/artifact/STATUS_AND_LIMITATIONS.md · docs/research/EXPERIMENTS.md</text>
+</svg>
