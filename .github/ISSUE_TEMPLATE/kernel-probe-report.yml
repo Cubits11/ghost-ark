@@ -1,0 +1,71 @@
+name: External kernel-probe report
+description: Share a reproducible, authorized kernel-probe result for review.
+title: "[kernel-probe]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for independently exercising the probe. A report is evidence about the command and environment you describe; it does not by itself establish safety, correctness, prevalence, or a defect in any named system.
+
+        Do not include credentials, personal data, private production inputs, or results from a system you are not authorized to test. If the result may be security-sensitive, use the repository's security reporting path instead of a public issue.
+  - type: input
+    id: probe-version
+    attributes:
+      label: Probe version or commit
+      description: The npm version, release tag, or Git commit used for the run.
+      placeholder: "@ghost-ark/kernel-probe 0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where did you run the probe?
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other (describe below)
+    validations:
+      required: true
+  - type: dropdown
+    id: authorization
+    attributes:
+      label: Authorization for the tested target
+      options:
+        - I own the target or have explicit authorization to test it.
+        - I ran a local demonstration or public example.
+        - Another authorized context (describe below).
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command
+      description: Include the complete kernel-probe command and canonicalizer command. Redact only secrets; explain any redaction.
+      placeholder: "kernel-probe --command \"jq -S -c .\""
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Verbatim output
+      description: Paste the complete output, including the alphabet hash and verdict counts. Do not include confidential inputs or credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: interpretation
+    attributes:
+      label: Target context and interpretation
+      description: Describe the canonicalizer's intended consumers, relevant version/configuration, and why you believe the declared intent does or does not apply.
+    validations:
+      required: true
+  - type: checkboxes
+    id: disclosure-safety
+    attributes:
+      label: Safe public disclosure
+      options:
+        - label: I confirm this report contains no credentials, personal data, private production inputs, or unauthorized test results.
+          required: true
+        - label: I understand that a public report is not a security advisory, endorsement, or proof of a production-system defect.
+          required: true

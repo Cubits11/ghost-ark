@@ -41,6 +41,10 @@ target/
 # Service account credentials
 secrets/
 *.pem
+# These generated conformance fixtures are public keys only. Their public-key
+# form is checked by tests/unit/repo-hygiene/unbuiltPrototypes.test.ts.
+!tools/receipt-conformance/fixtures/keys/kms-style-public-key.pem
+!tools/receipt-conformance/fixtures/keys/pss-digest-mode-public-key.pem
 *.p12
 
 # gcloud configuration

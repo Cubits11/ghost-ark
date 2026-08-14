@@ -228,3 +228,12 @@ describe("public interface: the entry points a reader needs", () => {
     expect(readme).toMatch(/What this is not|Not a proof/u);
   });
 });
+
+describe("public interface: current institutional record", () => {
+  it("records the current repository without replaying transfer-local operational detail", () => {
+    const publicInterface = read("docs/artifact/PUBLIC_INTERFACE.md");
+    expect(publicInterface).toContain("PSUCyberSecurityLab/ghost-ark");
+    expect(publicInterface).not.toContain("Cubits11/ghost-ark");
+    expect(publicInterface).not.toMatch(/backup\/|--mirror|\.env\.example/iu);
+  });
+});

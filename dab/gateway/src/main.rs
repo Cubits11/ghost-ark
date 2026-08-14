@@ -53,9 +53,9 @@ const MAX_REQUEST_BYTES: usize = 1024 * 1024;
 
 const PROTOCOL_VERSION: &str = "DAB-TIER0-V1";
 
-// NonceLedger is now nonce::NonceLedger (Arc<ReplayLedger> over a lock-free
-// sharded DashSet), imported above. The verified tombstone model governs replay
-// protection; see nonce.rs.
+// NonceLedger is now nonce::NonceLedger (Arc<ReplayLedger> with sharded storage
+// and an atomic admission/tombstone transition), imported above. The verified
+// tombstone model governs replay protection; see nonce.rs.
 
 // `version`, `payload_encoding`, and `issued_at` are received as part of the
 // agent's wire schema and recorded, but the Tier-0 gateway does not branch on
@@ -236,10 +236,10 @@ fn handle_client(mut stream: UnixStream, ledger: NonceLedger, signer: StdArc<Gat
         // ConsumeNonce discipline of the TLA+ model. Transaction id is the
         // nonce (Tier-0 is 1:1); the commitment binds the nonce to c_i to
         // block nonce/commitment swaps.
-        // Lock-free: the ledger is Arc<ReplayLedger> over a sharded DashSet;
-        // consume() takes &self, so no external Mutex guard is needed. The
-        // NoReplays discipline is unchanged — consume() still rejects a nonce in
-        // the active ledger OR the spent tombstone set.
+        // The ledger owns the narrow transition mutex required to make the
+        // check-and-commit sequence atomic across its active and spent maps; callers
+        // need no external guard. The NoReplays discipline is unchanged: consume()
+        // rejects a nonce in the active ledger OR the spent tombstone set.
         let accepted = ledger.consume(
             request.nonce.clone(),
             request.nonce.clone(),
