@@ -1,7 +1,7 @@
 //! Ghost-Ark TCB Concurrent Stress Test
 //!
 //! This bypasses the Node.js FFI boundary to measure the true hardware limits,
-//! concurrent-admission contention (lock-free sharded DashSet ledger), and real
+//! concurrent-admission contention (sharded ledger with serialized nonce transitions), and real
 //! ed25519 cryptographic overhead of the Rust Gateway. Unlike the in-process
 //! TypeScript micro-benchmark (dab/bench/performance.ts), which times a SHA-256
 //! commitment-digest cycle single-threaded, this measures wall-clock throughput
@@ -63,8 +63,8 @@ fn main() {
                 let commitment = format!("c_i-{t}-{i}");
                 let timestamp = "1710000000"; // fixed: latency of signing, not clock reads
 
-                // Lock-free admission: consume() takes &self on the sharded
-                // DashSet ledger; there is no global mutex to serialize on.
+                // Admission is atomic across the active and spent maps. Storage is
+                // sharded, while the short nonce transition itself is serialized.
                 if ledger_clone.consume(nonce.clone(), tx_id, commitment.clone()) {
                     // Real ed25519 signature over the canonical receipt message.
                     let _sig = signer_clone.sign_fields(

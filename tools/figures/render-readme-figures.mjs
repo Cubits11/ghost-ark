@@ -693,7 +693,7 @@ function figLadder() {
       s: "stated here rather than left for a reviewer to discover",
       tone: "dngr",
       items: [
-        "No named consumer has been shown to distinguish any pair — the largest open weakness",
+        "E16 — named, version-pinned consumers do distinguish a collapsed pair; this is existence evidence, not an incidence estimate",
         "No independently AUTHORED verifier: E14 replaced the cryptography, not the rule sequencing",
         "No live AWS evidence bundle · no second real-traffic population (E15: frame reachable, eligibility 0/40)"
       ]

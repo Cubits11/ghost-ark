@@ -9,9 +9,9 @@ This document formally records the empirical performance and concurrency bounds 
 **Scope:** `dab/` workspace Rust native runtime. 
 **Evidence:** The benchmark `step1_mvcc_concurrency_benchmark` in `dab/gateway/src/phase1.rs`.
 **Verification command:** `cd dab/gateway && cargo test --release step1_mvcc_concurrency_benchmark -- --nocapture`
-**Assumptions:** Lock-free structures or standard library `RwLock` primitives correctly isolate state across native OS threads.
+**Assumptions:** Sharded maps and the nonce ledger's narrow transition mutex correctly isolate state across native OS threads.
 **Non-claims:** This does not prove full distributed multi-node transactional consensus, only local concurrent in-memory synchronization.
-**Known gaps:** Currently benchmarks lock-free state maps against high-contention keys, but network I/O serialization is not factored into this specific microbenchmark.
+**Known gaps:** The benchmark does not establish end-to-end gateway throughput. In particular, it does not measure socket/network I/O or the serialized nonce-admission transition.
 **Last validated:** 2026-07-17
 
 ## Claim 2: Simulated Cryptographic Tax Throughput

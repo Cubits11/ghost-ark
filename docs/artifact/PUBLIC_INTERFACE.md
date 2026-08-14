@@ -7,13 +7,11 @@ is: not a working directory made visible, but an artifact an institution's name
 is attached to. This page states what belongs on the public surface, what does
 not, and which of those rules are enforced by tests rather than by intention.
 
-**Status of that sentence, stated precisely.** At the time of writing the remote
-is still `Cubits11/ghost-ark`, a personal account. Everything below describes the
-rules the repository is held to *in preparation for* the move, and every one of
-them is enforced now. The move itself has an unusual property worth naming: an
-account boundary is not a code change, so nothing in this repository's own CI
-could have told it that a job was about to break. One did — see "Before the
-move".
+**Current posture.** This repository is published at
+`PSUCyberSecurityLab/ghost-ark`. Repository-level controls are enforced here;
+organisation access, workflow-permission configuration, release authority, and
+ownership decisions remain external facts that must be verified in GitHub and
+through the appropriate institutional process.
 
 ## The five things a reader must be able to reach
 
@@ -81,8 +79,7 @@ was never made.
 **Academic work product stays, tiered.** Dissertation chapters, defence
 preparation, and validation audits are research artifacts. They are indexed in
 [RESEARCH_INDEX.json](../research/RESEARCH_INDEX.json) with an explicit tier so a
-reader can tell a core result from an exploratory draft. Seven of forty documents
-are core.
+reader can tell a core result from an exploratory draft.
 
 ## Register
 
@@ -97,105 +94,31 @@ not measured. Tables and prose only.
 Numbers carry their denominators, their host, and their provenance. A proportion
 without a denominator is not reportable here, and neither is a grade.
 
-## Before the move
+## Institutional transition boundary
 
-Findings from the 2026-08-06 pre-migration audit. Each was verified by running
-something, and each is stated with what was actually checked.
+This document describes the current public artifact, not the operational history
+of its transfer. Branch names, local scan output, credential-like identifiers,
+migration commands, personal contact details, and pre-transfer account URLs are
+not public-interface documentation. They are deliberately excluded: publishing
+them would not make the research more reproducible or the current release more
+secure.
 
-**Push `main` explicitly. Never `--all`, never `--mirror`.** Six local branches
-are not on `origin`, and one of them — `backup/pre-empirical-audit-d61062a` —
-contains commit `47d3c55`, which adds a `.env.example` holding a real-format
-Google `GEMINI_API_KEY` (53 characters, `AQ.`-prefixed). It is **not** reachable
-from `main` and **not** on `origin`, so it is not public. A mirror push publishes
-it in one step, under an institutional name, with the author's attribution on the
-commit.
+**What repository checks can establish.** The tracked tree can enforce public
+surface hygiene, declared claim boundaries, deterministic artifacts, and the
+presence of a security-reporting route. The relevant checks are named in
+[CI_COVERAGE.md](./CI_COVERAGE.md) and [SECURITY.md](../../SECURITY.md).
 
-```
-git push <psu-remote> main          # transfers only the verified history
-git push <psu-remote> --all         # DO NOT: carries the branch above
-```
+**What repository checks cannot establish.** A file cannot prove that a GitHub
+team has the right access, that branch review is enforced, that organisation-level
+Actions settings permit every workflow, or that a person is authorised to release
+or license the work. Those matters require an administrator or institutional
+decision; they must not be inferred from a green local test.
 
-Measured with gitleaks 8.30.1 on 2026-08-06: `main` returns **0 findings** over
-its full history; all refs together return **1**, and that one is the branch
-above. The `gitleaks` CI job now scans full history on every push, so this is
-guarded going forward rather than remembered.
-
-**The 19 dependabot branches on `origin` must be deleted before the repository
-moves, not after.** They fork from the pre-rewrite history, so each one carries
-**1,547 build-artifact blobs — the full 633 MB** that was purged from `main` on
-2026-08-06 (see below). A transfer moves every server-side ref, so leaving them
-in place re-imports the bloat into the lab organisation and makes the purge
-cosmetic. They are also already broken: their base commits no longer exist after
-the history rewrite, and Dependabot regenerates them against the new `main`
-within a day.
-
-**History rewritten 2026-08-06, before the move rather than after.** All 230
-commits are preserved and the working tree is byte-identical — `main`'s tree hash
-was `1d0aad7…` before and after both passes. What changed is metadata and dead
-weight:
-
-| | Before | After |
-|:--|:--|:--|
-| Author identities | 2 (one a personal free-mail address) | 1, the maintainer's GitHub no-reply |
-| Commit messages naming an assistant tool | 12 | 0 |
-| Build-artifact blobs in history | 1,300 (**633.8 MB of 648.9 MB — 97.7%**) | 0 |
-| Push payload | 141 MB, and it failed on a broken pipe | 2.5 MB |
-
-The build artifacts were `dab/gateway/target/` and `dab/verifier/target/`,
-committed once and untracked later; `**/target/` has been in `.gitignore` since,
-and nothing under it is tracked today. Untracking a directory does not remove its
-blobs from history, which is why a repository whose largest tracked file is a
-0.28 MB lockfile was still shipping a 51 MB compiled binary to every cloner.
-`tests/unit/repo-hygiene` already forbids tracked build output in the working
-tree; it cannot see history, so this was invisible to it.
-
-**Rotate that key regardless of what is pushed.** It sat in a working tree and in
-local history; treat it as disclosed. Rotation is not something this repository
-can verify, so it is listed here rather than claimed anywhere.
-
-**The secret scanner had to be replaced to survive the move.**
-`gitleaks/gitleaks-action@v2` requires a licence key for repositories owned by an
-organisation and none for a personal account. It ran green here for months and
-would have failed on the first push under the organisation — a licensing error on
-the one job whose silence is most expensive. It is now the pinned CLI, which has
-no such condition. The general lesson is in
-[CI_COVERAGE.md](./CI_COVERAGE.md): a CI result measured under one account type
-is not evidence about another.
-
-**Three things still name the personal account and must be re-pointed after the
-move**, none of which any test can decide for you:
-
-| What | Where |
-|:--|:---|
-| `repository-code` | [CITATION.cff](../../CITATION.cff) |
-| `curl` install line for `kernel-probe` | [README.md](../../README.md), [KERNEL_PROBE.md](../research/KERNEL_PROBE.md), `tools/kernel-probe/` |
-| Every owner entry (`@Cubits11`) | [.github/CODEOWNERS](../../.github/CODEOWNERS) |
-
-CODEOWNERS is the one with a silent failure mode: GitHub ignores an owner who
-lacks write access to the repository, and it does not report an error for it. If
-the account is not carried into the organisation with write access, every review
-requirement in that file stops applying and the file still looks correct. Verify
-by opening a pull request that touches `packages/enforcement-runtime/src/receipts/`
-and confirming a reviewer is actually requested.
-
-**Two organisation settings decide whether CI runs at all**, and neither is
-visible from inside the repository:
-
-- *Actions permissions.* An organisation set to "allow actions created by GitHub
-  and select non-GitHub actions" blocks every third-party action here —
-  `dtolnay/rust-toolchain`, `Swatinem/rust-cache`, `hashicorp/setup-terraform`,
-  `aws-actions/configure-aws-credentials`, `sigstore/cosign-installer`,
-  `anchore/sbom-action`. Every one is now pinned to a commit SHA, which is the
-  form an allowlist can be written against; supply the list above to whoever
-  administers the organisation.
-- *Default workflow token permissions.* Every workflow here declares its own
-  `permissions:` block, so a restrictive organisation default is safe. Nothing
-  relies on the inherited default being permissive.
-
-**The manuscript's correspondence address is a placeholder.**
-`docs/paper/main.tex` previously carried a personal free-mail address; it now
-points at the repository. Substitute the institutional address before any
-submission or preprint.
+**Institutional representation stays bounded.** The repository may identify its
+research affiliation, but it does not claim university endorsement of a release,
+commercial product, security property, or paper. Any use of institutional marks,
+ownership assertion, or release authority needs the appropriate approval outside
+this repository.
 
 ## Contact
 

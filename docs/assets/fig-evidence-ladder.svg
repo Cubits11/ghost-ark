@@ -67,7 +67,7 @@
 <text x="48" y="546" class="s ink t" font-size="13.5">Not established</text>
 <text x="189" y="546" class="s mut" font-size="11">stated here rather than left for a reviewer to discover</text>
 <rect x="52" y="556" width="4" height="4" rx="2" fill="var(--dngr)"/>
-<text x="66" y="560" class="s ink" font-size="11.2">No named consumer has been shown to distinguish any pair — the largest open weakness</text>
+<text x="66" y="560" class="s ink" font-size="11.2">E16 — named, version-pinned consumers do distinguish a collapsed pair; this is existence evidence, not an incidence estimate</text>
 <rect x="52" y="573" width="4" height="4" rx="2" fill="var(--dngr)"/>
 <text x="66" y="577" class="s ink" font-size="11.2">No independently AUTHORED verifier: E14 replaced the cryptography, not the rule sequencing</text>
 <rect x="52" y="590" width="4" height="4" rx="2" fill="var(--dngr)"/>

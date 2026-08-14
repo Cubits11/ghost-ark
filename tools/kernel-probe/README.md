@@ -189,6 +189,16 @@ universal across `serde_json`, Ruby, CPython, and jq. The 2^53 integer collapse
 is **not** universal — it is an artifact of double-backed number models, which
 narrowed the original claim.
 
+## Share an independently reproduced result
+
+Use the [external kernel-probe report form](https://github.com/PSUCyberSecurityLab/ghost-ark/issues/new?template=kernel-probe-report.yml)
+to make a result reviewable: include the exact command, complete output,
+version/configuration, and the consumer intent you applied. Do not include
+credentials, personal data, private production inputs, or results from systems
+you are not authorized to test. A public report records one bounded,
+reproducible observation; it is not a security advisory, endorsement, or proof
+of a production-system defect.
+
 ## For maintainers of this repository
 
 `kernel-probe.mjs` is **generated**. Do not edit it.

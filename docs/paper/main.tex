@@ -984,16 +984,15 @@ host, unmeasured I/O excluded'' is.
 \emph{TypeScript} receipt verification, single-threaded on one host; it
 reports latency, not throughput, and is not a load test. We therefore also
 measure the
-Rust TCB directly under concurrency: 64 threads driving the lock-free sharded
-replay ledger, each admitted transaction paying for a real ed25519 signature,
-sustain \stressops{} admissions{+}signatures/s within ledger capacity
-(96{,}000/96{,}000 admitted), and the fail-closed rejection path at capacity
-sustains $\approx\stressrejm{}\times10^{6}$ rejections/s, on the same M1
-(recorded run committed to the artifact). The harness is two-sided: every
-in-capacity op must admit and every at-capacity op must refuse, or the run
-exits non-zero. This is the in-process ceiling of the TCB itself --- it
-excludes the Unix-socket transport and all network I/O, and it is not a
-deployed-load claim (\S\ref{sec:nonclaims}).
+Rust TCB directly under concurrency. A prior throughput run was taken against a
+lock-free replay-admission implementation. The current implementation instead
+serializes the short active-to-spent nonce transition so its check-and-commit
+semantics match the replay invariant; the prior throughput figures are therefore
+not carried forward as a claim about the current code. The harness remains
+two-sided: every in-capacity operation must admit and every at-capacity operation
+must refuse, or the run exits non-zero. A current throughput result requires a
+fresh recorded run and still excludes Unix-socket transport and all network I/O;
+it would not be a deployed-load claim (\S\ref{sec:nonclaims}).
 
 \subsection{A disclosed harness bug}
 \label{sec:eval-bug}

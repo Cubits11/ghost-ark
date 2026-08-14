@@ -3,13 +3,14 @@
 //! Security responsibility:
 //! 1. Prevent replay of previously certified actions.
 //! 2. Prevent nonce reuse across transactions.
-//! 3. Maintain O(1) concurrent execution under heavy cryptographic load.
+//! 3. Maintain O(1) replay-state transitions under heavy cryptographic load.
 //!
 //! Architecture:
-//! Utilizes a sharded `DashMap` to eliminate global lock contention on the hot path.
-//! O(N) garbage collection is completely decoupled from the commit predicate and
-//! relegated to an asynchronous background OS thread. Hardware-level `AtomicUsize`
-//! counters track capacity bounds to prevent cross-shard cache-coherency storms.
+//! Uses sharded maps for storage and a narrow transition mutex for the one operation
+//! that must be atomic: checking both nonce sets and either admitting or tombstoning
+//! a nonce. O(N) garbage-collection scans remain outside that mutex; only each
+//! active-to-spent handoff is serialized with admission. Hardware-level `AtomicUsize`
+//! counters track capacity bounds.
 
 #![allow(dead_code)]
 #![allow(clippy::empty_line_after_doc_comments)]
@@ -17,7 +18,7 @@
 
 use dashmap::{DashMap, DashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const NONCE_TTL_SECONDS: u64 = 3600;
@@ -39,6 +40,9 @@ pub struct ReplayLedger {
     entries: DashMap<String, NonceRecord>,
     spent: DashSet<String>,
     active_count: AtomicUsize,
+    /// Serializes admission with the active-to-spent handoff. Separate sharded maps
+    /// cannot make a cross-map check-and-insert atomic on their own.
+    transition_lock: Mutex<()>,
     max_spent: usize,
     ttl_seconds: u64,
 }
@@ -69,14 +73,22 @@ impl ReplayLedger {
             entries: DashMap::new(),
             spent: DashSet::new(),
             active_count: AtomicUsize::new(0),
+            transition_lock: Mutex::new(()),
             max_spent,
             ttl_seconds,
         }
     }
 
-    /// O(1) concurrent commit path.
-    /// Explicitly devoid of garbage collection or global mutexes.
+    /// O(1) admission path. The transition mutex deliberately covers only the
+    /// check-and-commit sequence; it prevents a replay admission from interleaving
+    /// with a garbage collector moving the same nonce to `spent`.
     pub fn consume(&self, nonce: String, transaction_id: String, commitment: String) -> bool {
+        // A poisoned transition lock is a failure of the integrity boundary. Reject
+        // rather than continuing with an unknown cross-map state.
+        let Ok(_transition) = self.transition_lock.lock() else {
+            return false;
+        };
+
         // 1. O(1) Tombstone Rejection (Post-TTL Replay)
         if self.spent.contains(&nonce) {
             return false;
@@ -136,9 +148,15 @@ impl ReplayLedger {
             }
         }
 
-        // 2. Insert into spent tombstones BEFORE removing from active entries to eliminate interleaving race
+        // 2. Insert into spent tombstones before removing active entries. The narrow
+        // transition lock also keeps an admission from checking both maps in between.
         let mut archived_count = 0;
         for nonce in to_archive {
+            let Ok(_transition) = self.transition_lock.lock() else {
+                // Stop collection on an integrity-boundary failure. Leaving active
+                // entries in place is fail-closed for replay admission.
+                return;
+            };
             self.spent.insert(nonce.clone());
             if self.entries.remove(&nonce).is_some() {
                 archived_count += 1;
@@ -248,14 +266,15 @@ mod tests {
     }
 
     #[test]
-    fn test_gc_interleaving_window_reproduction() {
+    fn unlocked_gc_order_would_allow_reconsumption() {
         let ledger = ReplayLedger::new();
         let nonce = "n_gc_race".to_string();
 
         // 1. Initial consume
         assert!(ledger.consume(nonce.clone(), "tx1".into(), "c1".into()));
 
-        // 2. Simulate step 1 of GC: removal from entries before tombstone insertion
+        // 2. Deliberately bypass the transition lock to model the old unsafe GC
+        // ordering: removal from entries before tombstone insertion.
         let removed = ledger.entries.remove(&nonce);
         assert!(removed.is_some());
 
@@ -265,13 +284,30 @@ mod tests {
         // 4. Step 2 of GC: tombstone insertion executes post-consume
         ledger.spent.insert(nonce.clone());
 
-        // Document: re_consumed succeeds during the un-guarded removal window
+        // This direct mutation is a mutant, not a production path: it shows why the
+        // implementation must serialize consume() with the tombstone handoff.
         assert!(
             re_consumed,
             "Interleaving window allows re-consumption before tombstone insert"
         );
         // Document: entry now exists in both entries and spent
         assert!(ledger.exists(&nonce));
+    }
+
+    #[test]
+    fn garbage_collected_nonce_remains_rejected() {
+        let ledger = ReplayLedger::with_config(500_000, 0);
+        let nonce = "n_archived".to_string();
+
+        assert!(ledger.consume(nonce.clone(), "tx1".into(), "c1".into()));
+        ledger.run_garbage_collection();
+
+        assert!(ledger.spent.contains(&nonce));
+        assert!(!ledger.entries.contains_key(&nonce));
+        assert!(
+            !ledger.consume(nonce, "tx2".into(), "c2".into()),
+            "a nonce moved to spent must remain rejected"
+        );
     }
 
     #[test]

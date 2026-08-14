@@ -2,7 +2,7 @@
 
 # Ghost-Ark
 
-**A provenance-kernel verifier for AI governance receipts.**
+**A verifier and measurement harness for the provenance limits of AI-governance receipts.**
 
 *A research artifact of the [S2 Lab](https://s2.ist.psu.edu/), College of Information
 Sciences and Technology, The Pennsylvania State University.*
@@ -15,6 +15,8 @@ Sciences and Technology, The Pennsylvania State University.*
 [![Claim gate](https://img.shields.io/badge/claim%20gate-enforced%20in%20CI-4f46e5)](./docs/compliance/non-claims.md)
 
 </div>
+
+![A conceptual rendering of one receipt identity leading to different consumer decisions](docs/assets/ghost-ark-hero.jpg)
 
 ---
 
@@ -90,7 +92,7 @@ rather than asserts:
 | | Corollary | Where it is measured |
 |:--|:---|:---|
 | **C1** | The kernel is a property of the whole `parse → canonicalize → digest` pipeline, not of the canonicalizer. Distinctions are commonly destroyed by the **parser**, before any audited code runs. | E1, E7, E11 |
-| **C2** | Real, currently-shipping canonicalizers — including Ghost-Ark's own — contain unintended kernel members that a declared consumer distinguishes. | E1, E11 |
+| **C2** | Real, currently-shipping canonicalizers — including Ghost-Ark's own — contain unintended kernel members that named, deployed consumers distinguish under E16's recorded policy. | E1, E11, E16 |
 
 Formal statement, including why the relation is *ternary* rather than binary:
 [PROVENANCE_KERNEL_PROBLEM.md](./docs/research/PROVENANCE_KERNEL_PROBLEM.md).
@@ -165,7 +167,7 @@ it — which is supply-chain custody, and is not evidence about the tool's concl
 
 ## 3. The evidence atlas
 
-Thirteen experiments. Every one carries a declared **provenance** — `census` (exact counts,
+Fifteen experiments and one declared frame probe. Every experiment carries a declared **provenance** — `census` (exact counts,
 no intervals) or `sampled` (a declared frame, so intervals are legitimate) — because the
 single most common inferential error in this literature is quoting a census as if it were a
 sample.
@@ -187,6 +189,7 @@ sample.
 | **E13** | Kernel composition | census | The kernel is **not compositional**, in both directions. An upstream normalization can disable a downstream fail-closed refusal — demonstrated with real `jq` and CPython | `npm run experiment:e13` |
 | **E14** | Verifier over third-party primitives | census | Re-runs the verification rules with canonical JSON and base64 by CPython and SHA-256/HMAC/RSASSA-PSS by **OpenSSL** — no Ghost-Ark code in the security path. **31/31 decisions agree; 3/3 committed canonical identities reproduced.** Narrows the shared-misreading gap; does not close it | `npm run experiment:e14` |
 | **E15** | npm sampling-frame probe | *probe, not an experiment* | Whether a second real-traffic population is reachable. A defensible frame **is** reachable over 4,283,913 packages; the binding constraint is eligibility — **0 of 40** drawn packages carry a provenance attestation. Specified and costed, not run | `npm run experiment:e15-frame-probe` |
+| **E16** | Named consumer distinguishability | census | Four named, version-pinned consumer engines reach different decisions on documents mapping to one receipt identity; the equivalent-pair discriminator holds. **Existence, not prevalence.** | `npm run experiment:e16` |
 
 Measured numbers, findings, coverage boundaries, and a written list of **eleven retracted
 prior claims**: [EXPERIMENTS.md](./docs/research/EXPERIMENTS.md). Retractions are listed
@@ -291,11 +294,11 @@ moves narrowed it — independence (E11), breadth (the alphabet grew from 12 to 
 widening it found *more* defects rather than diluting the finding), and a genuinely sampled
 arm (E1-B) — and then a fourth measured it and confirmed it.
 
-**What replaced it as the largest open weakness is narrower and sharper: no consumer has been
-named and shown to distinguish any pair.** Every `distinct` intent in this work is a declared
-consumer model, never an observed one. Demonstrating that a real policy engine — Kyverno,
-OPA, in-toto verification, a cosign policy — actually distinguishes one of these pairs is the
-single measurement that would convert the work from structural to consequential.
+**E16 then closed the next, narrower gap: a named consumer had not been shown to distinguish
+any pair.** OPA/Rego, CUE, jq, and CPython each reached different decisions under E16's
+recorded policy on a pair the receipt canonicalizer maps to one identity. That converts the
+result from structural to consequential, but only as an existence result: E12's zero findings
+in its real-traffic sample still leave incidence unmeasured.
 
 ### The composition result, which is the sharpest thing here
 
@@ -339,7 +342,10 @@ that exists is by rejection, and the largest group is a raw-byte admission gate 
 
 Stated here, ahead of the results, rather than left for a reviewer to discover.
 
-- **No named consumer has been shown to distinguish any pair.** The largest open weakness.
+- **No incidence estimate for consumer-relevant divergence.** E16 establishes that named,
+  version-pinned consumers *can* differ on a collapsed pair; E12 found 0 of 64 eligible
+  real-traffic payloads carrying any pathology class. This repository cannot say how often a
+  receipt identity produces divergent consumer outcomes in deployed traffic.
 - **No live AWS evidence bundle exists in this repository.** Every AWS-path claim is
   local-only or synth-only. CDK synthesis creates no infrastructure and demonstrates no
   runtime behaviour.
@@ -652,7 +658,7 @@ not imply deployed-environment operation.
 | Rust gateway and verifier in CI | Complete | Research | clippy `-D warnings`, `--locked`; previously unguarded entirely |
 | TLA+ specs + mutants in CI | Complete | Research | 5 baselines pass and 5 mutants must violate; `proofs/cloud/*` remain unchecked stubs |
 | Real-traffic kernel frequency | Measured, not narrowed | Research | E12 confirmed F2. The claim contracted rather than the evidence growing |
-| Named consumer that distinguishes a pair | **Not complete** | Research | The largest open weakness; would convert the work from structural to consequential |
+| Named consumer that distinguishes a pair | Measured locally | Research | E16 observes different decisions under its recorded, version-pinned policies; existence, not prevalence |
 | E14 verifier over third-party primitives | Complete locally | Research | 31/31 agreement with an arm whose cryptography is OpenSSL's and whose canonicalizer is CPython's; rule sequencing still authored here |
 | E15 npm frame probe | Probe complete | Research | Frame reachable, eligibility 0/40, run specified and costed rather than executed |
 | Claim/evidence matrix | Complete | Spine A | Versioned local documentation and claim boundaries |
