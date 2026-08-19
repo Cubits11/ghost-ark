@@ -117,7 +117,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@cyclonedx/cyclonedx-npm": "6.0.0",
+    "@cyclonedx/cyclonedx-npm": "6.0.1",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
     "@types/aws-lambda": "^8.10.152",
@@ -126,9 +126,9 @@
     "@types/react-dom": "^19.0.4",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "aws-cdk": "^2.1135.1",
+    "aws-cdk": "^2.1136.0",
     "esbuild": "^0.28.2",
-    "lockfile-lint": "5.0.0",
+    "lockfile-lint": "5.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
